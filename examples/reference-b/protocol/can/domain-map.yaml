@@ -1,0 +1,11 @@
+database: product
+bus: 1
+source: 19
+owner: 1
+decode: product_decode
+catalog_header: catalog/catalog.h
+signals:
+  drivetrain.velocity: PRODUCT_SPEED
+  drivetrain.torque: REF_TORQUE
+  power.remaining: REF_SOC
+  power.ambient: REF_AMBIENT

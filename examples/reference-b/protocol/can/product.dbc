@@ -1,0 +1,10 @@
+VERSION "reference-b-synthetic-only"
+NS_ :
+BS_:
+BU_: Bench Instrument
+BO_ 2566869505 drivetrain: 8 Bench
+ SG_ velocity : 0|16@1+ (0.1,0) [0|12] "m/s" Instrument
+ SG_ torque : 16|16@1- (0.5,0) [-100|100] "Nm" Instrument
+BO_ 2566869506 power: 8 Bench
+ SG_ remaining : 0|8@1+ (0.5,0) [0|100] "%" Instrument
+ SG_ ambient : 8|16@1+ (0.1,-40) [-40|120] "C" Instrument

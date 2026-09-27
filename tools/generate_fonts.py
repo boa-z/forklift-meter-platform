@@ -8,7 +8,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
-ROOT = Path(__file__).resolve().parents[1]
+PLATFORM = Path(__file__).resolve().parents[1]
+ROOT = PLATFORM / "products/demo"
 FONT = 'third_party/lvgl/scripts/generators/built_in_font/SourceHanSansSC-Normal.otf'
 LICENSE = 'third_party/lvgl/scripts/generators/built_in_font/font_license/SourceHanSansSC/LICENSE.txt'
 PIN = '80ca777e37a2b176770726a02e07a6fb79ef0b39'
@@ -23,17 +24,21 @@ def license_text(path):
     return path.read_bytes().replace(b'\r\n', b'\n')
 
 def main():
+    global ROOT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
+    parser.add_argument("--product-root", type=Path, default=ROOT)
     args = parser.parse_args()
-    text = ''.join((ROOT / source).read_text(encoding='utf-8') for source in
-                   ('ui/common/i18n/meter_i18n_runtime.c', 'ui/products/demo/demo_i18n.c'))
+    ROOT = args.product_root.resolve()
+    config_path = ROOT / 'assets/font-config.json'
+    config = json.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
+    text = (PLATFORM / 'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8') + (ROOT / config.get('translations', 'ui/demo_i18n.c')).read_text(encoding='utf-8')
     symbols = ''.join(sorted({c for c in text if ord(c) > 127}))
     manifest_path = ROOT / 'assets/fonts.json'
-    head = subprocess.check_output(['git', '-C', str(ROOT / 'third_party/lvgl'), 'rev-parse', 'HEAD'], text=True).strip()
+    head = subprocess.check_output(['git', '-C', str(PLATFORM / 'third_party/lvgl'), 'rev-parse', 'HEAD'], text=True).strip()
     assert head == PIN, 'Unreviewed LVGL font source revision'
-    metadata = dict(name='Meter Demo CJK', upstream='Source Han Sans SC', source=FONT,
-                    commit=PIN, source_sha256=digest(ROOT / FONT), license='OFL-1.1',
+    metadata = dict(name=config.get('name', 'Meter Demo CJK'), upstream='Source Han Sans SC', source=FONT,
+                    commit=PIN, source_sha256=digest(PLATFORM / FONT), license='OFL-1.1',
                     license_file='assets/LICENSES/SourceHanSansSC-OFL.txt',
                     converter='lv_font_conv@' + VERSION, symbols=symbols,
                     modifications='Renamed subset; ASCII and demo translations; 14/20 px, 4 bpp', files={})
@@ -41,7 +46,7 @@ def main():
         saved = json.loads(manifest_path.read_text(encoding='utf-8'))
         metadata['files'] = saved['files']
         assert metadata == saved, 'Font source or translations changed; regenerate fonts'
-        assert license_text(ROOT / metadata['license_file']) == license_text(ROOT / LICENSE)
+        assert license_text(ROOT / metadata['license_file']) == license_text(PLATFORM / LICENSE)
         for name, sha in saved['files'].items():
             assert digest(ROOT / name) == sha, 'Generated font hash mismatch: ' + name
         assert len(saved['files']) == 2
@@ -51,9 +56,9 @@ def main():
     if not npm:
         raise SystemExit('Node.js/npm required only to regenerate fonts')
     for size in (14, 20):
-        filename = f'generated/meter_demo_cjk_{size}.c'
+        filename = f"generated/{config.get('prefix', 'meter_demo_cjk')}_{size}.c"
         subprocess.run([npm, 'exec', '--yes', '--package=lv_font_conv@' + VERSION, '--',
-                        'lv_font_conv', '--font', FONT, '--size', str(size), '--bpp', '4',
+                        'lv_font_conv', '--font', str(PLATFORM / FONT), '--size', str(size), '--bpp', '4',
                         '--format', 'lvgl', '--no-compress', '--no-prefilter',
                         '--range', '0x20-0x7e', '--symbols', symbols, '--output', filename],
                        cwd=ROOT, check=True)
@@ -61,7 +66,8 @@ def main():
         out = ROOT / filename
         out.write_text(out.read_text(encoding='utf-8'), encoding='utf-8', newline='\n')
         metadata['files'][filename] = digest(out)
-    shutil.copyfile(ROOT / LICENSE, ROOT / metadata['license_file'])
+    (ROOT / metadata['license_file']).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(PLATFORM / LICENSE, ROOT / metadata['license_file'])
     manifest_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8', newline='\n')
 
 if __name__ == '__main__':

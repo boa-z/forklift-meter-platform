@@ -1,0 +1,6 @@
+VERSION "synthetic-template"
+NS_ :
+BS_:
+BU_: Source Meter
+BO_ 512 telemetry: 8 Source
+ SG_ speed : 0|16@1+ (0.1,0) [0|20] "m/s" Meter

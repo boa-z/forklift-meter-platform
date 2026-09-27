@@ -1,0 +1,12 @@
+drive.velocity:
+  value: 6.5
+  state: valid
+drive.torque:
+  value: -15
+  state: valid
+battery.remaining:
+  value: 82
+  state: valid
+environment.temperature:
+  value: 23
+  state: valid

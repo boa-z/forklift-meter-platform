@@ -6,13 +6,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
-      - name: Install host dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++ python3
       - uses: actions/setup-python@v5
         with: { python-version: '3.13' }
-      - run: python -m pip install -r tools/protocol/requirements.txt
-      - name: Build and test
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++
+          python -m pip install -r tools/protocol/requirements.txt
+      - name: Build and test Demo
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
           ctest --test-dir build --output-on-failure
+      - name: Build and test Reference-B
+        run: |
+          cmake -S . -B build-reference -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=examples/reference-b
+          cmake --build build-reference
+          ctest --test-dir build-reference --output-on-failure

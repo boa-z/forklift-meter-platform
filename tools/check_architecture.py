@@ -10,7 +10,7 @@ RULES = {
     'runtime': ('contracts/', 'runtime/', 'protocols/common/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
     # 产品协议解析的是产品身份，而这些身份现在位于自动生成的目录中，不再放在公共域头文件里。
-    'protocols/demo': ('contracts/', 'protocols/common/', 'protocols/demo/', 'generated/'),
+    'products/demo/protocol': ('contracts/', 'protocols/common/', 'protocol/', 'generated/'),
     'ui': ('contracts/', 'ui/', 'generated/'),
 }
 errors=[]
@@ -24,7 +24,7 @@ for area, allowed in RULES.items():
                 if not candidate.is_relative_to(ROOT) or not candidate.relative_to(ROOT).as_posix().startswith(allowed):
                     errors.append(f'{file.relative_to(ROOT)} -> {include}')
             if area in ('core','contracts') and re.search(r'lvgl|rtthread|(^|/)CO_|CANopen',include,re.I): errors.append(f'{area} imports {include}')
-            if area.startswith('protocols') and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
+            if (area.startswith('protocols') or area.endswith('/protocol')) and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
             if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
 manifest=json.loads((ROOT/'cmake/sources.json').read_text())
@@ -49,7 +49,7 @@ for group in ('ui_common','ui_math'):
     for file in manifest[group]:
         if re.search(r'demo', file, re.I): errors.append(f'{group} compiles a Demo source: {file}')
 # 产品身份属于产品词汇表。共享控件一旦写死某个身份，就等于替之后所有产品决定了它的含义。
-identities=re.findall(r'^\s+([A-Z][A-Z0-9_]+)\s*=\s*\d+,', (ROOT/'generated/demo_catalog.h').read_text(encoding='utf-8'), re.M)
+identities=re.findall(r'^\s+([A-Z][A-Z0-9_]+)\s*=\s*\d+,', (ROOT/'products/demo/generated/demo_catalog.h').read_text(encoding='utf-8'), re.M)
 for file in (ROOT/'ui/common').rglob('*'):
     if file.suffix not in ('.c','.h'): continue
     text=file.read_text(encoding='utf-8')
@@ -80,7 +80,7 @@ for area in ('ui','products','protocols','platform'):
             errors.append(f'{file.relative_to(ROOT)} indexes domain storage by identity: {match}')
 # lv_translation 会遍历所有已注册的翻译包查找标签，被重复声明的标签将按注册顺序而非设计意图命中。
 owners={}
-for file in list((ROOT/'ui/common/i18n').glob('*.c')) + list((ROOT/'ui/products').glob('*/*_i18n.c')):
+for file in list((ROOT/'ui/common/i18n').glob('*.c')) + list((ROOT/'products').glob('*/ui/*_i18n.c')):
     for block in re.findall(r'tags\[\]\s*=\s*\{(.*?)\n\};', file.read_text(encoding='utf-8'), re.S):
         for tag in re.findall(r'"([^"]+)"', block):
             if tag in owners and owners[tag] != file.name:

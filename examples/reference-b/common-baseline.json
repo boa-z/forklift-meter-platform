@@ -1,0 +1,37 @@
+{
+  "commit": "cae11dd",
+  "areas": [
+    "contracts",
+    "core",
+    "runtime",
+    "protocols/common",
+    "ui/common"
+  ],
+  "files": {
+    "contracts/meter_can_frame.h": "b57a1c8d27b0344b8a505e747e7d620a608d65843aad25a2dc9e126ed7133f45",
+    "contracts/meter_domain.h": "28b12e68e2ed326ec81bde75e902afd01280784da1b0765d71456c57347aa189",
+    "contracts/meter_product.h": "4c4d500d26b9338117582b30243c520b984ff316bcbb92f2252ec18cdc58dfeb",
+    "contracts/meter_protocol.h": "5fbd4156f3ca86c3e5538dd89ccb12b9bea2845ec289998b8b46504594a3dce5",
+    "core/meter_core.c": "6c6ef4f5c7cee1c2c6b73cb0697b9cd6044a63780f3e0f80bb9e452f696d05b9",
+    "core/meter_core.h": "55035a1967fa2bde9877111ef17cb5ffc8062cb8ed93b3aa61fb4c8801aa0bec",
+    "core/meter_settings.c": "80182ca3f3b21e10846cd0db4224d285c79280440e44b70c34308dadd4b0d031",
+    "core/meter_settings.h": "c6341f77e0a68d17e8e2296a6fbfedf30120f315102ed39fb789230f87decc30",
+    "runtime/meter_runtime.c": "efc04696dd057b7b177c96f110483a5b855ca6e75d3db63cf28b56e0600e741a",
+    "runtime/meter_runtime.h": "efd7473e163e80a4e8261ff2f7cd7147889c99757c41f9d1a3bf919e37d2714d",
+    "protocols/common/meter_frame_router.c": "0901f61ea18762dd40d329a7317aed4f63f435c2e798376b49c3fe89036d02a1",
+    "protocols/common/meter_frame_router.h": "d0c91354fef6696bdf2a2f5bc6bb480e4054776a6e61209a122cd54cfb90fb8d",
+    "ui/common/formatter/meter_format.c": "65d623ec410bff4bdec2cceb8ae15584c03236c90e12f2587fc1aff1fae13ba2",
+    "ui/common/formatter/meter_format.h": "6f98b9945d18828629cbffd5c424c4ab8227a4a0a14deccfacfc682b4e7539b2",
+    "ui/common/i18n/meter_i18n_runtime.c": "f7bb90e9a035b208f79ff908619d78319c9c81a308277048ebc7cd0a7d1398d4",
+    "ui/common/i18n/meter_i18n_runtime.h": "370b0b922c54ac6eb344d73a56bf2f356de1226288c5ae5031429e770280984d",
+    "ui/common/widgets/bar_meter/meter_linear_meter.c": "b019bea277d358e522924ac2270a7c3fc0de506be58ff1a12dedc1a545e182ae",
+    "ui/common/widgets/gauge/meter_gauge.c": "17985cab6da953c624050ad499e90bb3fc14da4fabfd5ceffd953337076735ea",
+    "ui/common/widgets/meter_widgets.h": "248563ebcd6aedeebb435c7882ca9a31d23acfd1033644b4d1a69c6aa509a81a",
+    "ui/common/widgets/needle/meter_needle.c": "b8468edc777f6cf6cf29e8c3356c1766a00ad0f2123b77d24662b512e7c0df37",
+    "ui/common/widgets/needle/meter_needle.h": "a3b02f6430cedccacc85de67a6b1063731e6d5ee1cd82fecaa59615bbe3746df",
+    "ui/common/widgets/ring_meter/meter_ring.c": "36e26b92e525e6c1e8f601359c2f1be8b75f2f83c45f89eed2556aa2d6ebb8cc",
+    "ui/common/widgets/status_indicator/meter_status.c": "99989ae16b040fd7d15922329b0b8d2bf37f27b8963c67159172a29a51005226",
+    "ui/common/widgets/value_label/meter_value_label.c": "97b180d01421291bbff0a41938d8079eb913d0653556a5a55c7e340eea5d83c0",
+    "ui/common/widgets/widget_common.c": "048c4ee4c6105edd956415f2212b08484047bc8397cd3bb0cd66e2187eff3f2c"
+  }
+}

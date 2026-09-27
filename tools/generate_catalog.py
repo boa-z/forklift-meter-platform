@@ -3,11 +3,12 @@
 import argparse
 import json
 from pathlib import Path
-ROOT = Path(__file__).resolve().parents[1]
+PLATFORM = Path(__file__).resolve().parents[1]
+ROOT = PLATFORM / "products/demo"
 PRIVATE_FIRST = 0x1000
 
 def generate():
-    data = json.loads((ROOT / "schema/demo_catalog.json").read_text(encoding="utf-8"))
+    data = json.loads((ROOT / "catalog/demo_catalog.json").read_text(encoding="utf-8"))
     for key, low, high in (("signals", 10, 20), ("parameters", 8, 15), ("monitors", 10, 20),
                            ("faults", 8, 15)):
         assert low <= len(data[key]) <= high, key
@@ -30,7 +31,7 @@ def generate():
         lines += [f"    {name} = {identity}," for name, identity in entries]
         return lines + ["};"]
     banner = ("/* 本文件由 tools/generate_catalog.py 自动生成，请勿手工修改；"
-              "数据源：schema/demo_catalog.json。 */")
+              "数据源：catalog/demo_catalog.json。 */")
     header = ([banner, "#ifndef DEMO_CATALOG_H", "#define DEMO_CATALOG_H",
                '#include "contracts/meter_domain.h"']
               + declaration([(row[1], row[0]) for row in data["signals"]])
@@ -64,7 +65,7 @@ def generate():
             (ROOT / "generated/demo_catalog.c", "\n".join(lines))]
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(); p.add_argument("--check", action="store_true"); args = p.parse_args()
+    p = argparse.ArgumentParser(); p.add_argument("--check", action="store_true"); p.add_argument("--product-root", type=Path, default=ROOT); args = p.parse_args(); ROOT = args.product_root.resolve()
     for target, output in generate():
         if args.check:
             if not target.exists() or target.read_text(encoding="utf-8") != output:
