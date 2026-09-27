@@ -1,0 +1,43 @@
+{
+  "provenance": "Original synthetic example; not derived from a vehicle",
+  "parameters": [
+    [1, "max_speed", "km/h", 5, 50, 25],
+    [2, "acceleration_ramp", "s", 1, 10, 3],
+    [3, "lift_limit", "m", 1, 6, 4.5],
+    [4, "battery_warning_level", "%", 5, 35, 20],
+    [5, "load_advisory", "kg", 100, 1500, 1000],
+    [6, "motor_temp_advisory", "C", 40, 110, 85],
+    [7, "controller_temp_advisory", "C", 40, 100, 75],
+    [8, "idle_dim_delay", "s", 10, 120, 30],
+    [9, "demo_cycle", "s", 10, 120, 40],
+    [10, "steering_limit", "deg", 10, 45, 45]
+  ],
+  "monitors": [
+    ["Vehicle speed", "km/h", "METER_SPEED"],
+    ["Battery charge", "%", "METER_SOC"],
+    ["Lift height", "m", "METER_HEIGHT"],
+    ["Load weight", "kg", "METER_LOAD"],
+    ["Steering angle", "deg", "METER_STEERING"],
+    ["Work hours", "h", "METER_WORK_HOURS"],
+    ["Battery voltage", "V", "METER_BATTERY_VOLTAGE"],
+    ["Motor temperature", "C", "METER_MOTOR_TEMP"],
+    ["Controller temperature", "C", "METER_CONTROLLER_TEMP"],
+    ["Seat occupied", "", "METER_SEAT"],
+    ["Parking brake", "", "METER_BRAKE"],
+    ["Neutral", "", "METER_NEUTRAL"],
+    ["Charging", "", "METER_CHARGING"],
+    ["Generic warning", "", "METER_WARNING"]
+  ],
+  "faults": [
+    [1, "low_charge", "Battery charge below demo threshold"],
+    [2, "overtemperature", "Motor temperature advisory"],
+    [3, "low_voltage", "Battery voltage advisory"],
+    [4, "sensor_fault", "Synthetic sensor reports an error"],
+    [5, "communication_fault", "Telemetry unavailable or stale"],
+    [6, "load_advisory", "Load above demo advisory"],
+    [7, "height_advisory", "Lift above demo advisory"],
+    [8, "controller_hot", "Controller temperature advisory"],
+    [9, "generic_warning", "Injected demonstration warning"],
+    [10, "steering_advisory", "Steering angle advisory"]
+  ]
+}

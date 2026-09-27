@@ -1,0 +1,11 @@
+{
+  "core": ["core/meter_core.c", "core/meter_settings.c"],
+  "runtime": ["runtime/meter_runtime.c"],
+  "protocol_common": ["protocols/common/meter_frame_router.c"],
+  "protocol_demo": ["protocols/demo/demo_protocol.c"],
+  "catalog": ["generated/demo_catalog.c"],
+  "ui_math": ["ui/common/formatter/meter_format.c"],
+  "ui_common": ["ui/common/widgets/widget_common.c", "ui/common/widgets/needle/meter_needle.c", "ui/common/widgets/gauge/meter_gauge.c", "ui/common/widgets/ring_meter/meter_ring.c", "ui/common/widgets/bar_meter/meter_linear_meter.c", "ui/common/widgets/status_indicator/meter_status.c", "ui/common/widgets/value_label/meter_value_label.c"],
+  "ui_demo": ["ui/products/demo/demo_ui.c", "ui/products/demo/dashboard.c", "ui/products/demo/monitor.c", "ui/products/demo/faults.c", "ui/products/demo/settings.c", "ui/products/demo/navigation.c", "generated/demo_icons.c"],
+  "product": ["products/demo/product.c", "products/demo/capabilities.c", "products/demo/protocol_profile.c", "products/demo/route_profile.c", "products/demo/ui_profile.c", "products/demo/locale_profile.c", "products/demo/resource_profile.c", "products/demo/auth_profile.c", "products/demo/domain_policy.c"]
+}

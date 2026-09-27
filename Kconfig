@@ -1,0 +1,11 @@
+menu "Forklift meter reference platform"
+choice
+    prompt "Meter product"
+    default METER_PRODUCT_DEMO
+config METER_PRODUCT_DEMO
+    bool "Reference Demo"
+endchoice
+config METER_DEMO_APP
+    bool "Enable reference instrument application"
+    default y
+endmenu
