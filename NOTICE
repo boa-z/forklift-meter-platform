@@ -8,5 +8,6 @@ This distribution includes these separately licensed dependencies:
 * Tabler outline icons, commit 0239805680a36bab4e1070529b6744924402d804, MIT.
 * Montserrat generated fonts distributed by LVGL, OFL-1.1.
 * Meter Demo CJK, renamed Source Han Sans SC subsets, Adobe, OFL-1.1; see assets/fonts.json.
+* lv_font_conv 1.5.3, LVGL project, MIT; used for checked-in font subset generation.
 
 Complete license texts and asset hashes are in assets/LICENSES and assets/manifest.json.

@@ -1,4 +1,14 @@
 #include "ui/common/widgets/meter_widgets.h"
+const meter_widget_style_t *meter_widget_style_default(void)
+{
+    static const meter_widget_style_t style = {
+        .primary = LV_COLOR_MAKE(0xf0, 0xf0, 0xf0), .track = LV_COLOR_MAKE(0x60, 0x60, 0x60),
+        .text = LV_COLOR_MAKE(0xff, 0xff, 0xff), .muted = LV_COLOR_MAKE(0xa0, 0xa0, 0xa0),
+        .warning = LV_COLOR_MAKE(0xc0, 0xc0, 0xc0), .error = LV_COLOR_MAKE(0x80, 0x80, 0x80),
+        .value_font = &lv_font_montserrat_24, .label_font = &lv_font_montserrat_12,
+    };
+    return &style;
+}
 lv_obj_t *meter_text(lv_obj_t *parent, int x, int y, const char *text, const lv_font_t *font, uint32_t color)
 {
     lv_obj_t *o = lv_label_create(parent);

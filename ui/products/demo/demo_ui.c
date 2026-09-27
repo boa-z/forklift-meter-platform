@@ -13,11 +13,7 @@ lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int w, int h)
     lv_obj_t *p = lv_obj_create(parent);
     lv_obj_set_pos(p, x, y);
     lv_obj_set_size(p, w, h);
-    lv_obj_set_style_bg_color(p, lv_color_hex(0x142a38), 0);
-    lv_obj_set_style_border_width(p, 0, 0);
-    lv_obj_set_style_radius(p, 14, 0);
-    lv_obj_set_style_pad_all(p, 0, 0);
-    lv_obj_set_scrollable(p, false);
+    demo_theme_panel(p);
     return p;
 }
 void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
@@ -34,6 +30,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     lv_obj_set_style_bg_color(u->root, lv_color_hex(0x091a25), 0);
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
+    demo_theme_panel(u->root);
     demo_text(u, u->root, 22, 15, METER_TXT_FIELD, &lv_font_montserrat_24,
                0x5de5ca);
     demo_text(u, u->root, 111, 20, METER_TXT_REFERENCE,
@@ -48,6 +45,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
         lv_obj_set_pos(u->pages[i], 0, 53);
         lv_obj_set_size(u->pages[i], 800, 372);
         lv_obj_set_scrollable(u->pages[i], false);
+        demo_theme_panel(u->pages[i]);
     }
     demo_dashboard_create(u);
     demo_monitor_create(u);

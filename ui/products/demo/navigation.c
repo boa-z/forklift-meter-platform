@@ -27,6 +27,7 @@ void demo_navigation_create(demo_ui_t *u)
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
         u->nav[i] = lv_button_create(u->root);
+        demo_theme_button(u->nav[i]);
         lv_obj_set_pos(u->nav[i], 16 + (int)i * 195, 431);
         lv_obj_set_size(u->nav[i], 183, 37);
         lv_obj_set_style_shadow_width(u->nav[i], 0, 0);

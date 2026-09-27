@@ -1,0 +1,14 @@
+{
+  "name": "forklift-meter-platform-demo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tooling dependencies for the public LVGL forklift meter demo",
+  "license": "Apache-2.0",
+  "scripts": {
+    "fonts:generate": "python tools/generate_fonts.py",
+    "fonts:check": "python tools/generate_fonts.py --check"
+  },
+  "devDependencies": {
+    "lv_font_conv": "1.5.3"
+  }
+}

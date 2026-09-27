@@ -20,6 +20,8 @@ void meter_i18n_bind_label(lv_obj_t *label, meter_text_id_t id)
 }
 void meter_i18n_apply_font(lv_obj_t *label, meter_language_t language)
 {
+    if (!label)
+        return;
     const lv_font_t *current = lv_obj_get_style_text_font(label, 0);
     bool large = current != &meter_demo_cjk_14 &&
                  (current == &meter_demo_cjk_20 || current->line_height >= 24);

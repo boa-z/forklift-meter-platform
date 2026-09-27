@@ -9,6 +9,19 @@ typedef struct meter_status meter_status_t;
 typedef struct meter_value_label meter_value_label_t;
 typedef struct
 {
+    lv_color_t primary;
+    lv_color_t track;
+    lv_color_t text;
+    lv_color_t muted;
+    lv_color_t warning;
+    lv_color_t error;
+    const lv_font_t *value_font;
+    const lv_font_t *label_font;
+} meter_widget_style_t;
+/* Neutral fallback every widget installs before a product calls set_style. */
+const meter_widget_style_t *meter_widget_style_default(void);
+typedef struct
+{
     float min, max, start_angle, end_angle;
     unsigned ticks, major_every;
     int diameter, needle_length;
@@ -17,6 +30,7 @@ typedef struct
 meter_gauge_t *meter_gauge_create(lv_obj_t *parent, int x, int y, const meter_gauge_config_t *config);
 bool meter_gauge_set_range(meter_gauge_t *g, float min, float max);
 void meter_gauge_set_unit(meter_gauge_t *g, const char *unit);
+void meter_gauge_set_style(meter_gauge_t *g, const meter_widget_style_t *style);
 void meter_gauge_set_value(meter_gauge_t *g, float value);
 void meter_gauge_set_value_animated(meter_gauge_t *g, float value, uint32_t duration_ms);
 void meter_gauge_set_state(meter_gauge_t *g, meter_value_state_t state);
@@ -27,10 +41,13 @@ bool meter_ring_set_range(meter_ring_t *r, float min, float max);
 void meter_ring_set_thresholds(meter_ring_t *r, float warning, float low);
 void meter_ring_set_value(meter_ring_t *r, float value);
 void meter_ring_set_state(meter_ring_t *r, meter_value_state_t state);
+void meter_ring_set_unit(meter_ring_t *r, const char *unit);
+void meter_ring_set_style(meter_ring_t *r, const meter_widget_style_t *style);
 meter_linear_meter_t *meter_linear_meter_create(lv_obj_t *parent, int x, int y, int width, int height,
                                                 float min, float max, const char *unit);
 void meter_linear_meter_set_value(meter_linear_meter_t *b, float value);
 void meter_linear_meter_set_state(meter_linear_meter_t *b, meter_value_state_t state);
+void meter_linear_meter_set_style(meter_linear_meter_t *b, const meter_widget_style_t *style);
 meter_status_t *meter_status_create(lv_obj_t *parent, int x, int y, const char *name,
                                     const lv_image_dsc_t *icon);
 void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state);
@@ -44,4 +61,6 @@ void meter_ring_set_language(meter_ring_t *widget, meter_language_t language);
 void meter_linear_meter_set_language(meter_linear_meter_t *widget, meter_language_t language);
 void meter_value_label_set_language(meter_value_label_t *widget, meter_language_t language);
 void meter_status_set_language(meter_status_t *widget, meter_language_t language);
+void meter_status_set_style(meter_status_t *widget, const meter_widget_style_t *style);
+void meter_value_label_set_style(meter_value_label_t *widget, const meter_widget_style_t *style);
 #endif

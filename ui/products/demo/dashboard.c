@@ -20,7 +20,7 @@ void demo_dashboard_create(demo_ui_t *u)
     lv_obj_t *load = demo_panel(page, 567, 222, 217, 80);
     demo_text(u, load, 15, 9, METER_TXT_LOAD, &lv_font_montserrat_12, 0x8ba9bb);
     u->load = meter_value_label_create(load, 15, 34, "kg");
-    u->load_arc = meter_arc_bar_create(load, 151, 20, 60, 145, 395, 5, "%");
+    u->load_arc = meter_arc_bar_create(load, 151, 20, 60, 0, 360, 5, "kg");
     lv_obj_t *strip = demo_panel(page, 16, 314, 768, 45);
     const char *names[] = {"Seat", "Brake", "Neutral", "Charge", "Warning"};
     const lv_image_dsc_t *icons[] = {&demo_icon_armchair, &demo_icon_circle_letter_p,
@@ -28,6 +28,15 @@ void demo_dashboard_create(demo_ui_t *u)
                                      &demo_icon_alert_triangle};
     for (unsigned i = 0; i < 5; ++i)
         u->status[i] = meter_status_create(strip, 13 + (int)i * 151, 9, names[i], icons[i]);
+    const meter_widget_style_t *style = demo_theme_widget_style();
+    meter_gauge_set_style(u->speed, style);
+    meter_gauge_set_style(u->steering, style);
+    meter_ring_set_style(u->soc, style);
+    meter_ring_set_style(u->load_arc, style);
+    meter_linear_meter_set_style(u->height, style);
+    meter_value_label_set_style(u->load, style);
+    for (unsigned i = 0; i < 5; ++i)
+        meter_status_set_style(u->status[i], style);
 }
 void demo_dashboard_update(demo_ui_t *u)
 {
@@ -39,7 +48,7 @@ void demo_dashboard_update(demo_ui_t *u)
     meter_linear_meter_set_language(u->height, s->language);
     meter_value_label_set_language(u->load, s->language);
     float speed = s->signals[METER_SPEED].value * (s->imperial ? 0.621371f : 1);
-    meter_gauge_set_range(u->speed, 0, s->imperial ? 31.06855f : 50);
+    meter_gauge_set_range(u->speed, 0, s->imperial ? 32 : 50);
     meter_gauge_set_unit(u->speed, s->imperial ? "mph" : "km/h");
     meter_gauge_set_state(u->speed, s->signals[METER_SPEED].state);
     meter_gauge_set_value_animated(u->speed, speed, 180);
@@ -51,7 +60,8 @@ void demo_dashboard_update(demo_ui_t *u)
     meter_linear_meter_set_value(u->height, s->signals[METER_HEIGHT].value);
     meter_value_label_set(u->load, s->signals[METER_LOAD].value, s->signals[METER_LOAD].state);
     meter_ring_set_state(u->load_arc, s->signals[METER_LOAD].state);
-    meter_ring_set_value(u->load_arc, s->signals[METER_LOAD].value / 15);
+    meter_ring_set_range(u->load_arc, 0, 1500);
+    meter_ring_set_value(u->load_arc, s->signals[METER_LOAD].value);
     const meter_signal_id_t ids[] = {METER_SEAT, METER_BRAKE, METER_NEUTRAL, METER_CHARGING, METER_WARNING};
     const meter_text_id_t names[] = {METER_TXT_SEAT, METER_TXT_BRAKE, METER_TXT_NEUTRAL, METER_TXT_CHARGE, METER_TXT_WARNING};
     for (unsigned i = 0; i < 5; ++i)

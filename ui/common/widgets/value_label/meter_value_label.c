@@ -6,6 +6,7 @@
 struct meter_value_label
 {
     meter_language_t language;
+    meter_widget_style_t style;
     lv_obj_t *label;
     const char *unit;
     float current, from, target;
@@ -29,14 +30,21 @@ static void dispose(lv_event_t *e)
     lv_anim_delete(v, animate);
     lv_free(v);
 }
+static void apply_style(meter_value_label_t *v)
+{
+    lv_obj_set_style_text_font(v->label, v->style.value_font, 0);
+    lv_obj_set_style_text_color(v->label, v->style.text, 0);
+}
 meter_value_label_t *meter_value_label_create(lv_obj_t *p, int x, int y, const char *unit)
 {
     meter_value_label_t *v = lv_malloc(sizeof(*v));
     if (!v)
         return NULL;
     memset(v, 0, sizeof(*v));
+    v->style = *meter_widget_style_default();
     v->unit = unit;
-    v->label = meter_text(p, x, y, "--", &lv_font_montserrat_24, 0xedf5f8);
+    v->label = meter_text(p, x, y, "--", v->style.value_font, 0);
+    apply_style(v);
     lv_obj_add_event_cb(v->label, dispose, LV_EVENT_DELETE, v);
     return v;
 }
@@ -66,4 +74,11 @@ void meter_value_label_set_language(meter_value_label_t *v, meter_language_t lan
 {
     v->language = language;
     meter_i18n_apply_font(v->label, language);
+    redraw(v);
+}
+void meter_value_label_set_style(meter_value_label_t *v, const meter_widget_style_t *style)
+{
+    if (style) v->style = *style;
+    apply_style(v);
+    redraw(v);
 }

@@ -37,6 +37,7 @@ void demo_settings_create(demo_ui_t *u)
     demo_text(u, card, 22, 57, METER_TXT_LANGUAGE, &lv_font_montserrat_16,
                0xe4eff5);
     u->language_button = lv_button_create(card);
+    demo_theme_button(u->language_button);
     lv_obj_set_pos(u->language_button, 471, 56);
     lv_obj_set_size(u->language_button, 250, 28);
     lv_obj_t *language_label = lv_label_create(u->language_button);
@@ -44,6 +45,7 @@ void demo_settings_create(demo_ui_t *u)
     lv_obj_center(language_label);
     lv_obj_add_event_cb(u->language_button, action, LV_EVENT_CLICKED, u);
     u->unit_button = lv_button_create(card);
+    demo_theme_button(u->unit_button);
     lv_obj_set_pos(u->unit_button, 471, 12);
     lv_obj_set_size(u->unit_button, 250, 43);
     lv_obj_set_style_bg_color(u->unit_button, lv_color_hex(0x255448), 0);
@@ -54,6 +56,7 @@ void demo_settings_create(demo_ui_t *u)
     demo_text(u, card, 22, 89, METER_TXT_BRIGHTNESS, &lv_font_montserrat_16,
                0xe4eff5);
     u->brightness = lv_slider_create(card);
+    demo_theme_slider(u->brightness);
     lv_obj_set_pos(u->brightness, 412, 96);
     lv_obj_set_size(u->brightness, 300, 10);
     lv_slider_set_range(u->brightness, 10, 100);
@@ -62,6 +65,7 @@ void demo_settings_create(demo_ui_t *u)
     demo_text(u, card, 22, 154, METER_TXT_SPEED_LIMIT,
                &lv_font_montserrat_16, 0xe4eff5);
     u->limit = lv_slider_create(card);
+    demo_theme_slider(u->limit);
     lv_obj_set_pos(u->limit, 412, 161);
     lv_obj_set_size(u->limit, 300, 10);
     lv_slider_set_range(u->limit, 5, 50);

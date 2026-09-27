@@ -2,6 +2,7 @@
 #define DEMO_INTERNAL_H
 #include "generated/demo_catalog.h"
 #include "generated/demo_icons.h"
+#include "ui/products/demo/demo_theme.h"
 #include "ui/common/i18n/meter_i18n.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/products/demo/demo_ui.h"

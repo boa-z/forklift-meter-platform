@@ -20,4 +20,4 @@ English is the initial default; the Settings language button switches immediatel
 
 Linux CI runs on `ubuntu-latest` with SDL2 and `SDL_VIDEODRIVER=dummy`. The scenario tests verify both languages on all pages and persistence across process restarts. The `i18n-ui` test checks every label for missing glyphs while switching English to Chinese and back, including unknown/stale/error states.
 
-Font subsets are generated with `python3 tools/generate_fonts.py` using pinned `lv_font_conv@1.5.3` (Node.js/npm required only for regeneration). Normal builds use committed C sources and require no font downloads. `python3 tools/generate_fonts.py --check` verifies translation coverage, provenance, license and hashes without Node or network.
+Font subsets are generated with `npm run fonts:generate` using the declared `lv_font_conv@1.5.3` MIT dev dependency (Node.js/npm required only for regeneration). Normal builds use committed C sources and require no font downloads. `npm run fonts:check` or `python3 tools/generate_fonts.py --check` verifies translation coverage, provenance, license and hashes without Node or network.

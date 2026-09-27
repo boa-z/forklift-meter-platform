@@ -27,6 +27,11 @@ for area, allowed in RULES.items():
             if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
 manifest=json.loads((ROOT/'cmake/sources.json').read_text())
+# A widget owns its children through stored pointers; only the shared tree helper in
+# ui/common/widgets/ itself may walk children by position.
+for file in (ROOT/'ui/common/widgets').glob('*/*.c'):
+    if re.search(r'lv_obj_get_child\s*\(', file.read_text(encoding='utf-8')):
+        errors.append(f'{file.relative_to(ROOT)} styles a child by LVGL index instead of a stored pointer')
 for group, files in manifest.items():
     assert len(files)==len(set(files)), group
     for file in files:

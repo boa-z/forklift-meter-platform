@@ -4,6 +4,7 @@
 struct meter_status
 {
     meter_language_t language;
+    meter_widget_style_t style;
     lv_obj_t *root, *label, *icon;
     const char *name;
     bool active;
@@ -14,12 +15,18 @@ static void dispose(lv_event_t *e)
 {
     lv_free(lv_event_get_user_data(e));
 }
+static void apply_style(meter_status_t *s)
+{
+    lv_obj_set_style_text_font(s->label, s->style.label_font, 0);
+    lv_obj_set_style_text_color(s->label, s->style.muted, 0);
+}
 meter_status_t *meter_status_create(lv_obj_t *p, int x, int y, const char *name, const lv_image_dsc_t *icon)
 {
     meter_status_t *s = lv_malloc(sizeof(*s));
     if (!s)
         return NULL;
     memset(s, 0, sizeof(*s));
+    s->style = *meter_widget_style_default();
     s->name = name;
     s->root = lv_obj_create(p);
     lv_obj_remove_style_all(s->root);
@@ -31,7 +38,8 @@ meter_status_t *meter_status_create(lv_obj_t *p, int x, int y, const char *name,
         s->icon = lv_image_create(s->root);
         lv_image_set_src(s->icon, icon);
     }
-    s->label = meter_text(s->root, 29, 5, name, &lv_font_montserrat_12, 0x9bb2bf);
+    s->label = meter_text(s->root, 29, 5, name, s->style.label_font, 0);
+    apply_style(s);
     return s;
 }
 void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state)
@@ -44,7 +52,7 @@ void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state)
     lv_snprintf(s->text, sizeof(s->text), "%s %s", s->name, tag);
     lv_label_set_text_static(s->label, s->text);
     lv_obj_set_style_text_color(
-        s->label, lv_color_hex(state == METER_VALUE_VALID ? (active ? 0x5de5ca : 0x7895a8) : 0xf3ba65), 0);
+        s->label, state == METER_VALUE_VALID ? (active ? s->style.primary : s->style.muted) : s->style.warning, 0);
     if (s->icon)
         lv_obj_set_style_image_opa(s->icon, active ? 255 : 100, 0);
 }
@@ -57,5 +65,11 @@ void meter_status_set_language(meter_status_t *s, meter_language_t language)
 {
     s->language = language;
     meter_i18n_apply_font(s->label, language);
+    meter_status_set(s, s->active, s->state);
+}
+void meter_status_set_style(meter_status_t *s, const meter_widget_style_t *style)
+{
+    if (style) s->style = *style;
+    apply_style(s);
     meter_status_set(s, s->active, s->state);
 }

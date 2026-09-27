@@ -1,0 +1,8 @@
+#ifndef DEMO_THEME_H
+#define DEMO_THEME_H
+#include "ui/common/widgets/meter_widgets.h"
+const meter_widget_style_t *demo_theme_widget_style(void);
+void demo_theme_panel(lv_obj_t *panel);
+void demo_theme_button(lv_obj_t *button);
+void demo_theme_slider(lv_obj_t *slider);
+#endif
