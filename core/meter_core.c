@@ -80,7 +80,13 @@ bool meter_core_apply(void *context, const meter_update_t *update)
         value.value = 0;
         value.state = METER_VALUE_ERROR;
     }
+    const meter_value_t current = core->snapshot.signals[index];
+    const meter_source_policy_fn_t policy = core->snapshot.catalog->source_policy;
+    if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, value.source,
+                          current.source))
+        return false;
     core->snapshot.signals[index] = value;
+    ++core->snapshot.revision;
     return true;
 }
 void meter_core_tick(meter_core_t *core, uint32_t now_ms, uint32_t stale_ms)
@@ -89,7 +95,8 @@ void meter_core_tick(meter_core_t *core, uint32_t now_ms, uint32_t stale_ms)
     for (size_t i = 0; i < catalog->signal_count; ++i)
     {
         meter_value_t *v = &core->snapshot.signals[i];
-        if (v->state == METER_VALUE_VALID && (uint32_t)(now_ms - v->timestamp_ms) >= stale_ms)
+        const uint32_t limit = catalog->signals[i].stale_ms ? catalog->signals[i].stale_ms : stale_ms;
+        if (v->state == METER_VALUE_VALID && limit && (uint32_t)(now_ms - v->timestamp_ms) >= limit)
             v->state = METER_VALUE_STALE;
     }
 }
@@ -131,11 +138,13 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
         if (action->value != 0 && action->value != 1)
             return false;
         core->snapshot.imperial = action->value != 0;
+        ++core->snapshot.revision;
         return true;
     case METER_ACTION_BRIGHTNESS:
         if (action->value < 10 || action->value > 100)
             return false;
         core->snapshot.brightness = (uint8_t)action->value;
+        ++core->snapshot.revision;
         return true;
     case METER_ACTION_PARAMETER:
         return meter_core_parameter(core, action->id, action->value);
@@ -143,6 +152,7 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
         if (action->value != METER_LANGUAGE_EN && action->value != METER_LANGUAGE_ZH)
             return false;
         core->snapshot.language = (meter_language_t)action->value;
+        ++core->snapshot.revision;
         return true;
     default:
         return false;

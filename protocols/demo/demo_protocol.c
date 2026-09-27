@@ -14,7 +14,7 @@ static int s16(const uint8_t *p)
 static bool emit(meter_update_sink_t sink, void *context, const meter_can_frame_t *f, meter_signal_id_t id,
                  float value, bool bad)
 {
-    meter_update_t u = {id, {value, f->timestamp_ms, bad ? METER_VALUE_ERROR : METER_VALUE_VALID}};
+    meter_update_t u = {id, {value, f->timestamp_ms, bad ? METER_VALUE_ERROR : METER_VALUE_VALID, METER_SOURCE_DEMO}};
     return sink(context, &u);
 }
 /** @brief 解析 Demo 产品的合成 CAN 帧。

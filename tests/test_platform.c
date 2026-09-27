@@ -28,6 +28,13 @@ static const meter_signal_def_t anonymous_signals[] = {{0, "gap"}};
 static const meter_monitor_def_t dangling_monitor[] = {{"Gap", "gap", METER_WARNING + 100}};
 static const meter_fault_def_t duplicate_faults[] = {{DEMO_FAULT_LOW_CHARGE, "one", "first"},
                                                      {DEMO_FAULT_LOW_CHARGE, "two", "second"}};
+static bool keep_first_source(void *context, meter_signal_id_t signal, meter_source_id_t incoming,
+                              meter_source_id_t current)
+{
+    (void)context;
+    (void)signal;
+    return current == METER_SOURCE_NONE || incoming == current;
+}
 static meter_core_storage_t storage(void)
 {
     return (meter_core_storage_t){signal_slots, SLOTS(signal_slots), parameter_slots, SLOTS(parameter_slots),
@@ -106,16 +113,33 @@ static int core(void)
     meter_core_storage_t bound = storage();
     CHECK(meter_core_init(&c, &meter_demo_catalog, &bound));
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_UNKNOWN);
+    CHECK(c.snapshot.revision == 0);
     meter_update_t u = {METER_SPEED, {12.5f, 100, METER_VALUE_VALID}};
     CHECK(meter_core_apply(&c, &u));
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).source == METER_SOURCE_NONE);
+    CHECK(c.snapshot.revision == 1);
+    u.signal = METER_SOC;
+    u.value.timestamp_ms = 100;
+    CHECK(meter_core_apply(&c, &u));
+    u.signal = METER_SPEED;
     meter_core_tick(&c, 849, 750);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_VALID);
     meter_core_tick(&c, 850, 750);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_STALE);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).value == 12.5f);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SOC).state == METER_VALUE_VALID);
+    meter_catalog_t policy_catalog = meter_demo_catalog;
+    policy_catalog.source_policy = keep_first_source;
+    CHECK(meter_core_init(&c, &policy_catalog, &bound));
+    u = (meter_update_t){METER_SPEED, {1, 0, METER_VALUE_VALID, 7}};
+    CHECK(meter_core_apply(&c, &u));
+    u.value.source = 8;
+    CHECK(!meter_core_apply(&c, &u));
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).source == 7);
+    CHECK(meter_core_init(&c, &meter_demo_catalog, &bound));
     u.value.timestamp_ms = UINT32_MAX - 49;
     CHECK(meter_core_apply(&c, &u));
-    meter_core_tick(&c, 50, 100);
+    meter_core_tick(&c, 700, 100);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_STALE);
     u.value.value = NAN;
     CHECK(meter_core_apply(&c, &u));

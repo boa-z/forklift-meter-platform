@@ -48,7 +48,7 @@ def generate():
         lines.extend("    {" + formatter(row) + "}," for row in rows)
         lines.append("};")
     q = lambda s: json.dumps(s, ensure_ascii=True)
-    array("meter_signal_def_t", "signals", lambda r: f"{r[0]}, {q(r[2])}", data["signals"])
+    array("meter_signal_def_t", "signals", lambda r: f"{r[0]}, {q(r[2])}, {q(r[3])}, {r[4]}", data["signals"])
     array("meter_parameter_def_t", "parameters",
           lambda r: f'{r[0]}, {q(r[1])}, {q(r[2])}, {float(r[3])}f, {float(r[4])}f, {float(r[5])}f',
           data["parameters"])
@@ -59,7 +59,7 @@ def generate():
         "    signals, sizeof(signals)/sizeof(signals[0]),",
         "    parameters, sizeof(parameters)/sizeof(parameters[0]),",
         "    monitors, sizeof(monitors)/sizeof(monitors[0]),",
-        "    faults, sizeof(faults)/sizeof(faults[0])", "};", ""]
+        "    faults, sizeof(faults)/sizeof(faults[0]),", "    NULL, NULL", "};", ""]
     return [(ROOT / "generated/demo_catalog.h", "\n".join(header)),
             (ROOT / "generated/demo_catalog.c", "\n".join(lines))]
 

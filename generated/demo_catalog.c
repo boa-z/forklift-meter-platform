@@ -1,20 +1,20 @@
 /* 本文件由 tools/generate_catalog.py 自动生成，请勿手工修改；数据源：schema/demo_catalog.json。 */
 #include "generated/demo_catalog.h"
 static const meter_signal_def_t signals[] = {
-    {1, "speed"},
-    {2, "battery_charge"},
-    {3, "lift_height"},
-    {4, "load_weight"},
-    {5, "steering_angle"},
-    {6, "work_hours"},
-    {7, "battery_voltage"},
-    {8, "motor_temperature"},
-    {9, "controller_temperature"},
-    {10, "seat_occupied"},
-    {11, "parking_brake"},
-    {12, "neutral"},
-    {13, "charging"},
-    {14, "generic_warning"},
+    {1, "speed", "km/h", 750},
+    {2, "battery_charge", "%", 1500},
+    {3, "lift_height", "m", 750},
+    {4, "load_weight", "kg", 750},
+    {5, "steering_angle", "deg", 750},
+    {6, "work_hours", "h", 3000},
+    {7, "battery_voltage", "V", 1500},
+    {8, "motor_temperature", "C", 1500},
+    {9, "controller_temperature", "C", 1500},
+    {10, "seat_occupied", "", 1500},
+    {11, "parking_brake", "", 1500},
+    {12, "neutral", "", 1500},
+    {13, "charging", "", 1500},
+    {14, "generic_warning", "", 1500},
 };
 static const meter_parameter_def_t parameters[] = {
     {1, "max_speed", "km/h", 5.0f, 50.0f, 25.0f},
@@ -60,5 +60,6 @@ const meter_catalog_t meter_demo_catalog = {
     signals, sizeof(signals)/sizeof(signals[0]),
     parameters, sizeof(parameters)/sizeof(parameters[0]),
     monitors, sizeof(monitors)/sizeof(monitors[0]),
-    faults, sizeof(faults)/sizeof(faults[0])
+    faults, sizeof(faults)/sizeof(faults[0]),
+    NULL, NULL
 };

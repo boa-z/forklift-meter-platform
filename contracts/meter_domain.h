@@ -30,6 +30,8 @@ typedef enum
  */
 typedef uint16_t meter_signal_id_t;
 typedef uint16_t meter_source_id_t;
+#define METER_SOURCE_NONE 0u
+#define METER_SOURCE_DEMO 1u
 /** @brief 私有扩展身份区间的起点，公共目录不得占用。 */
 #define METER_ID_PRIVATE_FIRST 0x1000u
 /** @brief 一次采样。timestamp_ms 为单调回绕的毫秒计数，非有限浮点一律降级为 ERROR。 */
@@ -38,6 +40,7 @@ typedef struct
     float value;
     uint32_t timestamp_ms;
     meter_value_state_t state;
+    meter_source_id_t source;
 } meter_value_t;
 /** @brief 协议解码写入 core 的最小单元：身份加值。 */
 typedef struct
@@ -50,7 +53,11 @@ typedef struct
 {
     meter_signal_id_t id;
     const char *key;
+    const char *unit;
+    uint32_t stale_ms;
 } meter_signal_def_t;
+typedef bool (*meter_source_policy_fn_t)(void *context, meter_signal_id_t signal,
+                                         meter_source_id_t incoming, meter_source_id_t current);
 /**
  * @brief 可写参数定义。
  *
@@ -89,6 +96,8 @@ typedef struct
     size_t monitor_count;
     const meter_fault_def_t *faults;
     size_t fault_count;
+    meter_source_policy_fn_t source_policy;
+    void *source_policy_context;
 } meter_catalog_t;
 /**
  * @brief 单个故障的状态记录，每个目录条目一条。
@@ -129,6 +138,7 @@ typedef struct
     float *parameters;
     meter_fault_state_t *faults;
     uint32_t generation;
+    uint32_t revision;
     bool connected;
     bool imperial;
     meter_language_t language;
@@ -137,7 +147,7 @@ typedef struct
 /** @brief 未声明身份的统一返回值：UNKNOWN 且数值与时间戳为零。 */
 static inline meter_value_t meter_value_unknown(void)
 {
-    const meter_value_t missing = {0, 0, METER_VALUE_UNKNOWN};
+    const meter_value_t missing = {0, 0, METER_VALUE_UNKNOWN, METER_SOURCE_NONE};
     return missing;
 }
 /** @brief 身份到数组位置的解析；未声明时返回 signal_count，调用方据此判定失败。 */
