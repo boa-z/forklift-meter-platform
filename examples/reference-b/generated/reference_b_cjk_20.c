@@ -2359,4 +2359,3 @@ lv_font_t reference_b_cjk_20 = {
 
 
 #endif /*#if REFERENCE_B_CJK_20*/
-

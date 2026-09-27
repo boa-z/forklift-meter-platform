@@ -5528,4 +5528,3 @@ lv_font_t meter_demo_cjk_20 = {
 
 
 #endif /*#if METER_DEMO_CJK_20*/
-

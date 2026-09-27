@@ -26,11 +26,14 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
         u->actions = *actions;
     u->root = lv_obj_create(parent);
     lv_obj_remove_style_all(u->root);
-    lv_obj_set_size(u->root, 800, 480);
+    lv_obj_set_pos(u->root, 0, 0);
+    lv_obj_set_size(u->root, lv_pct(100), lv_pct(100));
     lv_obj_set_style_bg_color(u->root, lv_color_hex(0x091a25), 0);
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
     demo_theme_panel(u->root);
+    /* The display canvas fills the rectangular screen; only cards are rounded. */
+    lv_obj_set_style_radius(u->root, 0, 0);
     demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24,
                0x5de5ca);
     demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE,
@@ -46,6 +49,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
         lv_obj_set_size(u->pages[i], 800, 372);
         lv_obj_set_scrollable(u->pages[i], false);
         demo_theme_panel(u->pages[i]);
+        lv_obj_set_style_radius(u->pages[i], 0, 0);
     }
     demo_dashboard_create(u);
     demo_monitor_create(u);

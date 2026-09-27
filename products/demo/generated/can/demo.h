@@ -66,58 +66,58 @@ extern "C" {
 
 
 struct demo_motion_t {
-    
+
     uint16_t speed;
 
-    
+
     int16_t steering;
 
-    
+
     uint16_t hours;
 };
 
 
 struct demo_energy_t {
-    
+
     uint8_t soc;
 
-    
+
     uint16_t voltage;
 
-    
+
     uint8_t charging;
 };
 
 
 struct demo_lift_t {
-    
+
     uint16_t height;
 };
 
 
 struct demo_load_t {
-    
+
     uint16_t weight;
 };
 
 
 struct demo_status_t {
-    
+
     uint8_t seat;
 
-    
+
     uint8_t brake;
 
-    
+
     uint8_t neutral;
 
-    
+
     uint8_t warning;
 
-    
+
     int16_t motor_temp;
 
-    
+
     int16_t controller_temp;
 };
 

@@ -1,11 +1,8 @@
-menu "Forklift meter reference platform"
-choice
-    prompt "Meter product"
-    default METER_PRODUCT_DEMO
-config METER_PRODUCT_DEMO
-    bool "Reference Demo"
-endchoice
-config METER_DEMO_APP
-    bool "Enable reference instrument application"
-    default y
+menu "Forklift meter platform"
+config AIC_FORKLIFT_METER_PLATFORM_APP
+    bool "Enable product-aware forklift meter application"
+    default n
+    depends on LPKG_USING_LVGL
+    help
+      Build the selected public Product package with the SDK LVGL 9.6 port.
 endmenu

@@ -3,5 +3,6 @@
 /artifacts/
 __pycache__/
 *.pyc
+*.o
 .DS_Store
 

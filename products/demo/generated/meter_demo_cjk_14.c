@@ -3500,4 +3500,3 @@ lv_font_t meter_demo_cjk_14 = {
 
 
 #endif /*#if METER_DEMO_CJK_14*/
-

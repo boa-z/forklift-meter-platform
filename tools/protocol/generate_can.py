@@ -35,7 +35,7 @@ def generate(product):
     license_text = license_block[license_block.index('The MIT License'):].removesuffix('*/').strip()
     license_text = re.sub(r'^ \* ?', '', license_text, flags=re.M).strip() + '\n'
     def clean(text):
-        return BANNER + re.sub(r'/\*.*?\*/', '', text, flags=re.S).lstrip()
+        return BANNER + '\n'.join(line.rstrip() for line in re.sub(r'/\*.*?\*/', '', text, flags=re.S).lstrip().splitlines()).rstrip() + '\n'
     outputs = {f'{name}.h': clean(header), f'{name}.c': clean(source), 'LICENSE.cantools.txt': license_text}
     lines = [BANNER.rstrip(), '#include "contracts/meter_product.h"', '#include "protocols/common/meter_frame_router.h"',
              f'#include "{config["catalog_header"]}"', f'#include "{name}.h"',

@@ -44,19 +44,19 @@ extern "C" {
 
 
 struct product_drivetrain_t {
-    
+
     uint16_t velocity;
 
-    
+
     int16_t torque;
 };
 
 
 struct product_power_t {
-    
+
     uint8_t remaining;
 
-    
+
     uint16_t ambient;
 };
 
