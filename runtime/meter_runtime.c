@@ -8,7 +8,8 @@ bool meter_runtime_init(meter_runtime_t *r, const meter_product_t *p, meter_upda
         return false;
     for (size_t i = 0; i < p->protocols->count; ++i)
     {
-        if (!p->protocols->bindings[i].decode)
+        if ((!p->protocols->bindings[i].decode && !p->protocols->bindings[i].adapter) ||
+            (p->protocols->bindings[i].adapter && !p->protocols->bindings[i].adapter->on_frame))
             return false;
         for (size_t j = 0; j < i; ++j)
             if (p->protocols->bindings[i].owner == p->protocols->bindings[j].owner)
@@ -36,6 +37,11 @@ void meter_runtime_connection(meter_runtime_t *r, bool connected)
         ++r->generation;
         r->head = r->tail = r->count = 0;
         r->connected = connected;
+        if (!connected)
+            for (size_t i = 0; i < r->product->protocols->count; ++i)
+                if (r->product->protocols->bindings[i].adapter && r->product->protocols->bindings[i].adapter->reset)
+                    r->product->protocols->bindings[i].adapter->reset(
+                        r->product->protocols->bindings[i].adapter->context);
     }
 }
 bool meter_runtime_push(meter_runtime_t *r, const meter_can_frame_t *f)
@@ -81,7 +87,9 @@ size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
             const meter_protocol_binding_t *b = &r->product->protocols->bindings[i];
             if (b->owner == route->owner)
             {
-                if (b->decode(&q.frame, r->sink, r->context))
+                bool handled = b->adapter ? b->adapter->on_frame(b->adapter->context, &q.frame, r->sink, r->context)
+                                          : b->decode(&q.frame, r->sink, r->context);
+                if (handled)
                     ++r->diagnostics.dispatched;
                 else
                     ++r->diagnostics.decode_failed;
@@ -90,4 +98,31 @@ size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
         }
     }
     return consumed;
+}
+bool meter_runtime_process(meter_runtime_t *r, uint32_t now_ms)
+{
+    if (!r || !r->connected || !r->product || !r->product->protocols)
+        return false;
+    bool ok = true;
+    for (size_t i = 0; i < r->product->protocols->count; ++i)
+    {
+        const meter_protocol_binding_t *b = &r->product->protocols->bindings[i];
+        if (b->adapter && b->adapter->process &&
+            !b->adapter->process(b->adapter->context, now_ms, r->sink, r->context))
+            ok = false;
+    }
+    return ok;
+}
+bool meter_runtime_command(meter_runtime_t *r, meter_frame_route_owner_t owner,
+                           const meter_command_t *command, const meter_can_tx_port_t *tx)
+{
+    if (!r || !r->connected || !command || !tx || !tx->send || !r->product || !r->product->protocols)
+        return false;
+    for (size_t i = 0; i < r->product->protocols->count; ++i)
+    {
+        const meter_protocol_binding_t *b = &r->product->protocols->bindings[i];
+        if (b->owner == owner)
+            return b->adapter && b->adapter->command && b->adapter->command(b->adapter->context, command, tx);
+    }
+    return false;
 }

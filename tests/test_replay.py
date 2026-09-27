@@ -1,0 +1,34 @@
+"""跨日志格式检查相同 C 解码结果，避免只验证 Python 编解码自洽。"""
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import can
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools/protocol'))
+from replay import replay
+runner = Path(sys.argv[1]).resolve()
+log = ROOT / 'products/demo/fixtures/can/normal.log'
+expected = replay(runner, log)
+assert expected['dispatched'] == 5 and expected['decode_failed'] == 0
+assert expected['signals']['speed']['value'] == 25
+assert expected['signals']['steering_angle']['value'] == -45
+assert expected['signals']['battery_charge']['value'] == 78
+assert expected['signals']['load_weight']['value'] == 850
+assert expected['signals']['speed']['source'] == 1
+stale = replay(runner, log, settle_ms=800)
+assert stale['signals']['speed']['state'] == 'stale'
+assert stale['signals']['battery_charge']['state'] == 'valid'
+with tempfile.TemporaryDirectory() as tmp:
+    for ext in ('asc', 'blf'):
+        path = Path(tmp) / ('synthetic.'+ext)
+        with can.LogReader(str(log)) as reader, can.Logger(str(path)) as writer:
+            for msg in reader:
+                msg.channel = 0
+                writer(msg)
+        actual = replay(runner, path)
+        assert actual == expected, (ext, actual)
+for stream in ('F 0 0 100 0 9 000000000000000000\n', 'F 0 0 100 0 1 xx\n', 'U 65536 1 1 0 1\n'):
+    assert subprocess.run([str(runner)], input=stream, text=True, capture_output=True).returncode != 0
+print('CAN replay candump/ASC/BLF and stale semantics PASS')

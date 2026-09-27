@@ -2,12 +2,13 @@
 #define METER_PRODUCT_H
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
-typedef bool (*meter_update_sink_t)(void *context, const meter_update_t *update);
+#include "contracts/meter_protocol.h"
 typedef bool (*meter_decode_fn_t)(const meter_can_frame_t *frame, meter_update_sink_t sink, void *context);
 typedef struct
 {
     meter_frame_route_owner_t owner;
     meter_decode_fn_t decode;
+    const meter_protocol_adapter_t *adapter;
 } meter_protocol_binding_t;
 typedef struct
 {

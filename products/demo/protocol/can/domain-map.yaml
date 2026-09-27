@@ -1,0 +1,21 @@
+database: demo
+bus: 0
+source: 1
+owner: 1
+decode: meter_demo_decode
+catalog_header: generated/demo_catalog.h
+signals:
+  motion.speed: METER_SPEED
+  motion.steering: METER_STEERING
+  motion.hours: METER_WORK_HOURS
+  energy.soc: METER_SOC
+  energy.voltage: METER_BATTERY_VOLTAGE
+  energy.charging: METER_CHARGING
+  lift.height: METER_HEIGHT
+  load.weight: METER_LOAD
+  status.seat: METER_SEAT
+  status.brake: METER_BRAKE
+  status.neutral: METER_NEUTRAL
+  status.warning: METER_WARNING
+  status.motor_temp: METER_MOTOR_TEMP
+  status.controller_temp: METER_CONTROLLER_TEMP
