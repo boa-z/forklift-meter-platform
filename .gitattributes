@@ -6,3 +6,5 @@
 *.yml text eol=lf
 *.json text eol=lf
 *.txt text eol=lf
+# Provenance SVGs are SHA256-verified byte-for-byte, so no host may rewrite their EOL.
+assets/upstream/** -text

@@ -17,6 +17,11 @@ VERSION = '1.5.3'
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def license_text(path):
+    # LVGL ships no .gitattributes, so a core.autocrlf host checks the upstream license out
+    # as CRLF while our eol=lf copy stays LF; only the license text is under review.
+    return path.read_bytes().replace(b'\r\n', b'\n')
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
@@ -35,7 +40,7 @@ def main():
         saved = json.loads(manifest_path.read_text(encoding='utf-8'))
         metadata['files'] = saved['files']
         assert metadata == saved, 'Font source or translations changed; regenerate fonts'
-        assert (ROOT / metadata['license_file']).read_bytes() == (ROOT / LICENSE).read_bytes()
+        assert license_text(ROOT / metadata['license_file']) == license_text(ROOT / LICENSE)
         for name, sha in saved['files'].items():
             assert digest(ROOT / name) == sha, 'Generated font hash mismatch: ' + name
         assert len(saved['files']) == 2
