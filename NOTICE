@@ -4,7 +4,7 @@ Copyright 2026 the forklift-meter-platform contributors.
 This distribution includes these separately licensed dependencies:
 
 * LVGL v9.6.0, commit 80ca777e37a2b176770726a02e07a6fb79ef0b39, MIT.
-* lvgl-aic, commit 481045e493adbd12805b8674fe6dd3cf454293b3, Apache-2.0 (optional board adapter).
+* lvgl-aic, commit 9d8040f28c35b2b3a6339f6971871144d8acedd5, Apache-2.0 (optional board adapter).
 * Tabler outline icons, commit 0239805680a36bab4e1070529b6744924402d804, MIT.
 * Montserrat generated fonts distributed by LVGL, OFL-1.1.
 * Meter Demo CJK, renamed Source Han Sans SC subsets, Adobe, OFL-1.1; see assets/fonts.json.
