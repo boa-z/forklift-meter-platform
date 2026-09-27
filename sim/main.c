@@ -4,6 +4,7 @@
 #include "products/demo/product.h"
 #include "runtime/meter_runtime.h"
 #include "sim/synthetic.h"
+#include "sim/domain_fixture.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/products/demo/demo_i18n.h"
 #include "ui/products/demo/demo_ui.h"
@@ -56,6 +57,7 @@ int main(int argc, char **argv)
     bool smoke = false, hidden = false;
     const char *capture = NULL, *settings = NULL, *visual = NULL, *set_units = NULL, *set_language = NULL;
     demo_scenario_t scenario = DEMO_NORMAL;
+    const char *fixture = NULL;
     for (int i = 1; i < argc; ++i)
     {
         if (!strcmp(argv[i], "--smoke"))
@@ -64,6 +66,8 @@ int main(int argc, char **argv)
             hidden = true;
             frames = 240;
         }
+        else if (!strcmp(argv[i], "--fixture") && i + 1 < argc)
+            fixture = argv[++i];
         else if (!strcmp(argv[i], "--hidden"))
             hidden = true;
         else if (!strcmp(argv[i], "--frames") && i + 1 < argc)
@@ -152,6 +156,7 @@ int main(int argc, char **argv)
     bool navigation_ok = true;
     double max_us = 0, sum_us = 0;
     meter_runtime_connection(&runtime, true);
+    if (fixture && !meter_fixture_load(&core, fixture)) return 8;
     if (scenario == DEMO_STALE || scenario == DEMO_OFFLINE)
     {
         meter_synthetic_values(&runtime, 0, 25, 50, -15);
@@ -183,7 +188,8 @@ int main(int argc, char **argv)
         }
         if (!meter_host_events())
             break;
-        if (visual)
+        if (fixture) { }
+        else if (visual)
         {
             float f = !strcmp(visual, "min") ? 0 : !strcmp(visual, "mid") ? 0.5f : 1;
             meter_synthetic_values(&runtime, now, 50 * f, 10 + 90 * f, -45 + 90 * f);

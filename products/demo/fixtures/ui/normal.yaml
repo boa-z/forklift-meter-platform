@@ -1,0 +1,9 @@
+vehicle.speed:
+  value: 12.5
+  state: valid
+energy.soc:
+  value: 76
+  state: valid
+vehicle.steering:
+  value: -15
+  state: valid

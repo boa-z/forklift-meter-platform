@@ -12,14 +12,14 @@ runner = Path(sys.argv[1]).resolve()
 log = ROOT / 'products/demo/fixtures/can/normal.log'
 expected = replay(runner, log)
 assert expected['dispatched'] == 5 and expected['decode_failed'] == 0
-assert expected['signals']['speed']['value'] == 25
-assert expected['signals']['steering_angle']['value'] == -45
-assert expected['signals']['battery_charge']['value'] == 78
-assert expected['signals']['load_weight']['value'] == 850
-assert expected['signals']['speed']['source'] == 1
+assert expected['signals']['vehicle.speed']['value'] == 25
+assert expected['signals']['vehicle.steering']['value'] == -45
+assert expected['signals']['energy.soc']['value'] == 78
+assert expected['signals']['lift.load']['value'] == 850
+assert expected['signals']['vehicle.speed']['source'] == 1
 stale = replay(runner, log, settle_ms=800)
-assert stale['signals']['speed']['state'] == 'stale'
-assert stale['signals']['battery_charge']['state'] == 'valid'
+assert stale['signals']['vehicle.speed']['state'] == 'stale'
+assert stale['signals']['energy.soc']['state'] == 'valid'
 with tempfile.TemporaryDirectory() as tmp:
     for ext in ('asc', 'blf'):
         path = Path(tmp) / ('synthetic.'+ext)
