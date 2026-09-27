@@ -6,23 +6,31 @@ It is a clean-history public platform with a small domain core, bounded CAN runt
 
 ## Build and run
 
-The host build uses MSYS2 UCRT64, CMake, Ninja, SDL2 and the pinned LVGL submodule:
+Linux (Ubuntu) is the default CI and build environment. Install CMake, Ninja, a C/C++ compiler, Python 3 and SDL2 development files:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=C:/msys64/ucrt64
-cmake --build build
+sudo apt-get update
+sudo apt-get install -y cmake ninja-build gcc g++ python3 libsdl2-dev
+git submodule update --init --recursive
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel
 ctest --test-dir build --output-on-failure
-build/meter-demo.exe --scenario normal
+./build/meter-demo --scenario normal --set-language chinese
 ```
 
-For a non-interactive machine-readable run:
+The demo supports **English and Simplified Chinese** on Dashboard, Monitor, Faults and Settings, including labels, advisories and validity states. Change language in Settings or with `--set-language english|chinese`. English is the initial default. Supply `--settings preferences.bin` to retain language, units and other local preferences across restarts.
+
+For a headless, machine-readable run:
 
 ```sh
-build/meter-demo.exe --hidden --frames 240 --scenario warning
-build/meter-demo.exe --hidden --frames 120 --visual min --capture artifacts/dashboard-min.bmp
+SDL_VIDEODRIVER=dummy ./build/meter-demo --hidden --frames 240 --scenario warning --set-language chinese
+mkdir -p artifacts
+SDL_VIDEODRIVER=dummy ./build/meter-demo --hidden --frames 120 --set-language chinese --capture artifacts/dashboard-zh.bmp
 ```
 
-The simulator supports `normal`, `warning`, `stale`, `offline`, `error` and `unknown` scenarios, four pages, metric/imperial settings, atomic host preferences and synthetic CAN frames. `--smoke` is the CI entry point. See `docs/simulator.md` for the CLI contract.
+Windows is also supported with MSYS2 UCRT64 dependencies. Add `C:/msys64/ucrt64/bin` to PATH and configure with `-DCMAKE_PREFIX_PATH=C:/msys64/ucrt64 -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe`; the executable is `build/meter-demo.exe`.
+
+The simulator supports `normal`, `warning`, `stale`, `offline`, `error` and `unknown` scenarios, four pages, metric/imperial settings, atomic host preferences and synthetic CAN frames. CTest runs headless SDL smoke, both languages on all pages, language switching and restart tests, glyph coverage, and source/provenance checks. See `docs/simulator.md` for the CLI contract.
 
 ## Architecture
 
@@ -36,11 +44,15 @@ synthetic CAN → bounded runtime → frame route → demo binding → domain sn
 
 The public build has one selected product, `METER_PRODUCT_DEMO`. A private downstream can add a reviewed product and binding without adding customer conditions to core, contracts, runtime or common UI. The downstream procedure is documented in `docs/downstream.md`.
 
+## Reuse existing libraries
+
+Use LVGL features first, then maintained community libraries with reviewed licenses and pinned versions. The demo uses LVGL translation packs, label translation tags and language-change events, native `lv_anim` animation scheduling, scale/arc/bar/slider widgets and its display/input APIs. SDL2 supplies the host window, input and timing; Tabler supplies icons; `lv_font_conv` generates the checked-in Chinese font subsets. First-party code supplies domain rules, synthetic data, composition and thin adapters. See `AGENTS.md` for contributor rules.
+
 ## Public boundary
 
 This tree was exported as a new Git repository. It contains no customer source, customer protocol, production object dictionary, captures, project IDs, customer UI, PSD, screenshots or customer font. `tools/check_public_clean.py`, `tools/check_architecture.py` and `tools/check_assets.py` are CI gates. The source and visual provenance review remains a required human gate; a string scan cannot prove that a drawing or protocol is independent.
 
-LVGL is pinned to `80ca777e37a2b176770726a02e07a6fb79ef0b39` (v9.6.0) under MIT. `lvgl-aic` is an optional board integration pin under Apache-2.0; the public host build does not link ArtInChip sources. Tabler outline icons are pinned by commit under MIT, with local color/raster modifications recorded in `assets/manifest.json`. Montserrat is from the pinned LVGL distribution under OFL-1.1. See `THIRD_PARTY_ASSETS.md` and `NOTICE`.
+LVGL is pinned to `80ca777e37a2b176770726a02e07a6fb79ef0b39` (v9.6.0) under MIT. `lvgl-aic` is an optional board integration pin under Apache-2.0; the public host build does not link ArtInChip sources. Tabler outline icons are pinned by commit under MIT, with local color/raster modifications recorded in `assets/manifest.json`. Montserrat and the Source Han Sans SC source for the renamed Meter Demo CJK subsets are from the pinned LVGL distribution under OFL-1.1. See `THIRD_PARTY_ASSETS.md` and `NOTICE`.
 
 ## D133ECS / RT-Thread integration
 

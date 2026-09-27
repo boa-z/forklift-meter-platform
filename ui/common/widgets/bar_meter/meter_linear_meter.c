@@ -1,9 +1,11 @@
+#include "ui/common/i18n/meter_i18n.h"
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
 #include <string.h>
 struct meter_linear_meter
 {
+    meter_language_t language;
     lv_obj_t *root, *bar, *label;
     float min, max, value;
     const char *unit;
@@ -23,7 +25,7 @@ static void redraw(meter_linear_meter_t *b)
                      LV_ANIM_OFF);
     lv_obj_set_style_bg_color(b->bar, lv_color_hex(b->state == METER_VALUE_VALID ? 0x5de5ca : 0x8299a9),
                               LV_PART_INDICATOR);
-    meter_format_value(b->text, sizeof(b->text), b->value, b->state, b->unit, 2);
+    meter_i18n_format_value(b->text, sizeof(b->text), b->value, b->state, b->unit, 2, b->language);
     lv_label_set_text_static(b->label, b->text);
 }
 meter_linear_meter_t *meter_linear_meter_create(lv_obj_t *p, int x, int y, int w, int h, float min, float max,
@@ -64,4 +66,10 @@ void meter_linear_meter_set_state(meter_linear_meter_t *b, meter_value_state_t s
 {
     b->state = state;
     redraw(b);
+}
+
+void meter_linear_meter_set_language(meter_linear_meter_t *b, meter_language_t language)
+{
+    b->language = language;
+    meter_i18n_apply_font(b->label, language);
 }

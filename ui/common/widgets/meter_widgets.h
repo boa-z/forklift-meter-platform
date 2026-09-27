@@ -20,7 +20,6 @@ void meter_gauge_set_unit(meter_gauge_t *g, const char *unit);
 void meter_gauge_set_value(meter_gauge_t *g, float value);
 void meter_gauge_set_value_animated(meter_gauge_t *g, float value, uint32_t duration_ms);
 void meter_gauge_set_state(meter_gauge_t *g, meter_value_state_t state);
-void meter_gauge_advance(meter_gauge_t *g, uint32_t elapsed_ms);
 meter_ring_t *meter_ring_create(lv_obj_t *parent, int x, int y, int diameter, const char *unit);
 meter_ring_t *meter_arc_bar_create(lv_obj_t *parent, int x, int y, int diameter, float start, float end,
                                    int stroke, const char *unit);
@@ -35,9 +34,14 @@ void meter_linear_meter_set_state(meter_linear_meter_t *b, meter_value_state_t s
 meter_status_t *meter_status_create(lv_obj_t *parent, int x, int y, const char *name,
                                     const lv_image_dsc_t *icon);
 void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state);
+void meter_status_set_name(meter_status_t *s, const char *name);
 meter_value_label_t *meter_value_label_create(lv_obj_t *parent, int x, int y, const char *unit);
 void meter_value_label_set(meter_value_label_t *v, float value, meter_value_state_t state);
-void meter_value_label_advance(meter_value_label_t *v, uint32_t elapsed_ms);
 size_t meter_ui_object_count(lv_obj_t *root);
 lv_obj_t *meter_text(lv_obj_t *parent, int x, int y, const char *text, const lv_font_t *font, uint32_t color);
+void meter_gauge_set_language(meter_gauge_t *widget, meter_language_t language);
+void meter_ring_set_language(meter_ring_t *widget, meter_language_t language);
+void meter_linear_meter_set_language(meter_linear_meter_t *widget, meter_language_t language);
+void meter_value_label_set_language(meter_value_label_t *widget, meter_language_t language);
+void meter_status_set_language(meter_status_t *widget, meter_language_t language);
 #endif

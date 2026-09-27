@@ -208,11 +208,14 @@ static int settings(void)
     CHECK(meter_core_init(&b, &meter_demo_catalog));
     meter_action_t u = {METER_ACTION_UNITS, 0, 1};
     CHECK(meter_core_action(&a, &u));
+    u.kind = METER_ACTION_LANGUAGE;
+    u.value = METER_LANGUAGE_ZH;
+    CHECK(meter_core_action(&a, &u));
     CHECK(meter_core_parameter(&a, 1, 33));
     uint8_t bytes[METER_SETTINGS_SIZE];
     CHECK(meter_settings_encode(&a, bytes));
     CHECK(meter_settings_decode(&b, bytes, sizeof(bytes)));
-    CHECK(b.snapshot.imperial && b.snapshot.parameters[0] == 33);
+    CHECK(b.snapshot.imperial && b.snapshot.language == METER_LANGUAGE_ZH && b.snapshot.parameters[0] == 33);
     meter_core_t before = b;
     bytes[8] ^= 1;
     CHECK(!meter_settings_decode(&b, bytes, sizeof(bytes)));

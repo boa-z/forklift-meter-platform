@@ -12,6 +12,7 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog)
     memset(core, 0, sizeof(*core));
     core->catalog = catalog;
     core->snapshot.brightness = 80;
+    core->snapshot.language = METER_LANGUAGE_EN;
     for (size_t i = 0; i < catalog->parameter_count; ++i)
         core->snapshot.parameters[i] = catalog->parameters[i].initial;
     return true;
@@ -84,6 +85,11 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
         return true;
     case METER_ACTION_PARAMETER:
         return meter_core_parameter(core, action->id, action->value);
+    case METER_ACTION_LANGUAGE:
+        if (action->value != METER_LANGUAGE_EN && action->value != METER_LANGUAGE_ZH)
+            return false;
+        core->snapshot.language = (meter_language_t)action->value;
+        return true;
     default:
         return false;
     }

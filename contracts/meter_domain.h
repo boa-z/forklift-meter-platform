@@ -12,6 +12,11 @@ typedef enum
 } meter_value_state_t;
 typedef enum
 {
+    METER_LANGUAGE_EN = 0,
+    METER_LANGUAGE_ZH = 1
+} meter_language_t;
+typedef enum
+{
     METER_SPEED,
     METER_SOC,
     METER_HEIGHT,
@@ -78,13 +83,15 @@ typedef struct
     uint32_t generation;
     bool connected;
     bool imperial;
+    meter_language_t language;
     uint8_t brightness;
 } meter_snapshot_t;
 typedef enum
 {
     METER_ACTION_UNITS,
     METER_ACTION_BRIGHTNESS,
-    METER_ACTION_PARAMETER
+    METER_ACTION_PARAMETER,
+    METER_ACTION_LANGUAGE
 } meter_action_kind_t;
 typedef struct
 {

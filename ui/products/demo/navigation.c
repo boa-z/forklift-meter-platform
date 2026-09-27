@@ -22,7 +22,8 @@ void demo_navigation_show(demo_ui_t *u, unsigned page)
 }
 void demo_navigation_create(demo_ui_t *u)
 {
-    const char *names[] = {"Dashboard", "Monitor", "Faults", "Settings"};
+    const meter_text_id_t ids[] = {METER_TXT_DASHBOARD, METER_TXT_MONITOR, METER_TXT_FAULTS,
+                                   METER_TXT_SETTINGS};
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
         u->nav[i] = lv_button_create(u->root);
@@ -30,8 +31,10 @@ void demo_navigation_create(demo_ui_t *u)
         lv_obj_set_size(u->nav[i], 183, 37);
         lv_obj_set_style_shadow_width(u->nav[i], 0, 0);
         lv_obj_set_style_radius(u->nav[i], 8, 0);
-        lv_obj_t *l = meter_text(u->nav[i], 0, 0, names[i], &lv_font_montserrat_14, 0xe8f1f4);
-        lv_obj_center(l);
+        u->nav_labels[i] = demo_text(u, u->nav[i], 0, 0, ids[i],
+                                      &lv_font_montserrat_14, 0xe8f1f4);
+        lv_obj_center(u->nav_labels[i]);
         lv_obj_add_event_cb(u->nav[i], navigate, LV_EVENT_CLICKED, u);
     }
 }
+

@@ -1,22 +1,27 @@
+#include "ui/common/i18n/meter_i18n.h"
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/common/widgets/needle/meter_needle.h"
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 struct meter_gauge
 {
+    meter_language_t language;
     lv_obj_t *root, *scale, *needle, *value, *state_label;
     lv_point_precise_t points[2];
     meter_gauge_config_t config;
     float current, from, target;
-    uint32_t elapsed, duration;
     meter_value_state_t state;
     char text[48];
-    char validity[16];
+    char validity[32];
 };
+static void animate(void *context, int32_t progress);
 static void dispose(lv_event_t *e)
 {
-    lv_free(lv_event_get_user_data(e));
+    void *g = lv_event_get_user_data(e);
+    lv_anim_delete(g, animate);
+    lv_free(g);
 }
 static void redraw(meter_gauge_t *g)
 {
@@ -33,16 +38,19 @@ static void redraw(meter_gauge_t *g)
         lv_obj_set_hidden(g->needle, false);
     lv_obj_set_style_line_color(g->needle, lv_color_hex(g->state == METER_VALUE_STALE ? 0xf3ba65 : 0x5de5ca),
                                 0);
-    meter_format_value(g->text, sizeof(g->text), g->current, missing ? g->state : METER_VALUE_VALID,
-                       g->config.unit, 1);
+    meter_i18n_format_value(g->text, sizeof(g->text), g->current, missing ? g->state : METER_VALUE_VALID,
+                       g->config.unit, 1, g->language);
     lv_label_set_text_static(g->value, g->text);
     lv_obj_align(g->value, LV_ALIGN_BOTTOM_MID, 0, -26);
-    strcpy(g->validity, g->state == METER_VALUE_STALE     ? "STALE"
-                        : g->state == METER_VALUE_ERROR   ? "SENSOR ERROR"
-                        : g->state == METER_VALUE_UNKNOWN ? "NO DATA"
-                                                          : "LIVE");
+    snprintf(g->validity, sizeof(g->validity), "%s", meter_i18n_state(g->state));
     lv_label_set_text_static(g->state_label, g->validity);
     lv_obj_align(g->state_label, LV_ALIGN_BOTTOM_MID, 0, -7);
+}
+static void animate(void *context, int32_t progress)
+{
+    meter_gauge_t *g = context;
+    g->current = g->from + (g->target - g->from) * (progress / 1000.0f);
+    redraw(g);
 }
 meter_gauge_t *meter_gauge_create(lv_obj_t *parent, int x, int y, const meter_gauge_config_t *c)
 {
@@ -118,7 +126,7 @@ void meter_gauge_set_value(meter_gauge_t *g, float value)
         return;
     }
     g->current = g->target = fmaxf(g->config.min, fminf(g->config.max, value));
-    g->duration = 0;
+    lv_anim_delete(g, animate);
     redraw(g);
 }
 void meter_gauge_set_value_animated(meter_gauge_t *g, float value, uint32_t duration)
@@ -129,29 +137,33 @@ void meter_gauge_set_value_animated(meter_gauge_t *g, float value, uint32_t dura
         return;
     }
     value = fmaxf(g->config.min, fminf(g->config.max, value));
-    if (value == g->target && g->duration)
+    if (value == g->target)
         return;
+    if (!duration)
+    {
+        meter_gauge_set_value(g, value);
+        return;
+    }
+    lv_anim_delete(g, animate);
     g->from = g->current;
     g->target = value;
-    g->elapsed = 0;
-    g->duration = duration;
-    if (!duration)
-        meter_gauge_set_value(g, value);
+    lv_anim_t animation;
+    lv_anim_init(&animation);
+    lv_anim_set_var(&animation, g);
+    lv_anim_set_exec_cb(&animation, animate);
+    lv_anim_set_values(&animation, 0, 1000);
+    lv_anim_set_duration(&animation, duration);
+    lv_anim_set_path_cb(&animation, lv_anim_path_ease_out);
+    lv_anim_start(&animation);
 }
 void meter_gauge_set_state(meter_gauge_t *g, meter_value_state_t state)
 {
     g->state = state;
     redraw(g);
 }
-void meter_gauge_advance(meter_gauge_t *g, uint32_t dt)
+void meter_gauge_set_language(meter_gauge_t *g, meter_language_t language)
 {
-    if (g->duration)
-    {
-        g->elapsed = dt >= g->duration - g->elapsed ? g->duration : g->elapsed + dt;
-        float t = g->elapsed / (float)g->duration;
-        g->current = g->from + (g->target - g->from) * t;
-        if (g->elapsed == g->duration)
-            g->duration = 0;
-    }
-    redraw(g);
+    g->language = language;
+    meter_i18n_apply_font(g->value, language);
+    meter_i18n_apply_font(g->state_label, language);
 }

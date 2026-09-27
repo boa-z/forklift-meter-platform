@@ -1,3 +1,4 @@
+#include "ui/common/i18n/meter_i18n.h"
 #include "platform/host/host_platform.h"
 #include "products/demo/product.h"
 #include "runtime/meter_runtime.h"
@@ -29,7 +30,7 @@ int main(int argc, char **argv)
 {
     unsigned frames = 0, page = 0;
     bool smoke = false, hidden = false;
-    const char *capture = NULL, *settings = NULL, *visual = NULL, *set_units = NULL;
+    const char *capture = NULL, *settings = NULL, *visual = NULL, *set_units = NULL, *set_language = NULL;
     demo_scenario_t scenario = DEMO_NORMAL;
     for (int i = 1; i < argc; ++i)
     {
@@ -51,6 +52,8 @@ int main(int argc, char **argv)
             visual = argv[++i];
         else if (!strcmp(argv[i], "--set-units") && i + 1 < argc)
             set_units = argv[++i];
+        else if (!strcmp(argv[i], "--set-language") && i + 1 < argc)
+            set_language = argv[++i];
         else if (!strcmp(argv[i], "--page") && i + 1 < argc)
             page = (unsigned)strtoul(argv[++i], NULL, 10);
         else if (!strcmp(argv[i], "--scenario") && i + 1 < argc)
@@ -75,12 +78,13 @@ int main(int argc, char **argv)
             printf("Usage: meter-demo [--smoke] [--frames N] [--hidden] [--scenario "
                    "normal|warning|stale|offline|error|unknown] [--visual "
                    "min|mid|max] [--capture image.bmp] [--page 0..3] [--settings "
-                   "file] [--set-units metric|imperial]\n");
+                   "file] [--set-units metric|imperial] [--set-language english|chinese]\n");
             return !strcmp(argv[i], "--help") ? 0 : 2;
         }
     }
     if (page > 3 || (visual && strcmp(visual, "min") && strcmp(visual, "mid") && strcmp(visual, "max")) ||
-        (set_units && strcmp(set_units, "metric") && strcmp(set_units, "imperial")))
+        (set_units && strcmp(set_units, "metric") && strcmp(set_units, "imperial")) ||
+        (set_language && strcmp(set_language, "english") && strcmp(set_language, "chinese")))
         return 2;
     const meter_product_t *product = meter_product_get();
     meter_core_t core;
@@ -97,7 +101,16 @@ int main(int argc, char **argv)
         if (!action(&act, &a))
             return 4;
     }
+    if (set_language)
+    {
+        meter_action_t a = {METER_ACTION_LANGUAGE, 0,
+                            !strcmp(set_language, "chinese") ? METER_LANGUAGE_ZH : METER_LANGUAGE_EN};
+        if (!action(&act, &a))
+            return 4;
+    }
     lv_init();
+    if (!meter_i18n_init())
+        return 5;
     if (!meter_host_open(hidden))
     {
         fprintf(stderr, "SDL display initialization failed\n");
@@ -179,7 +192,7 @@ int main(int argc, char **argv)
     printf("{\"result\":\"%s\",\"frames\":%u,\"objects\":%u,\"objects_final\":%u,"
            "\"heap_high_water\":%u,\"update_us_avg\":%.2f,\"update_us_max\":%.2f,"
            "\"dispatched\":%u,\"decode_failed\":%u,\"overflow\":%u,\"faults\":%u,"
-           "\"speed_state\":%u,\"speed\":%.2f,\"imperial\":%s,\"page\":%u,\"ge_"
+           "\"speed_state\":%u,\"speed\":%.2f,\"imperial\":%s,\"language\":\"%s\",\"page\":%u,\"ge_"
            "hits\":null,\"sw_fallbacks\":null}\n",
            pass ? "PASS" : "FAIL", completed, (unsigned)objects,
            (unsigned)meter_ui_object_count(lv_screen_active()), (unsigned)heap_peak,
@@ -187,7 +200,7 @@ int main(int argc, char **argv)
            (unsigned)runtime.diagnostics.decode_failed, (unsigned)runtime.diagnostics.overflow,
            (unsigned)core.snapshot.active_faults, (unsigned)core.snapshot.signals[METER_SPEED].state,
            (double)core.snapshot.signals[METER_SPEED].value, core.snapshot.imperial ? "true" : "false",
-           demo_ui_active_page(ui));
+           core.snapshot.language == METER_LANGUAGE_ZH ? "zh-CN" : "en", demo_ui_active_page(ui));
     product->ui->destroy(ui);
     meter_host_close();
     lv_deinit();

@@ -19,11 +19,21 @@ for name in ("stale", "offline"):
     r=run("--scenario",name); assert r["speed_state"]==2 and r["speed"]==25 and r["faults"] & (1<<4),r
 assert run("--scenario","error")["faults"] & (1<<3)
 assert run("--scenario","unknown")["speed_state"]==0
-for page in range(4): assert run("--page",str(page))["page"]==page
+for language, locale in (("english", "en"), ("chinese", "zh-CN")):
+    for page in range(4):
+        r = run("--page", str(page), "--set-language", language)
+        assert r["page"] == page and r["language"] == locale, r
+invalid = subprocess.run([str(exe), "--set-language", "unsupported"], env=env, capture_output=True, timeout=25)
+assert invalid.returncode == 2
 with tempfile.TemporaryDirectory() as temp:
     settings=str(Path(temp)/"preferences.bin")
     assert run("--settings",settings,"--set-units","imperial")["imperial"]
     assert run("--settings",settings)["imperial"]
+    assert run("--settings", settings, "--set-language", "chinese")["language"] == "zh-CN"
+    assert run("--settings", settings)["language"] == "zh-CN"
+    assert run("--settings", settings, "--set-language", "english")["language"] == "en"
+    assert run("--settings", settings)["language"] == "en"
     Path(settings).write_bytes(b"corrupt")
-    assert not run("--settings",settings)["imperial"]
+    r = run("--settings",settings)
+    assert not r["imperial"] and r["language"] == "en"
 print("Demo scenarios, touch navigation and settings restart PASS")

@@ -7,5 +7,6 @@ This distribution includes these separately licensed dependencies:
 * lvgl-aic, commit 481045e493adbd12805b8674fe6dd3cf454293b3, Apache-2.0 (optional board adapter).
 * Tabler outline icons, commit 0239805680a36bab4e1070529b6744924402d804, MIT.
 * Montserrat generated fonts distributed by LVGL, OFL-1.1.
+* Meter Demo CJK, renamed Source Han Sans SC subsets, Adobe, OFL-1.1; see assets/fonts.json.
 
 Complete license texts and asset hashes are in assets/LICENSES and assets/manifest.json.

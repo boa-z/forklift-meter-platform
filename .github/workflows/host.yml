@@ -2,20 +2,14 @@ name: host
 on: [push, pull_request]
 jobs:
   host:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
-      - name: Install SDL2
-        shell: pwsh
-        run: choco install msys2 --no-progress -y
-      - name: Configure
-        shell: msys2 {0}
-        run: pacman -Syu --noconfirm mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-SDL2
+      - name: Install host dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++ python3
       - name: Build and test
-        shell: msys2 {0}
         run: |
-          export PATH=/ucrt64/bin:$PATH
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
           ctest --test-dir build --output-on-failure

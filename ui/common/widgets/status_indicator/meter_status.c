@@ -1,9 +1,13 @@
+#include "ui/common/i18n/meter_i18n.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <string.h>
 struct meter_status
 {
+    meter_language_t language;
     lv_obj_t *root, *label, *icon;
     const char *name;
+    bool active;
+    meter_value_state_t state;
     char text[48];
 };
 static void dispose(lv_event_t *e)
@@ -32,15 +36,26 @@ meter_status_t *meter_status_create(lv_obj_t *p, int x, int y, const char *name,
 }
 void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state)
 {
-    const char *tag = state == METER_VALUE_UNKNOWN ? " ?"
-                      : state == METER_VALUE_ERROR ? " ERR"
-                      : state == METER_VALUE_STALE ? " STALE"
-                      : active                     ? " ON"
-                                                   : " OFF";
-    lv_snprintf(s->text, sizeof(s->text), "%s%s", s->name, tag);
+    s->active = active;
+    s->state = state;
+    const char *tag = state == METER_VALUE_VALID
+        ? meter_i18n_text(active ? METER_TXT_ON : METER_TXT_OFF)
+        : meter_i18n_state(state);
+    lv_snprintf(s->text, sizeof(s->text), "%s %s", s->name, tag);
     lv_label_set_text_static(s->label, s->text);
     lv_obj_set_style_text_color(
         s->label, lv_color_hex(state == METER_VALUE_VALID ? (active ? 0x5de5ca : 0x7895a8) : 0xf3ba65), 0);
     if (s->icon)
         lv_obj_set_style_image_opa(s->icon, active ? 255 : 100, 0);
+}
+void meter_status_set_name(meter_status_t *s, const char *name)
+{
+    s->name = name;
+}
+
+void meter_status_set_language(meter_status_t *s, meter_language_t language)
+{
+    s->language = language;
+    meter_i18n_apply_font(s->label, language);
+    meter_status_set(s, s->active, s->state);
 }

@@ -1,9 +1,11 @@
+#include "ui/common/i18n/meter_i18n.h"
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
 #include <string.h>
 struct meter_ring
 {
+    meter_language_t language;
     lv_obj_t *arc, *label, *validity;
     float min, max, value, warning, low;
     bool thresholds;
@@ -25,14 +27,11 @@ static void redraw(meter_ring_t *r)
     uint32_t colors[] = {0xff856d, 0xf3ba65, 0x5de5ca};
     lv_obj_set_style_arc_color(r->arc, lv_color_hex(r->state == METER_VALUE_STALE ? 0x8299a9 : colors[band]),
                                LV_PART_INDICATOR);
-    meter_format_value(r->text, sizeof(r->text), r->value, missing ? r->state : METER_VALUE_VALID, r->unit,
-                       0);
+    meter_i18n_format_value(r->text, sizeof(r->text), r->value, missing ? r->state : METER_VALUE_VALID, r->unit,
+                       0, r->language);
     lv_label_set_text_static(r->label, r->text);
     lv_obj_center(r->label);
-    lv_label_set_text_static(r->validity, r->state == METER_VALUE_STALE     ? "STALE"
-                                          : r->state == METER_VALUE_UNKNOWN ? "NO DATA"
-                                          : r->state == METER_VALUE_ERROR   ? "ERROR"
-                                                                            : "");
+    lv_label_set_text_static(r->validity, r->state == METER_VALUE_VALID ? "" : meter_i18n_state(r->state));
     lv_obj_align(r->validity, LV_ALIGN_CENTER, 0, 24);
 }
 meter_ring_t *meter_arc_bar_create(lv_obj_t *parent, int x, int y, int diameter, float start, float end,
@@ -95,4 +94,11 @@ void meter_ring_set_state(meter_ring_t *r, meter_value_state_t state)
 {
     r->state = state;
     redraw(r);
+}
+
+void meter_ring_set_language(meter_ring_t *r, meter_language_t language)
+{
+    r->language = language;
+    meter_i18n_apply_font(r->label, language);
+    meter_i18n_apply_font(r->validity, language);
 }

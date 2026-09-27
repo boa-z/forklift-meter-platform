@@ -26,6 +26,7 @@ bool meter_settings_encode(const meter_core_t *core, uint8_t out[METER_SETTINGS_
     out[4] = core->snapshot.imperial;
     out[5] = core->snapshot.brightness;
     out[6] = (uint8_t)core->catalog->parameter_count;
+    out[7] = (uint8_t)core->snapshot.language;
     for (size_t i = 0; i < core->catalog->parameter_count; ++i)
     {
         uint32_t bits;
@@ -38,7 +39,7 @@ bool meter_settings_encode(const meter_core_t *core, uint8_t out[METER_SETTINGS_
 bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
 {
     if (size != METER_SETTINGS_SIZE || memcmp(data, "FMP1", 4) || data[4] > 1 || data[5] < 10 ||
-        data[5] > 100 || data[6] != core->catalog->parameter_count ||
+        data[5] > 100 || data[6] != core->catalog->parameter_count || data[7] > METER_LANGUAGE_ZH ||
         get32(data + size - 4) != checksum(data, size - 4))
         return false;
     meter_core_t candidate = *core;
@@ -51,6 +52,7 @@ bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
             return false;
     }
     candidate.snapshot.imperial = data[4] != 0;
+    candidate.snapshot.language = (meter_language_t)data[7];
     candidate.snapshot.brightness = data[5];
     *core = candidate;
     return true;
