@@ -21,5 +21,9 @@
     "ui/common/widgets/bar_meter/meter_linear_meter.c",
     "ui/common/widgets/status_indicator/meter_status.c",
     "ui/common/widgets/value_label/meter_value_label.c"
+  ],
+  "diagnostics": [
+    "diagnostics/meter_diagnostics.c",
+    "diagnostics/meter_trace.c"
   ]
 }

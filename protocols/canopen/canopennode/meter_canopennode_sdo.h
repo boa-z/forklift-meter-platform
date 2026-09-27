@@ -1,6 +1,7 @@
 #ifndef METER_CANOPENNODE_SDO_H
 #define METER_CANOPENNODE_SDO_H
 #include "301/CO_SDOclient.h"
+#include "diagnostics/meter_diagnostics.h"
 #include "meter_canopennode_driver.h"
 /** @brief 单通道固定容量，终态须取走才能复用槽位；对象初始化后不得按值复制。 */
 #define METER_SDO_CAPACITY 4u
@@ -48,6 +49,7 @@ typedef struct
 typedef struct
 {
     CO_SDOclient_t client;
+    meter_diagnostics_t *diag;
     CO_CANmodule_t can;
     CO_CANrx_t rx;
     CO_CANtx_t tx;
@@ -74,4 +76,6 @@ bool meter_sdo_take(meter_sdo_channel_t *channel, uint32_t request_id, meter_sdo
 void meter_sdo_reset(meter_sdo_channel_t *channel);
 /** @brief 绑定仅含 0x1280 的静态客户端参数对象。 */
 CO_ReturnError_t meter_co_sdo_init_od(CO_SDOclient_t *client, CO_CANmodule_t *can);
+/** @brief 绑定可选诊断实例，调用者保证与通道同线程并覆盖通道生命周期。 */
+void meter_sdo_bind_diagnostics(meter_sdo_channel_t *channel, meter_diagnostics_t *diag);
 #endif

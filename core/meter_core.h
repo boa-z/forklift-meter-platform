@@ -1,6 +1,7 @@
 #ifndef METER_CORE_H
 #define METER_CORE_H
 #include "contracts/meter_domain.h"
+#include "diagnostics/meter_diagnostics.h"
 /**
  * @brief 域内核：只读快照加上它所绑定的产品存储。
  *
@@ -10,6 +11,7 @@
 typedef struct
 {
     meter_snapshot_t snapshot;
+    meter_diagnostics_t *diag;
     meter_core_storage_t storage;
 } meter_core_t;
 /**
@@ -37,4 +39,6 @@ bool meter_core_parameter_valid(const meter_core_t *core, uint16_t id, float val
 bool meter_core_parameter(meter_core_t *core, uint16_t id, float value);
 /** @brief 返回只读快照，其生命周期与 core 相同。 */
 const meter_snapshot_t *meter_core_snapshot(const meter_core_t *core);
+/** @brief 绑定诊断及公共 Domain 视图；目录/存储/诊断实例须覆盖绑定期，owner 线程调用。 */
+void meter_core_bind_diagnostics(meter_core_t *core, meter_diagnostics_t *diag);
 #endif

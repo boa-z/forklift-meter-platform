@@ -40,3 +40,7 @@ Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/comm
 Project documentation is bilingual: every first-party document ships `X.md` (English) and `X.zh-CN.md` (Simplified Chinese); update both together. See the [bilingual documentation rule](docs/bilingual-docs.md).
 
 Reference-Mixed combines CAN0 synthetic DBC, CAN1 fixed PDO and standalone CANopenNode SDO read/write without NMT/Heartbeat. Product startup services consume queued results outside protocol callbacks. See [SDO integration](docs/v0.3-phase4-canopen-validation.md).
+
+## Diagnostics
+
+See [Diagnostics and serial debugging](docs/diagnostics.md) for native ULog/MSH queries, structured trace, build identity and raw UART evidence.

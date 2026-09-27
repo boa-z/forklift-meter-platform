@@ -9,5 +9,6 @@
 | PyYAML | 6.0.3 | MIT | host tools | Domain map and UI fixture input | no firmware dependency; pinned in requirements |
 | canmatrix | optional | MIT | host tooling | future database conversion when needed | add only for a concrete format requirement |
 | CANopenNode | v4.1, ac2140717c3c498d9b0351bce052bab630a74764 | Apache-2.0 | selected product / host tests | module-level SDO Client protocol engine | no upstream patches; static segmented client; test-only server; Demo/Reference-B excluded |
+| pyserial | 3.5 | BSD-3-Clause | host serial tools/tests | raw UART capture and native MSH command transport | pinned in tools/serial/requirements.txt; no firmware dependency |
 
 Firmware never runs Python and never parses DBC, YAML or JSON. It links generated static C plus LVGL and the platform adapter.

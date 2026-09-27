@@ -1,4 +1,5 @@
 #include "meter_canopennode_driver.h"
+#include "diagnostics/meter_diagnostics.h"
 #include <string.h>
 
 CO_ReturnError_t CO_CANrxBufferInit(CO_CANmodule_t *m, uint16_t i, uint16_t id, uint16_t mask, bool_t rtr,
@@ -28,7 +29,12 @@ static bool send_buffer(CO_CANmodule_t *m, CO_CANtx_t *b)
     meter_can_frame_t f = {.bus = m->bus, .id = b->ident, .size = b->DLC, .timestamp_ms = m->now_ms};
     memcpy(f.data, b->data, b->DLC);
     if (!m->port.send || !m->port.send(m->port.context, &f))
+    {
+        meter_diagnostics_can(m->diag, m->bus, METER_CAN_TX_BUSY, m->now_ms);
+        METER_DIAG_INC(m->diag, sdo, tx_busy);
         return false;
+    }
+    meter_diagnostics_can(m->diag, m->bus, METER_CAN_TX, m->now_ms);
     b->bufferFull = false;
     return true;
 }

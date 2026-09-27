@@ -2,6 +2,7 @@
 #define METER_PROTOCOL_H
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
+struct meter_diagnostics;
 /** @brief 同步提交 Domain 更新；sink context 独立于协议状态，返回是否接受更新。 */
 typedef bool (*meter_update_sink_t)(void *context, const meter_update_t *update);
 /** @brief 平台无关的 CAN 发送端口；实现负责线程安全、队列和硬件时序。 */
@@ -40,6 +41,7 @@ typedef struct
     meter_protocol_event_sink_t event;
     void *event_context;
     const meter_can_tx_port_t *tx;
+    struct meter_diagnostics *diagnostics; /**< 可选观测实例，不拥有其生命周期。 */
 } meter_protocol_services_t;
 /**
  * @brief 有状态协议适配器的唯一生命周期回调；回调运行在协议上下文，不得触碰 LVGL。
@@ -53,8 +55,7 @@ typedef struct
     bool (*on_frame)(void *context, const meter_can_frame_t *frame,
                      const meter_protocol_services_t *services);
     bool (*process)(void *context, uint32_t now_ms, const meter_protocol_services_t *services);
-    bool (*command)(void *context, const meter_command_t *command,
-                    const meter_protocol_services_t *services);
+    bool (*command)(void *context, const meter_command_t *command, const meter_protocol_services_t *services);
     void (*reset)(void *context);
 } meter_protocol_adapter_t;
 #endif

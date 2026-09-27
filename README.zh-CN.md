@@ -40,3 +40,7 @@ Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/com
 项目文档为中英双语：每个第一方文档同时提供 `X.md`（英文正本）与 `X.zh-CN.md`（简体中文译文），更新时必须同步修改两边。约定与检查方式见[双语文档规则](docs/bilingual-docs.zh-CN.md)。
 
 Reference-Mixed 组合 CAN0 合成 DBC、CAN1 固定 PDO、独立 CANopenNode SDO 读写，无 NMT/Heartbeat。产品启动服务在协议回调之外消费排队结果。详见 [SDO 接入](docs/v0.3-phase4-canopen-validation.zh-CN.md)。
+
+## 诊断
+
+参阅[诊断与串口调试](docs/diagnostics.zh-CN.md)：原生 ULog/MSH 查询、结构化 Trace、构建身份和 raw UART 证据流程。

@@ -12,7 +12,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++
-          python -m pip install -r tools/protocol/requirements.txt
+          python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt
       - name: Build and test Demo
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug

@@ -19,7 +19,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SCOPES = ["contracts", "core", "runtime", "protocols/common", "protocols/canopen", "ui/common"]
+SCOPES = ["platform/common", "diagnostics", "contracts", "core", "runtime", "protocols/common", "protocols/canopen", "ui/common"]
 
 
 def scope():

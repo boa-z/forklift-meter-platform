@@ -6,8 +6,9 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 RULES = {
     'contracts': ('contracts/',),
-    'core': ('contracts/', 'core/'),
-    'runtime': ('contracts/', 'runtime/', 'protocols/common/'),
+    'core': ('contracts/', 'core/', 'diagnostics/'),
+    'diagnostics': ('contracts/', 'diagnostics/'),
+    'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
     # 产品协议解析的是产品身份，而这些身份现在位于自动生成的目录中，不再放在公共域头文件里。
     'products/demo/protocol': ('contracts/', 'protocols/common/', 'protocol/', 'generated/'),
@@ -23,10 +24,22 @@ for area, allowed in RULES.items():
             if candidate.is_file():
                 if not candidate.is_relative_to(ROOT) or not candidate.relative_to(ROOT).as_posix().startswith(allowed):
                     errors.append(f'{file.relative_to(ROOT)} -> {include}')
-            if area in ('core','contracts') and re.search(r'lvgl|rtthread|(^|/)CO_|CANopen',include,re.I): errors.append(f'{area} imports {include}')
+            if area in ('core','contracts','diagnostics') and re.search(r'lvgl|rtthread|rtdevice|ulog|finsh|uart|ArtInChip|aic_|(^|/)CO_|CANopen',include,re.I): errors.append(f'{area} imports {include}')
             if (area.startswith('protocols') or area.endswith('/protocol')) and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
             if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
+# 诊断数据层不持有输出后端；公共层不能绕过平台直接使用日志或 Shell。
+for area in ('diagnostics', 'contracts', 'core', 'runtime', 'protocols/common', 'ui/common'):
+    for file in (ROOT/area).rglob('*'):
+        if file.suffix not in ('.c', '.h'): continue
+        content=file.read_text(encoding='utf-8')
+        backend = r'ulog|finsh|rtthread|rtdevice|aic_|uart' if area == 'ui/common' else r'ulog|finsh|rtthread|rtdevice|lvgl|aic_|uart'
+        if re.search(r'^\s*#\s*include\s*[<"].*(?:' + backend + ')',content,re.M|re.I):
+            errors.append(f'{file.relative_to(ROOT)} imports a platform diagnostics backend')
+for area in ('protocols', 'core', 'diagnostics', 'examples/reference-mixed/canopen', 'examples/reference-mixed/services'):
+    for file in (ROOT/area).rglob('*'):
+        if file.suffix in ('.c', '.h') and re.search(r'\b(?:printf|rt_kprintf|snprintf|sprintf)\s*\(',file.read_text(encoding='utf-8')):
+            errors.append(f'{file.relative_to(ROOT)} formats output in a hot-path layer')
 manifest=json.loads((ROOT/'cmake/sources.json').read_text(encoding='utf-8'))
 # 控件通过保存的指针管理自己的子对象；只有 ui/common/widgets/ 内的共享树助手可以按位置遍历子对象。
 for file in (ROOT/'ui/common/widgets').glob('*/*.c'):
@@ -68,7 +81,7 @@ for area in ('contracts','core','runtime'):
         if re.search(r'\bactive_faults\b', text):
             errors.append(f'{file.relative_to(ROOT)} folds fault state into one word')
 # 域、运行时、产品与板级适配代码绑定调用方提供的存储，不申请堆。
-for area in ('contracts','core','runtime','protocols','products','platform/rtthread'):
+for area in ('diagnostics','contracts','core','runtime','protocols','products','platform/rtthread'):
     for file in (ROOT/area).rglob('*'):
         if file.suffix not in ('.c','.h'): continue
         for call in re.findall(r'\b(?:malloc|calloc|realloc|rt_[a-z_]*malloc|pvPortMalloc|free)\s*\(', file.read_text(encoding='utf-8')):
@@ -94,7 +107,7 @@ core_sources=manifest['core']
 assert all(p.startswith('core/') for p in core_sources)
 cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
 for deps in re.findall(r'target_link_libraries\(meter_core\s+([^)]*)\)',cmake,re.S):
-    if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts') for d in deps.split()): errors.append('Core target imports an implementation dependency')
+    if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts','meter_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')
 if errors: raise SystemExit('\n'.join(errors))
 print('Architecture and selected source closure PASS')

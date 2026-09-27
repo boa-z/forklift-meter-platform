@@ -2,9 +2,26 @@
 #include "protocols/common/meter_frame_router.h"
 #include <string.h>
 
+static void diag_sync(meter_runtime_t *r)
+{
+    if (!r || !r->diag)
+        return;
+    r->diag->data.runtime = (meter_diag_runtime_t){
+        true,          r->connected, r->generation, r->count, METER_RX_CAPACITY, r->product->protocols->count,
+        r->diagnostics};
+}
+void meter_runtime_bind_diagnostics(meter_runtime_t *r, meter_diagnostics_t *d)
+{
+    if (r)
+    {
+        r->diag = d;
+        diag_sync(r);
+    }
+}
 static void runtime_services(const meter_runtime_t *r, const meter_can_tx_port_t *tx,
                              meter_protocol_services_t *services)
 {
+    services->diagnostics = r->diag;
     services->update = r->update;
     services->update_context = r->update_context;
     services->event = r->event_sink;
@@ -56,27 +73,48 @@ void meter_runtime_connection(meter_runtime_t *r, bool connected)
     if (r->connected != connected)
     {
         ++r->generation;
+        meter_diag_increment(&r->diagnostics.resets);
+        uint32_t now = r->diag ? r->diag->data.uptime_ms : 0;
+        METER_DIAG_TRACE(r->diag, METER_TRACE_RUNTIME, connected ? RUNTIME_CONNECT : RUNTIME_DISCONNECT, now,
+                         r->generation, 0);
+        METER_DIAG_TRACE(r->diag, METER_TRACE_RUNTIME, RUNTIME_RESET, now, r->generation, (uint32_t)r->count);
         r->head = r->tail = r->count = 0;
         r->connected = connected;
         if (!connected)
             for (size_t i = 0; i < r->product->protocols->count; ++i)
-                if (r->product->protocols->bindings[i].adapter && r->product->protocols->bindings[i].adapter->reset)
+                if (r->product->protocols->bindings[i].adapter &&
+                    r->product->protocols->bindings[i].adapter->reset)
                     r->product->protocols->bindings[i].adapter->reset(
                         r->product->protocols->bindings[i].adapter->context);
     }
+    diag_sync(r);
 }
 bool meter_runtime_push(meter_runtime_t *r, const meter_can_frame_t *f)
 {
+    if (!r)
+        return false;
+    if (f)
+        meter_diagnostics_can(r->diag, f->bus, METER_CAN_RX, f->timestamp_ms);
     if (!meter_frame_valid(f))
     {
         ++r->diagnostics.malformed;
+        if (f)
+            meter_diagnostics_can(r->diag, f->bus, METER_CAN_RX_ERROR, f->timestamp_ms);
+        diag_sync(r);
         return false;
     }
     if (!r->connected)
+    {
+        meter_diagnostics_can(r->diag, f->bus, METER_CAN_RX_DROP, f->timestamp_ms);
         return false;
+    }
     if (r->count == METER_RX_CAPACITY)
     {
         ++r->diagnostics.overflow;
+        meter_diagnostics_can(r->diag, f->bus, METER_CAN_RX_DROP, f->timestamp_ms);
+        METER_DIAG_TRACE(r->diag, METER_TRACE_RUNTIME, RUNTIME_QUEUE_OVERFLOW, f->timestamp_ms, f->bus,
+                         (uint32_t)r->count);
+        diag_sync(r);
         return false;
     }
     r->queue[r->tail].frame = *f;
@@ -84,6 +122,7 @@ bool meter_runtime_push(meter_runtime_t *r, const meter_can_frame_t *f)
     r->tail = (r->tail + 1) % METER_RX_CAPACITY;
     ++r->count;
     ++r->diagnostics.accepted;
+    diag_sync(r);
     return true;
 }
 size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
@@ -122,17 +161,23 @@ size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
                 if (handled)
                     ++r->diagnostics.dispatched;
                 else
+                {
                     ++r->diagnostics.decode_failed;
+                    METER_DIAG_TRACE(r->diag, METER_TRACE_RUNTIME, RUNTIME_INVALID_FRAME,
+                                     q.frame.timestamp_ms, q.frame.id, q.frame.bus);
+                }
                 break;
             }
         }
     }
+    diag_sync(r);
     return consumed;
 }
 bool meter_runtime_process(meter_runtime_t *r, uint32_t now_ms)
 {
     if (!r || !r->connected || !r->product || !r->product->protocols)
         return false;
+    meter_diagnostics_time(r->diag, now_ms);
     bool ok = true;
     for (size_t i = 0; i < r->product->protocols->count; ++i)
     {

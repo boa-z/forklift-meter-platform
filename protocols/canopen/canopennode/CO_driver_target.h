@@ -40,6 +40,7 @@ typedef struct
 } CO_CANtx_t;
 typedef struct
 {
+    struct meter_diagnostics *diag;
     CO_CANrx_t *rxArray;
     CO_CANtx_t *txArray;
     uint16_t rxSize, txSize, CANerrorStatus;

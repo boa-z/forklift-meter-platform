@@ -2,6 +2,36 @@
 #include <limits.h>
 #include <string.h>
 
+static void diag_sync(meter_sdo_channel_t *c)
+{
+    if (!c || !c->diag)
+        return;
+    meter_diag_sdo_t *d = &c->diag->data.sdo;
+    d->available = true;
+    d->bus = c->can.bus;
+    d->depth = c->count;
+    d->active_request = 0;
+    if (c->active >= 0)
+    {
+        const meter_sdo_request_t *r = &c->requests[c->active];
+        d->active_request = r->request_id;
+        d->node = r->node_id;
+        d->index = r->index;
+        d->subindex = r->subindex;
+        d->operation = (uint8_t)r->operation;
+        d->attempt = c->results[c->active].attempts;
+        d->state = METER_SDO_PENDING;
+    }
+}
+void meter_sdo_bind_diagnostics(meter_sdo_channel_t *c, meter_diagnostics_t *d)
+{
+    if (c)
+    {
+        c->diag = d;
+        c->can.diag = d;
+        diag_sync(c);
+    }
+}
 bool meter_sdo_init(meter_sdo_channel_t *c, meter_bus_role_t bus)
 {
     if (!c || bus >= METER_BUS_COUNT)
@@ -28,11 +58,18 @@ bool meter_sdo_submit(meter_sdo_channel_t *c, const meter_sdo_request_t *r)
             return false;
     }
     if (slot < 0)
+    {
+        METER_DIAG_INC(c->diag, sdo, queue_full);
         return false;
+    }
     c->requests[slot] = *r;
     c->results[slot] = (meter_sdo_result_t){.request_id = r->request_id, .status = METER_SDO_PENDING};
     c->queue[(c->head + c->count) % METER_SDO_CAPACITY] = (uint8_t)slot;
     ++c->count;
+    METER_DIAG_INC(c->diag, sdo, queued);
+    METER_DIAG_TRACE(c->diag, METER_TRACE_SDO, SDO_QUEUE, c->can.now_ms, r->request_id,
+                     ((uint32_t)r->node_id << 24) | ((uint32_t)r->index << 8) | r->subindex);
+    diag_sync(c);
     return true;
 }
 static bool start(meter_sdo_channel_t *c)
@@ -40,6 +77,8 @@ static bool start(meter_sdo_channel_t *c)
     meter_sdo_request_t *r = &c->requests[c->active];
     meter_sdo_result_t *out = &c->results[c->active];
     ++out->attempts;
+    METER_DIAG_INC(c->diag, sdo, started);
+    METER_DIAG_TRACE(c->diag, METER_TRACE_SDO, SDO_START, c->can.now_ms, r->request_id, out->attempts);
     out->size = 0;
     out->abort_code = 0;
     c->overflow = false;
@@ -57,12 +96,35 @@ static void finish(meter_sdo_channel_t *c, CO_SDO_return_t ret, CO_SDO_abortCode
     meter_sdo_result_t *out = &c->results[c->active];
     CO_SDOclientClose(&c->client);
     bool timed_out = abort == CO_SDO_AB_TIMEOUT;
+    if (ret == 0)
+        METER_DIAG_INC(c->diag, sdo, completed);
+    else if (timed_out)
+        METER_DIAG_INC(c->diag, sdo, timeout);
+    else
+        METER_DIAG_INC(c->diag, sdo, aborted);
+    if (c->diag)
+    {
+        if (abort)
+            c->diag->data.sdo.last_abort = (uint32_t)abort;
+        c->diag->data.sdo.state = ret == 0    ? METER_SDO_SUCCESS
+                                  : timed_out ? METER_SDO_TIMEOUT
+                                              : METER_SDO_ABORTED;
+    }
+    METER_DIAG_TRACE(c->diag, METER_TRACE_SDO,
+                     ret == 0    ? SDO_COMPLETE
+                     : timed_out ? SDO_TIMEOUT
+                                 : SDO_ABORT,
+                     now, r->request_id, (uint32_t)abort);
     if (ret < 0 && out->attempts <= r->retry_count && (timed_out || r->retry_abort))
     {
+        METER_DIAG_INC(c->diag, sdo, retry);
+        METER_DIAG_TRACE(c->diag, METER_TRACE_SDO, SDO_RETRY, now, r->request_id, out->attempts + 1);
         c->retry_wait = true;
         c->retry_at = now + r->retry_delay_ms;
         return;
     }
+    if (ret < 0)
+        METER_DIAG_TRACE(c->diag, METER_TRACE_SDO, SDO_FAILED, now, r->request_id, (uint32_t)abort);
     out->status = ret == 0 ? METER_SDO_SUCCESS : (timed_out ? METER_SDO_TIMEOUT : METER_SDO_ABORTED);
     out->abort_code = ret == 0 ? 0 : (uint32_t)abort;
     c->active = -1;
@@ -130,6 +192,7 @@ void meter_sdo_process(meter_sdo_channel_t *c, uint32_t now, const meter_can_tx_
     if (ret <= 0)
         finish(c, ret, abort, now);
 done:
+    diag_sync(c);
     c->can.port = (meter_can_tx_port_t){0};
 }
 bool meter_sdo_receive(meter_sdo_channel_t *c, const meter_can_frame_t *f)
@@ -166,6 +229,9 @@ void meter_sdo_reset(meter_sdo_channel_t *c)
 {
     if (!c || !c->initialized)
         return;
+    METER_DIAG_INC(c->diag, sdo, reset);
+    METER_DIAG_TRACE(c->diag, METER_TRACE_SDO, SDO_RESET, c->can.now_ms,
+                     c->active >= 0 ? c->requests[c->active].request_id : 0, c->count);
     CO_SDOclientClose(&c->client);
     CO_FLAG_CLEAR(c->client.CANrxNew);
     c->tx.bufferFull = false;
@@ -179,4 +245,7 @@ void meter_sdo_reset(meter_sdo_channel_t *c)
             c->results[i].status = METER_SDO_ABORTED;
             c->results[i].abort_code = CO_SDO_AB_DATA_DEV_STATE;
         }
+    if (c->diag)
+        c->diag->data.sdo.state = METER_SDO_IDLE;
+    diag_sync(c);
 }

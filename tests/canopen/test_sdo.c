@@ -13,6 +13,7 @@
 static meter_sdo_channel_t channel;
 static sdo_peer_t peer;
 static uint32_t now;
+static meter_diagnostics_t diag;
 static meter_sdo_request_t request(uint32_t id, unsigned item, meter_sdo_operation_t operation)
 {
     const unsigned sizes[] = {1, 2, 4, 17, 128};
@@ -51,6 +52,8 @@ static int transfers(void)
 {
     CHECK(sdo_peer_init(&peer));
     CHECK(meter_sdo_init(&channel, METER_BUS_CAN1));
+    meter_diagnostics_init(&diag);
+    meter_sdo_bind_diagnostics(&channel, &diag);
     now = 0;
     for (unsigned item = 0; item < 5; ++item)
     {
@@ -70,6 +73,9 @@ static int transfers(void)
             CHECK(peer.sent[first].data[0] == 0x2b);
         CHECK(meter_sdo_take(&channel, r.request_id, &out));
     }
+    CHECK(diag.data.sdo.queued == 10 && diag.data.sdo.started == 10);
+    CHECK(diag.data.sdo.completed == 10 && diag.data.sdo.timeout == 0);
+    CHECK(diag.data.can[1].tx > 10 && diag.trace.count > 20);
     puts("expedited read/write 1/2/4; segmented read/write 17/128; standard 0x2B PASS");
     return 0;
 }
@@ -77,6 +83,8 @@ static int failures(void)
 {
     CHECK(sdo_peer_init(&peer));
     CHECK(meter_sdo_init(&channel, METER_BUS_CAN1));
+    meter_diagnostics_init(&diag);
+    meter_sdo_bind_diagnostics(&channel, &diag);
     now = 0;
     meter_sdo_request_t r = request(1, 0, METER_SDO_READ);
     r.index = 0x3333;
@@ -96,6 +104,15 @@ static int failures(void)
     CHECK(meter_sdo_submit(&channel, &r));
     out = run(3);
     CHECK(out.status == METER_SDO_TIMEOUT && out.abort_code == CO_SDO_AB_TIMEOUT && out.attempts == 3);
+    meter_trace_entry_t history[METER_TRACE_CAPACITY];
+    size_t count = meter_trace_snapshot(&diag.trace, history, METER_TRACE_CAPACITY);
+    unsigned exhausted = 0;
+    for (size_t i = 0; i < count; ++i)
+        if (history[i].module == METER_TRACE_SDO && history[i].event == SDO_FAILED && history[i].arg0 == 3)
+            exhausted++;
+    CHECK(exhausted == 1);
+    CHECK(diag.data.sdo.timeout == 3 && diag.data.sdo.retry == 2);
+    CHECK(diag.data.sdo.aborted == 2 && diag.data.sdo.last_abort == CO_SDO_AB_TIMEOUT);
     CHECK(meter_sdo_take(&channel, 3, &out));
     /* 写入重试必须保持操作、长度、载荷，不能退化为读请求。 */
     r = request(4, 1, METER_SDO_WRITE);
@@ -180,6 +197,8 @@ static int queue_and_transport_edges(void)
 {
     CHECK(sdo_peer_init(&peer));
     CHECK(meter_sdo_init(&channel, METER_BUS_CAN1));
+    meter_diagnostics_init(&diag);
+    meter_sdo_bind_diagnostics(&channel, &diag);
     now = 0;
     meter_sdo_result_t out;
     /* 相同对象允许不同请求排队，但线上只能串行，并严格保持顺序。 */

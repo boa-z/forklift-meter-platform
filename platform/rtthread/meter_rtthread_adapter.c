@@ -20,6 +20,7 @@ bool meter_rtthread_adapter_init(meter_rtthread_adapter_t *a, const meter_produc
         return false;
     if (!meter_runtime_init(&a->runtime, p, meter_core_apply, core))
         return false;
+    meter_runtime_bind_diagnostics(&a->runtime, core->diag);
     meter_runtime_connection(&a->runtime, true);
     return true;
 }

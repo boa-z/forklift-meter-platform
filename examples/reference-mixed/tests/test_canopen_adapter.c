@@ -21,6 +21,7 @@ static meter_value_t values[4];
 static float params[2];
 static unsigned sync_events, timeout_events, failure_events, command_events;
 static uint32_t now;
+static meter_diagnostics_t diagnostics;
 static bool event(void *ctx, const meter_protocol_event_t *e)
 {
     (void)ctx;
@@ -59,6 +60,9 @@ int main(void)
         .signals = values, .signal_capacity = 4, .parameters = params, .parameter_capacity = 2};
     CHECK(meter_core_init(&core, &mixed_catalog, &storage));
     CHECK(meter_runtime_init(&runtime, product, meter_core_apply, &core));
+    meter_diagnostics_init(&diagnostics);
+    meter_runtime_bind_diagnostics(&runtime, &diagnostics);
+    meter_core_bind_diagnostics(&core, &diagnostics);
     CHECK(sdo_peer_init(&peer));
     meter_can_tx_port_t tx = {sdo_peer_send, &peer};
     meter_runtime_bind_services(&runtime, event, NULL, &tx);
@@ -97,6 +101,7 @@ int main(void)
     now = 600;
     pump();
     CHECK(timeout_events == 1 && mixed_canopen_state.timeout_reported);
+    CHECK(diagnostics.data.pdo.stale == 1 && diagnostics.data.pdo.stale_state);
     CHECK(mixed_canopen_state.startup.phase == MIXED_SYNC_WAIT_DATA);
     pump();
     CHECK(timeout_events == 1);
@@ -104,6 +109,8 @@ int main(void)
     for (unsigned i = 0; i < 30; ++i)
         pump();
     CHECK(!mixed_canopen_state.timeout_reported && sync_events == 2);
+    CHECK(diagnostics.data.pdo.recover == 1 && !diagnostics.data.pdo.stale_state);
+    CHECK(diagnostics.data.sdo.completed == 6 && diagnostics.data.sdo.reset == 1);
     CHECK(mixed_canopen_state.startup.parameters[0] == 312);
     /* 上游 abort 不能跳过 A 直接读取 B，更不能错误进入 READY。 */
     meter_runtime_connection(&runtime, false);

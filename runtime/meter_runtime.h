@@ -1,12 +1,9 @@
 #ifndef METER_RUNTIME_H
 #define METER_RUNTIME_H
-#include <stddef.h>
 #include "contracts/meter_product.h"
+#include "diagnostics/meter_diagnostics.h"
+#include <stddef.h>
 #define METER_RX_CAPACITY 32u
-typedef struct
-{
-    uint32_t accepted, overflow, malformed, unrouted, decode_failed, dispatched;
-} meter_runtime_diagnostics_t;
 typedef struct
 {
     meter_can_frame_t frame;
@@ -17,6 +14,7 @@ typedef struct
 typedef struct
 {
     const meter_product_t *product;
+    meter_diagnostics_t *diag;
     meter_update_sink_t update;
     void *update_context;
     meter_queued_frame_t queue[METER_RX_CAPACITY];
@@ -44,4 +42,6 @@ bool meter_runtime_process(meter_runtime_t *runtime, uint32_t now_ms);
  * 未绑定 TX、未连接、无 router 或目标无 command 实现时返回 false。
  */
 bool meter_runtime_command(meter_runtime_t *runtime, const meter_command_t *command);
+/** @brief 绑定可选诊断实例；实例必须覆盖 Runtime 生命周期，调用在 owner 线程。 */
+void meter_runtime_bind_diagnostics(meter_runtime_t *runtime, meter_diagnostics_t *diag);
 #endif

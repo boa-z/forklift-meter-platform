@@ -2,6 +2,20 @@
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
+void meter_core_bind_diagnostics(meter_core_t *core, meter_diagnostics_t *d)
+{
+    if (core)
+    {
+        core->diag = d;
+        if (d)
+            d->domain = &core->snapshot;
+    }
+}
+static void diag_stale(meter_core_t *core, meter_signal_id_t id, uint32_t now)
+{
+    METER_DIAG_INC(core->diag, domain, stale_transition);
+    METER_DIAG_TRACE(core->diag, METER_TRACE_DOMAIN, DOMAIN_STALE, now, id, 0);
+}
 /* 身份 0 表示“无此条目”，因此半成品目录无法占用槽位；两张表若共用同一身份，
  * 后写入的一方会静默覆盖前者的数据，必须在绑定前拒绝。 */
 static bool ids_valid(const void *table, size_t count, size_t stride, size_t offset)
@@ -89,6 +103,26 @@ bool meter_core_apply(void *context, const meter_update_t *update)
     const meter_source_policy_fn_t policy = core->snapshot.catalog->source_policy;
     if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
         return false;
+    METER_DIAG_INC(core->diag, domain, updates);
+    if (value.state == METER_VALUE_ERROR)
+        METER_DIAG_INC(core->diag, domain, error_updates);
+    if (value.state == METER_VALUE_VALID && current.state != METER_VALUE_VALID)
+    {
+        METER_DIAG_INC(core->diag, domain, valid_transition);
+        METER_DIAG_TRACE(core->diag, METER_TRACE_DOMAIN, DOMAIN_RECOVER, value.timestamp_ms, update->signal,
+                         value.source);
+    }
+    if (value.state == METER_VALUE_ERROR && current.state != METER_VALUE_ERROR)
+        METER_DIAG_TRACE(core->diag, METER_TRACE_DOMAIN, DOMAIN_ERROR, value.timestamp_ms, update->signal,
+                         value.source);
+    if (current.source != METER_SOURCE_NONE && value.source != current.source)
+    {
+        METER_DIAG_INC(core->diag, domain, source_switch);
+        METER_DIAG_TRACE(core->diag, METER_TRACE_DOMAIN, DOMAIN_SOURCE_SWITCH, value.timestamp_ms,
+                         update->signal, ((uint32_t)current.source << 16) | value.source);
+    }
+    if (value.state == METER_VALUE_STALE && current.state != METER_VALUE_STALE)
+        diag_stale(core, update->signal, value.timestamp_ms);
     if (value_equal(&value, &current))
         return true;
     core->snapshot.signals[index] = value;
@@ -105,6 +139,7 @@ void meter_core_tick(meter_core_t *core, uint32_t now_ms)
         if (v->state == METER_VALUE_VALID && limit && (uint32_t)(now_ms - v->timestamp_ms) >= limit)
         {
             v->state = METER_VALUE_STALE;
+            diag_stale(core, catalog->signals[i].id, now_ms);
             ++core->snapshot.revision;
         }
     }
@@ -115,12 +150,17 @@ void meter_core_connection(meter_core_t *core, bool connected, uint32_t generati
     core->snapshot.connected = connected;
     core->snapshot.generation = generation;
     if (connected)
+    {
+        if (changed)
+            ++core->snapshot.revision;
         return;
+    }
     const meter_catalog_t *catalog = core->snapshot.catalog;
     for (size_t i = 0; i < catalog->signal_count; ++i)
         if (core->snapshot.signals[i].state == METER_VALUE_VALID)
         {
             core->snapshot.signals[i].state = METER_VALUE_STALE;
+            diag_stale(core, catalog->signals[i].id, core->diag ? core->diag->data.uptime_ms : 0);
             changed = true;
         }
     if (changed)
