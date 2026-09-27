@@ -42,6 +42,8 @@ synthetic CAN → bounded runtime → frame route → demo binding → domain sn
 
 `meter_core` has no LVGL, RT-Thread, CANopen or protocol implementation dependency. Contracts contain the generic `meter_can_frame_t` and route types. Product route and protocol binding are under `products/demo`. Runtime owns queue capacity, generation and diagnostics. UI widgets accept values, validity and style; they do not read CAN or protocol data.
 
+The domain has no platform capacity: a product binds its own static signal, parameter and fault arrays, entries are addressed by 16-bit catalog identities rather than array positions, monitors are presentation rows over those identities, and fault state is one record per entry instead of a word of bits. `tests/test_scalability.c` runs a synthetic 128/128/96/192 catalog to prove a larger product needs no core change.
+
 The public build has one selected product, `METER_PRODUCT_DEMO`. A private downstream can add a reviewed product and binding without adding customer conditions to core, contracts, runtime or common UI. The downstream procedure is documented in `docs/downstream.md`.
 
 ## Reuse existing libraries

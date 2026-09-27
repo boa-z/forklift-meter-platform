@@ -27,10 +27,10 @@ typedef struct
     meter_linear_meter_t *height;
     meter_value_label_t *load, *hours;
     meter_status_t *status[5];
-    lv_obj_t *monitor_labels[METER_MONITOR_CAPACITY], *monitor_values[METER_MONITOR_CAPACITY],
-        *fault_rows[METER_FAULT_CAPACITY];
+    lv_obj_t *monitor_labels[DEMO_MONITOR_SLOTS], *monitor_values[DEMO_MONITOR_SLOTS],
+        *fault_rows[DEMO_FAULT_SLOTS];
     lv_obj_t *unit_button, *language_button, *brightness, *limit, *setting_status;
-    char monitor_text[METER_MONITOR_CAPACITY][64], fault_text[METER_FAULT_CAPACITY][100];
+    char monitor_text[DEMO_MONITOR_SLOTS][64], fault_text[DEMO_FAULT_SLOTS][100];
     char clock_text[32], connection_text[48];
     bool action_failed;
     bool language_presented;

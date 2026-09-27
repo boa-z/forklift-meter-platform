@@ -67,14 +67,17 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
         u->presented_language = snapshot->language;
     }
     bool stale = false;
-    for (unsigned i = 0; i < METER_SIGNAL_COUNT; ++i)
+    for (size_t i = 0; i < snapshot->catalog->signal_count; ++i)
         if (snapshot->signals[i].state == METER_VALUE_STALE)
             stale = true;
-    strcpy(u->connection_text, !snapshot->connected ? demo_i18n_text(DEMO_TXT_OFFLINE)
-                               : stale              ? demo_i18n_text(DEMO_TXT_STALE)
-                               : snapshot->signals[METER_SPEED].state == METER_VALUE_UNKNOWN
-                                   ? demo_i18n_text(DEMO_TXT_WAITING)
-                                   : demo_i18n_text(DEMO_TXT_CONNECTED));
+    demo_text_id_t state = DEMO_TXT_CONNECTED;
+    if (!snapshot->connected)
+        state = DEMO_TXT_OFFLINE;
+    else if (stale)
+        state = DEMO_TXT_STALE;
+    else if (meter_snapshot_read(snapshot, METER_SPEED).state == METER_VALUE_UNKNOWN)
+        state = DEMO_TXT_WAITING;
+    strcpy(u->connection_text, demo_i18n_text(state));
     lv_label_set_text_static(u->connection, u->connection_text);
     meter_i18n_apply_font(u->connection, snapshot->language, METER_FONT_LABEL);
     uint32_t sec = lv_tick_get() / 1000;

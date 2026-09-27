@@ -14,9 +14,9 @@
 | `--set-language english\|chinese` | set the language; persisted when `--settings` is supplied |
 | `--set-units metric\|imperial` | persist a local unit preference |
 
-The report includes `frames`, object count, heap high-water, average/max presentation time, runtime dispatch diagnostics, fault bits, validity state, value, page, `language` (`en` or `zh-CN`) and reserved `ge_hits`/`sw_fallbacks` fields. GE2D values remain `null` because the host target uses LVGL software rendering.
+The report includes `frames`, object count, heap high-water, average/max presentation time, runtime dispatch diagnostics, active fault count with its `fault_ids` identities, validity state, value, page, `language` (`en` or `zh-CN`) and reserved `ge_hits`/`sw_fallbacks` fields. GE2D values remain `null` because the host target uses LVGL software rendering.
 
-English is the initial default; the Settings language button switches immediately without recreating widgets. LVGL's built-in translation pack and label translation tags handle localization. Chinese labels use the checked-in Meter Demo CJK fonts (renamed Source Han Sans SC subsets). Unsupported language arguments exit with code 2. Old preferences retain English because the formerly reserved language byte is zero; corrupt preferences fall back to defaults.
+English is the initial default; the Settings language button switches immediately without recreating widgets. LVGL's built-in translation pack and label translation tags handle localization. Chinese labels use the checked-in Meter Demo CJK fonts (renamed Source Han Sans SC subsets). Unsupported language arguments exit with code 2. Old preferences retain English because the formerly reserved language byte is zero; corrupt preferences fall back to defaults. The settings blob records the parameter count it was written for, so a file from a product with a different catalog is refused instead of reinterpreted, and a refused file never changes the running values.
 
 Linux CI runs on `ubuntu-latest` with SDL2 and `SDL_VIDEODRIVER=dummy`. The scenario tests verify both languages on all pages and persistence across process restarts. The `i18n-ui` test checks every label for missing glyphs while switching English to Chinese and back, including unknown/stale/error states.
 

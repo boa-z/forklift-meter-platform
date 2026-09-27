@@ -18,6 +18,38 @@
             return 1;                                                                                        \
         }                                                                                                    \
     } while (0)
+#define SLOTS(array) (sizeof(array) / sizeof((array)[0]))
+/* 平台从不持有域内存：每个调用方绑定的数组按自己产品目录的大小准备。 */
+static meter_value_t signal_slots[DEMO_SIGNAL_SLOTS];
+static float parameter_slots[DEMO_PARAMETER_SLOTS];
+static meter_fault_state_t fault_slots[DEMO_FAULT_SLOTS];
+static const meter_signal_def_t duplicate_signals[] = {{METER_SPEED, "speed"}, {METER_SPEED, "flow"}};
+static const meter_signal_def_t anonymous_signals[] = {{0, "gap"}};
+static const meter_monitor_def_t dangling_monitor[] = {{"Gap", "gap", METER_WARNING + 100}};
+static const meter_fault_def_t duplicate_faults[] = {{DEMO_FAULT_LOW_CHARGE, "one", "first"},
+                                                     {DEMO_FAULT_LOW_CHARGE, "two", "second"}};
+static meter_core_storage_t storage(void)
+{
+    return (meter_core_storage_t){signal_slots, SLOTS(signal_slots), parameter_slots, SLOTS(parameter_slots),
+                                  fault_slots, SLOTS(fault_slots)};
+}
+/* 设置块是公开文档化的格式，所以测试可以直接伪造一个合法文件，
+ * 而不是只破坏字节直到校验和报错。 */
+static void store_float(uint8_t *p, float value)
+{
+    uint32_t bits;
+    memcpy(&bits, &value, 4);
+    for (unsigned i = 0; i < 4; ++i)
+        p[i] = (uint8_t)(bits >> (8 * i));
+}
+static void seal(uint8_t *bytes, size_t size)
+{
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i + 4 < size; ++i)
+        hash = (hash ^ bytes[i]) * 16777619u;
+    for (unsigned i = 0; i < 4; ++i)
+        bytes[size - 4 + i] = (uint8_t)(hash >> (8 * i));
+}
 static const meter_frame_route_t routes[] = {{METER_BUS_CAN0, 0x100, false, 1},
                                              {METER_BUS_CAN1, 0x100, false, 2},
                                              {METER_BUS_CAN0, 0x100, true, 2},
@@ -71,38 +103,78 @@ static int contracts(void)
 static int core(void)
 {
     meter_core_t c;
-    CHECK(meter_core_init(&c, &meter_demo_catalog));
-    CHECK(c.snapshot.signals[METER_SPEED].state == METER_VALUE_UNKNOWN);
+    meter_core_storage_t bound = storage();
+    CHECK(meter_core_init(&c, &meter_demo_catalog, &bound));
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_UNKNOWN);
     meter_update_t u = {METER_SPEED, {12.5f, 100, METER_VALUE_VALID}};
     CHECK(meter_core_apply(&c, &u));
     meter_core_tick(&c, 849, 750);
-    CHECK(c.snapshot.signals[METER_SPEED].state == METER_VALUE_VALID);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_VALID);
     meter_core_tick(&c, 850, 750);
-    CHECK(c.snapshot.signals[METER_SPEED].state == METER_VALUE_STALE);
-    CHECK(c.snapshot.signals[METER_SPEED].value == 12.5f);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_STALE);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).value == 12.5f);
     u.value.timestamp_ms = UINT32_MAX - 49;
     CHECK(meter_core_apply(&c, &u));
     meter_core_tick(&c, 50, 100);
-    CHECK(c.snapshot.signals[METER_SPEED].state == METER_VALUE_STALE);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_STALE);
     u.value.value = NAN;
     CHECK(meter_core_apply(&c, &u));
-    CHECK(c.snapshot.signals[METER_SPEED].state == METER_VALUE_ERROR);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_ERROR);
+    /* 目录从未声明的身份代表未知数据，不是槽位号：在旧模型下 999
+     * 恰好是平台定长数组的合法下标。 */
     u.signal = (meter_signal_id_t)999;
     CHECK(!meter_core_apply(&c, &u));
-    CHECK(meter_core_parameter(&c, 1, 50));
-    CHECK(!meter_core_parameter(&c, 1, 51));
-    CHECK(!meter_core_parameter(&c, 1, NAN));
+    u.signal = METER_ID_PRIVATE_FIRST;
+    CHECK(!meter_core_apply(&c, &u));
+    CHECK(meter_snapshot_read(&c.snapshot, METER_ID_PRIVATE_FIRST).state == METER_VALUE_UNKNOWN);
+    CHECK(meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, 50));
+    CHECK(!meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, 51));
+    CHECK(!meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, NAN));
     CHECK(!meter_core_parameter(&c, 999, 10));
-    meter_catalog_t oversized = meter_demo_catalog;
-    oversized.monitor_count = METER_MONITOR_CAPACITY + 1;
-    CHECK(!meter_core_init(&c, &oversized));
+    /* 故障状态用同样的方式寻址，产品无法触发自己不存在的条目。 */
+    CHECK(meter_snapshot_fault_set(&c.snapshot, DEMO_FAULT_LOW_CHARGE, true));
+    CHECK(meter_snapshot_fault_active(&c.snapshot, DEMO_FAULT_LOW_CHARGE));
+    CHECK(!meter_snapshot_fault_set(&c.snapshot, 999, true));
+    /* 存储小于目录规模属于集成错误，必须在写入任何槽位之前被拦下。 */
+    meter_core_storage_t tight = storage();
+    tight.signal_capacity = meter_demo_catalog.signal_count - 1;
+    CHECK(!meter_core_init(&c, &meter_demo_catalog, &tight));
+    tight = storage();
+    tight.fault_capacity = meter_demo_catalog.fault_count - 1;
+    CHECK(!meter_core_init(&c, &meter_demo_catalog, &tight));
+    tight = storage();
+    tight.parameters = NULL;
+    CHECK(!meter_core_init(&c, &meter_demo_catalog, &tight));
+    /* 监控项只是展示信息，因此没有监控项的产品依然拥有合法的域。 */
+    meter_catalog_t monitorless = meter_demo_catalog;
+    monitorless.monitors = NULL;
+    monitorless.monitor_count = 0;
+    CHECK(meter_core_init(&c, &monitorless, &bound));
+    meter_catalog_t ambiguous = meter_demo_catalog;
+    ambiguous.signals = duplicate_signals;
+    ambiguous.signal_count = SLOTS(duplicate_signals);
+    ambiguous.monitors = NULL;
+    ambiguous.monitor_count = 0;
+    CHECK(!meter_core_init(&c, &ambiguous, &bound));
+    ambiguous.signals = anonymous_signals;
+    ambiguous.signal_count = SLOTS(anonymous_signals);
+    CHECK(!meter_core_init(&c, &ambiguous, &bound));
+    meter_catalog_t unresolved = meter_demo_catalog;
+    unresolved.monitors = dangling_monitor;
+    unresolved.monitor_count = SLOTS(dangling_monitor);
+    CHECK(!meter_core_init(&c, &unresolved, &bound));
+    meter_catalog_t shared = meter_demo_catalog;
+    shared.faults = duplicate_faults;
+    shared.fault_count = SLOTS(duplicate_faults);
+    CHECK(!meter_core_init(&c, &shared, &bound));
     return 0;
 }
 static int runtime(void)
 {
     meter_core_t c;
     meter_runtime_t r;
-    CHECK(meter_core_init(&c, &meter_demo_catalog));
+    meter_core_storage_t bound = storage();
+    CHECK(meter_core_init(&c, &meter_demo_catalog, &bound));
     CHECK(meter_runtime_init(&r, &product, meter_core_apply, &c));
     meter_can_frame_t f = frame();
     CHECK(!meter_runtime_push(&r, &f));
@@ -113,7 +185,7 @@ static int runtime(void)
     CHECK(r.diagnostics.overflow == 1);
     CHECK(meter_runtime_poll(&r, 3) == 3);
     CHECK(r.count == 29);
-    CHECK(c.snapshot.signals[METER_SPEED].value == 25);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).value == 25);
     uint32_t generation = r.generation;
     meter_runtime_connection(&r, false);
     CHECK(!r.count);
@@ -145,26 +217,27 @@ static int runtime(void)
 static int protocol(void)
 {
     meter_core_t c;
-    CHECK(meter_core_init(&c, &meter_demo_catalog));
+    meter_core_storage_t bound = storage();
+    CHECK(meter_core_init(&c, &meter_demo_catalog, &bound));
     meter_can_frame_t f = frame();
     CHECK(meter_demo_decode(&f, meter_core_apply, &c));
-    CHECK(c.snapshot.signals[METER_SPEED].value == 25);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).value == 25);
     f.data[2] = 0x6c;
     f.data[3] = 0xee;
     CHECK(meter_demo_decode(&f, meter_core_apply, &c));
-    CHECK(c.snapshot.signals[METER_STEERING].value == -45);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_STEERING).value == -45);
     f.id = 0x101;
     f.data[0] = 101;
     CHECK(meter_demo_decode(&f, meter_core_apply, &c));
-    CHECK(c.snapshot.signals[METER_SOC].state == METER_VALUE_ERROR);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SOC).state == METER_VALUE_ERROR);
     f.data[0] = 100;
     CHECK(meter_demo_decode(&f, meter_core_apply, &c));
-    CHECK(c.snapshot.signals[METER_SOC].state == METER_VALUE_VALID);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_SOC).state == METER_VALUE_VALID);
     f.id = 0x102;
     f.data[0] = 0xff;
     f.data[1] = 0xff;
     CHECK(meter_demo_decode(&f, meter_core_apply, &c));
-    CHECK(c.snapshot.signals[METER_HEIGHT].state == METER_VALUE_ERROR);
+    CHECK(meter_snapshot_read(&c.snapshot, METER_HEIGHT).state == METER_VALUE_ERROR);
     f = frame();
     f.size = 2;
     CHECK(!meter_demo_decode(&f, meter_core_apply, &c));
@@ -204,23 +277,49 @@ static int widgets(void)
 static int settings(void)
 {
     meter_core_t a, b;
-    CHECK(meter_core_init(&a, &meter_demo_catalog));
-    CHECK(meter_core_init(&b, &meter_demo_catalog));
+    meter_core_storage_t sa = storage(), sb = storage();
+    CHECK(meter_core_init(&a, &meter_demo_catalog, &sa));
+    CHECK(meter_core_init(&b, &meter_demo_catalog, &sb));
     meter_action_t u = {METER_ACTION_UNITS, 0, 1};
     CHECK(meter_core_action(&a, &u));
     u.kind = METER_ACTION_LANGUAGE;
     u.value = METER_LANGUAGE_ZH;
     CHECK(meter_core_action(&a, &u));
-    CHECK(meter_core_parameter(&a, 1, 33));
-    uint8_t bytes[METER_SETTINGS_SIZE];
-    CHECK(meter_settings_encode(&a, bytes));
-    CHECK(meter_settings_decode(&b, bytes, sizeof(bytes)));
-    CHECK(b.snapshot.imperial && b.snapshot.language == METER_LANGUAGE_ZH && b.snapshot.parameters[0] == 33);
-    meter_core_t before = b;
+    CHECK(meter_core_parameter(&a, DEMO_PARAMETER_MAX_SPEED, 33));
+    uint8_t bytes[64];
+    /* 块长度随产品目录增长，而不是随平台容量上限增长。 */
+    size_t size = meter_settings_size(&a);
+    CHECK(size == METER_SETTINGS_OVERHEAD + meter_demo_catalog.parameter_count * 4u);
+    CHECK(!meter_settings_encode(&a, bytes, size - 1));
+    CHECK(meter_settings_encode(&a, bytes, sizeof(bytes)));
+    CHECK(meter_settings_decode(&b, bytes, size));
+    float stored = 0;
+    CHECK(b.snapshot.imperial && b.snapshot.language == METER_LANGUAGE_ZH && b.snapshot.brightness == 80);
+    CHECK(meter_snapshot_parameter(&b.snapshot, DEMO_PARAMETER_MAX_SPEED, &stored) && stored == 33);
     bytes[8] ^= 1;
-    CHECK(!meter_settings_decode(&b, bytes, sizeof(bytes)));
-    CHECK(!memcmp(&before, &b, sizeof(b)));
+    CHECK(!meter_settings_decode(&b, bytes, size));
+    /* 所有取值先整体校验再写入，被拒绝的文件不会让 core 停在半应用状态。
+     * 结构体副本已检测不到这种问题：存储由调用方绑定后，两个副本共享同一组产品数组。 */
+    CHECK(meter_snapshot_parameter(&b.snapshot, DEMO_PARAMETER_MAX_SPEED, &stored) && stored == 33);
+    CHECK(b.snapshot.imperial && b.snapshot.language == METER_LANGUAGE_ZH && b.snapshot.brightness == 80);
+    bytes[8] ^= 1;
     CHECK(!meter_settings_decode(&b, bytes, 4));
+    CHECK(!meter_settings_decode(&b, bytes, size - 4));
+    uint8_t foreign[64];
+    memcpy(foreign, bytes, sizeof(foreign));
+    foreign[6] = (uint8_t)(meter_demo_catalog.parameter_count - 1);
+    CHECK(!meter_settings_decode(&b, foreign, METER_SETTINGS_OVERHEAD + foreign[6] * 4u));
+    /* 格式完整但含一个越界参数的文件必须整体拒绝。第一项故意留在合法区间内，
+     * 任何边校验边写入的解码器都会把它落进 core。 */
+    uint8_t poisoned[64];
+    memcpy(poisoned, bytes, sizeof(poisoned));
+    store_float(poisoned + 8, 44.0f);
+    store_float(poisoned + 12, 1000.0f);
+    seal(poisoned, size);
+    CHECK(!meter_settings_decode(&b, poisoned, size));
+    CHECK(meter_snapshot_parameter(&b.snapshot, DEMO_PARAMETER_MAX_SPEED, &stored) && stored == 33);
+    CHECK(meter_snapshot_parameter(&b.snapshot, meter_demo_catalog.parameters[1].id, &stored) &&
+          stored == meter_demo_catalog.parameters[1].initial);
     u.value = 2;
     CHECK(!meter_core_action(&a, &u));
     return 0;

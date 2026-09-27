@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce first-party source dependency directions, not only conventions."""
+"""强制校验第一方源码的依赖方向，而不只是记录约定。"""
 from pathlib import Path
 import json
 import re
@@ -9,7 +9,8 @@ RULES = {
     'core': ('contracts/', 'core/'),
     'runtime': ('contracts/', 'runtime/', 'protocols/common/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
-    'protocols/demo': ('contracts/', 'protocols/common/', 'protocols/demo/'),
+    # 产品协议解析的是产品身份，而这些身份现在位于自动生成的目录中，不再放在公共域头文件里。
+    'protocols/demo': ('contracts/', 'protocols/common/', 'protocols/demo/', 'generated/'),
     'ui': ('contracts/', 'ui/', 'generated/'),
 }
 errors=[]
@@ -27,21 +28,18 @@ for area, allowed in RULES.items():
             if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
 manifest=json.loads((ROOT/'cmake/sources.json').read_text())
-# A widget owns its children through stored pointers; only the shared tree helper in
-# ui/common/widgets/ itself may walk children by position.
+# 控件通过保存的指针管理自己的子对象；只有 ui/common/widgets/ 内的共享树助手可以按位置遍历子对象。
 for file in (ROOT/'ui/common/widgets').glob('*/*.c'):
     if re.search(r'lv_obj_get_child\s*\(', file.read_text(encoding='utf-8')):
         errors.append(f'{file.relative_to(ROOT)} styles a child by LVGL index instead of a stored pointer')
-# Product wording and product font symbols belong to the product; common widgets render
-# tags and font roles they cannot name.
+# 产品文案与产品字体符号属于产品层；公共控件只渲染它无法命名的标签和字体角色。
 for file in (ROOT/'ui/common').rglob('*'):
     if file.suffix not in ('.c','.h'): continue
     text=file.read_text(encoding='utf-8')
     for word in ('FIELD','Dashboard','Monitor','Faults','Settings'):
         if re.search(r'\b'+word+r'\b', text):
             errors.append(f'{file.relative_to(ROOT)} carries product wording: {word}')
-    # Generated font symbols carry a size suffix, so a word-bounded match would let
-    # meter_demo_cjk_14 through.
+    # 自动生成的字体符号带字号后缀，按整词匹配会漏掉 meter_demo_cjk_14。
     for symbol in set(re.findall(r'meter_demo_cjk\w*', text)):
         errors.append(f'{file.relative_to(ROOT)} carries a product font symbol: {symbol}')
 for file in (ROOT/'ui/common').rglob('*.c'):
@@ -50,8 +48,37 @@ for file in (ROOT/'ui/common').rglob('*.c'):
 for group in ('ui_common','ui_math'):
     for file in manifest[group]:
         if re.search(r'demo', file, re.I): errors.append(f'{group} compiles a Demo source: {file}')
-# lv_translation scans every registered pack for a tag, so a tag claimed twice resolves
-# by registration order rather than by intent.
+# 产品身份属于产品词汇表。共享控件一旦写死某个身份，就等于替之后所有产品决定了它的含义。
+identities=re.findall(r'^\s+([A-Z][A-Z0-9_]+)\s*=\s*\d+,', (ROOT/'generated/demo_catalog.h').read_text(encoding='utf-8'), re.M)
+for file in (ROOT/'ui/common').rglob('*'):
+    if file.suffix not in ('.c','.h'): continue
+    text=file.read_text(encoding='utf-8')
+    for symbol in identities:
+        if re.search(r'\b'+symbol+r'\b', text): errors.append(f'{file.relative_to(ROOT)} names a product identity: {symbol}')
+# 公共代码不得替产品设定上限：容量宏、定长域数组、单个故障位字，都是把某一个产品的规模写进所有产品的三种写法。
+for area in ('contracts','core','runtime'):
+    for file in (ROOT/area).rglob('*'):
+        if file.suffix not in ('.c','.h'): continue
+        text=file.read_text(encoding='utf-8')
+        for macro in re.findall(r'#\s*define\s+(METER_[A-Z0-9_]+)', text):
+            if re.search(r'SIGNAL|PARAMETER|MONITOR|FAULT', macro) and re.search(r'CAPACITY|COUNT|SLOTS|SIZE', macro):
+                errors.append(f'{file.relative_to(ROOT)} caps a product table: {macro}')
+        if re.search(r'\bmeter_(?:value_t|fault_state_t)\s+\w+\s*\[', text):
+            errors.append(f'{file.relative_to(ROOT)} declares fixed-size domain storage')
+        if re.search(r'\bactive_faults\b', text):
+            errors.append(f'{file.relative_to(ROOT)} folds fault state into one word')
+# 域、运行时、产品与板级适配代码绑定调用方提供的存储，不申请堆。
+for area in ('contracts','core','runtime','protocols','products','platform/rtthread'):
+    for file in (ROOT/area).rglob('*'):
+        if file.suffix not in ('.c','.h'): continue
+        for call in re.findall(r'\b(?:malloc|calloc|realloc|rt_[a-z_]*malloc|pvPortMalloc|free)\s*\(', file.read_text(encoding='utf-8')):
+            errors.append(f'{file.relative_to(ROOT)} takes heap in {area}: {call}')
+# 身份是句柄而不是下标：产品一旦插入或追加条目，用身份去索引域存储就会读到另一条数据。
+for area in ('ui','products','protocols','platform'):
+    for file in (ROOT/area).rglob('*.c'):
+        for match in re.findall(r'snapshot(?:\.|->)\w+\s*\[\s*(?:METER|DEMO)_[A-Z0-9_]+', file.read_text(encoding='utf-8')):
+            errors.append(f'{file.relative_to(ROOT)} indexes domain storage by identity: {match}')
+# lv_translation 会遍历所有已注册的翻译包查找标签，被重复声明的标签将按注册顺序而非设计意图命中。
 owners={}
 for file in list((ROOT/'ui/common/i18n').glob('*.c')) + list((ROOT/'ui/products').glob('*/*_i18n.c')):
     for block in re.findall(r'tags\[\]\s*=\s*\{(.*?)\n\};', file.read_text(encoding='utf-8'), re.S):

@@ -90,7 +90,11 @@ void demo_settings_update(demo_ui_t *u)
     if (!lv_obj_has_state(u->brightness, LV_STATE_PRESSED))
         lv_slider_set_value(u->brightness, u->snapshot.brightness, LV_ANIM_OFF);
     if (!lv_obj_has_state(u->limit, LV_STATE_PRESSED))
-        lv_slider_set_value(u->limit, (int)u->snapshot.parameters[0], LV_ANIM_OFF);
+    {
+        float limit = 0;
+        meter_snapshot_parameter(&u->snapshot, DEMO_PARAMETER_MAX_SPEED, &limit);
+        lv_slider_set_value(u->limit, (int)limit, LV_ANIM_OFF);
+    }
     lv_label_set_text_static(u->setting_status, demo_i18n_text(u->action_failed ? DEMO_TXT_SETTINGS_ERROR
                                                                                 : DEMO_TXT_SETTINGS_OK));
     meter_i18n_apply_font(u->setting_status, u->snapshot.language, METER_FONT_LABEL);

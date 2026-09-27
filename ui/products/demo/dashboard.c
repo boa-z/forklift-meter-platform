@@ -47,27 +47,32 @@ void demo_dashboard_update(demo_ui_t *u)
     meter_ring_set_language(u->load_arc, s->language);
     meter_linear_meter_set_language(u->height, s->language);
     meter_value_label_set_language(u->load, s->language);
-    float speed = s->signals[METER_SPEED].value * (s->imperial ? 0.621371f : 1);
+    meter_value_t speed = meter_snapshot_read(s, METER_SPEED);
+    meter_value_t steering = meter_snapshot_read(s, METER_STEERING);
+    meter_value_t soc = meter_snapshot_read(s, METER_SOC);
+    meter_value_t height = meter_snapshot_read(s, METER_HEIGHT);
+    meter_value_t load = meter_snapshot_read(s, METER_LOAD);
     meter_gauge_set_range(u->speed, 0, s->imperial ? 32 : 50);
     meter_gauge_set_unit(u->speed, s->imperial ? "mph" : "km/h");
-    meter_gauge_set_state(u->speed, s->signals[METER_SPEED].state);
-    meter_gauge_set_value_animated(u->speed, speed, 180);
-    meter_gauge_set_state(u->steering, s->signals[METER_STEERING].state);
-    meter_gauge_set_value_animated(u->steering, s->signals[METER_STEERING].value, 180);
-    meter_ring_set_state(u->soc, s->signals[METER_SOC].state);
-    meter_ring_set_value(u->soc, s->signals[METER_SOC].value);
-    meter_linear_meter_set_state(u->height, s->signals[METER_HEIGHT].state);
-    meter_linear_meter_set_value(u->height, s->signals[METER_HEIGHT].value);
-    meter_value_label_set(u->load, s->signals[METER_LOAD].value, s->signals[METER_LOAD].state);
-    meter_ring_set_state(u->load_arc, s->signals[METER_LOAD].state);
+    meter_gauge_set_state(u->speed, speed.state);
+    meter_gauge_set_value_animated(u->speed, speed.value * (s->imperial ? 0.621371f : 1), 180);
+    meter_gauge_set_state(u->steering, steering.state);
+    meter_gauge_set_value_animated(u->steering, steering.value, 180);
+    meter_ring_set_state(u->soc, soc.state);
+    meter_ring_set_value(u->soc, soc.value);
+    meter_linear_meter_set_state(u->height, height.state);
+    meter_linear_meter_set_value(u->height, height.value);
+    meter_value_label_set(u->load, load.value, load.state);
+    meter_ring_set_state(u->load_arc, load.state);
     meter_ring_set_range(u->load_arc, 0, 1500);
-    meter_ring_set_value(u->load_arc, s->signals[METER_LOAD].value);
+    meter_ring_set_value(u->load_arc, load.value);
     const meter_signal_id_t ids[] = {METER_SEAT, METER_BRAKE, METER_NEUTRAL, METER_CHARGING, METER_WARNING};
     const demo_text_id_t names[] = {DEMO_TXT_SEAT, DEMO_TXT_BRAKE, DEMO_TXT_NEUTRAL, DEMO_TXT_CHARGE,
                                     DEMO_TXT_WARNING};
     for (unsigned i = 0; i < 5; ++i)
     {
-        meter_status_set(u->status[i], s->signals[ids[i]].value > 0, s->signals[ids[i]].state);
+        meter_value_t flag = meter_snapshot_read(s, ids[i]);
+        meter_status_set(u->status[i], flag.value > 0, flag.state);
         meter_status_set_name(u->status[i], demo_i18n_text(names[i]));
         meter_status_set_language(u->status[i], s->language);
     }

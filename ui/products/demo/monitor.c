@@ -21,10 +21,11 @@ void demo_monitor_update(demo_ui_t *u)
     for (size_t i = 0; i < meter_demo_catalog.monitor_count; ++i)
     {
         const meter_monitor_def_t *d = &meter_demo_catalog.monitors[i];
+        meter_value_t v = meter_snapshot_read(&u->snapshot, d->signal);
         lv_label_set_text(u->monitor_labels[i], demo_i18n_monitor_label(i));
         meter_i18n_apply_font(u->monitor_labels[i], u->snapshot.language, METER_FONT_LABEL);
-        const meter_value_t *v = &u->snapshot.signals[d->signal];
-        meter_i18n_format_value(u->monitor_text[i], sizeof(u->monitor_text[i]), v->value, v->state, d->unit, 1, u->snapshot.language);
+        meter_i18n_format_value(u->monitor_text[i], sizeof(u->monitor_text[i]), v.value, v.state, d->unit, 1,
+                                u->snapshot.language);
         meter_i18n_apply_font(u->monitor_values[i], u->snapshot.language, METER_FONT_LABEL);
         lv_label_set_text_static(u->monitor_values[i], u->monitor_text[i]);
     }

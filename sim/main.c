@@ -1,5 +1,6 @@
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include "platform/host/host_platform.h"
+#include "products/demo/demo_storage.h"
 #include "products/demo/product.h"
 #include "runtime/meter_runtime.h"
 #include "sim/synthetic.h"
@@ -14,6 +15,8 @@ typedef struct
     meter_core_t *core;
     const char *path;
     const meter_product_t *product;
+    uint8_t *settings;
+    size_t capacity;
 } action_context_t;
 static bool action(void *context, const meter_action_t *a)
 {
@@ -21,11 +24,31 @@ static bool action(void *context, const meter_action_t *a)
     if (!c->product->auth->local_settings ||
         (a->kind == METER_ACTION_PARAMETER && !c->product->capabilities->parameter_write))
         return false;
-    meter_core_t candidate = *c->core;
-    if (!meter_core_action(&candidate, a) || !meter_host_save(&candidate, c->path))
+    /* core 通过指针写产品存储，所以保存失败不能靠丢弃 core 副本来回退，
+     * 只能把本次动作可能改到的字段逐项还原。 */
+    size_t index = 0;
+    float previous = 0;
+    bool tracked = false;
+    if (a->kind == METER_ACTION_PARAMETER)
+    {
+        index = meter_catalog_parameter_index(c->core->snapshot.catalog, a->id);
+        tracked = index < c->core->snapshot.catalog->parameter_count;
+        if (tracked)
+            previous = c->core->snapshot.parameters[index];
+    }
+    bool imperial = c->core->snapshot.imperial;
+    meter_language_t language = c->core->snapshot.language;
+    uint8_t brightness = c->core->snapshot.brightness;
+    if (!meter_core_action(c->core, a))
         return false;
-    *c->core = candidate;
-    return true;
+    if (meter_host_save(c->core, c->path, c->settings, c->capacity))
+        return true;
+    c->core->snapshot.imperial = imperial;
+    c->core->snapshot.language = language;
+    c->core->snapshot.brightness = brightness;
+    if (tracked)
+        c->core->snapshot.parameters[index] = previous;
+    return false;
 }
 int main(int argc, char **argv)
 {
@@ -90,11 +113,13 @@ int main(int argc, char **argv)
     const meter_product_t *product = meter_product_get();
     meter_core_t core;
     meter_runtime_t runtime;
-    if (!meter_core_init(&core, product->catalog) ||
+    demo_domain_store_t store;
+    meter_core_storage_t storage = demo_domain_bind(&store);
+    if (!meter_core_init(&core, product->catalog, &storage) ||
         !meter_runtime_init(&runtime, product, meter_core_apply, &core))
         return 3;
-    meter_host_load(&core, settings);
-    action_context_t act = {&core, settings, product};
+    meter_host_load(&core, settings, store.settings, sizeof(store.settings));
+    action_context_t act = {&core, settings, product, store.settings, sizeof(store.settings)};
     meter_ui_actions_t actions = {action, &act};
     if (set_units)
     {
@@ -192,17 +217,30 @@ int main(int argc, char **argv)
         pass = false;
     if (capture && !meter_host_capture(capture))
         pass = false;
+    /* 故障按身份逐个列出而非压成位图：身份是产品句柄，不是位序号。 */
+    char fault_ids[DEMO_FAULT_SLOTS * 7 + 1] = "";
+    unsigned active_faults = 0;
+    for (size_t i = 0; i < core.snapshot.catalog->fault_count; ++i)
+        if (core.snapshot.faults[i].active)
+        {
+            size_t used = strlen(fault_ids);
+            snprintf(fault_ids + used, sizeof(fault_ids) - used, "%s%u", used ? "," : "",
+                     (unsigned)core.snapshot.faults[i].id);
+            ++active_faults;
+        }
+    meter_value_t speed = meter_snapshot_read(&core.snapshot, METER_SPEED);
     printf("{\"result\":\"%s\",\"frames\":%u,\"objects\":%u,\"objects_final\":%u,"
            "\"heap_high_water\":%u,\"update_us_avg\":%.2f,\"update_us_max\":%.2f,"
            "\"dispatched\":%u,\"decode_failed\":%u,\"overflow\":%u,\"faults\":%u,"
+           "\"fault_ids\":[%s],"
            "\"speed_state\":%u,\"speed\":%.2f,\"imperial\":%s,\"language\":\"%s\",\"page\":%u,\"ge_"
            "hits\":null,\"sw_fallbacks\":null}\n",
            pass ? "PASS" : "FAIL", completed, (unsigned)objects,
            (unsigned)meter_ui_object_count(lv_screen_active()), (unsigned)heap_peak,
            completed ? sum_us / completed : 0, max_us, (unsigned)runtime.diagnostics.dispatched,
            (unsigned)runtime.diagnostics.decode_failed, (unsigned)runtime.diagnostics.overflow,
-           (unsigned)core.snapshot.active_faults, (unsigned)core.snapshot.signals[METER_SPEED].state,
-           (double)core.snapshot.signals[METER_SPEED].value, core.snapshot.imperial ? "true" : "false",
+           active_faults, fault_ids, (unsigned)speed.state, (double)speed.value,
+           core.snapshot.imperial ? "true" : "false",
            core.snapshot.language == METER_LANGUAGE_ZH ? "zh-CN" : "en", demo_ui_active_page(ui));
     product->ui->destroy(ui);
     meter_host_close();

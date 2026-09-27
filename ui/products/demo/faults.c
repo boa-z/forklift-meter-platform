@@ -16,7 +16,7 @@ void demo_faults_update(demo_ui_t *u)
 {
     for (size_t i = 0; i < meter_demo_catalog.fault_count; ++i)
     {
-        bool active = (u->snapshot.active_faults & (1u << i)) != 0;
+        bool active = u->snapshot.faults[i].active;
         lv_snprintf(u->fault_text[i], sizeof(u->fault_text[i]), "%s   D%02u   %s",
                     demo_i18n_text(active ? DEMO_TXT_ACTIVE : DEMO_TXT_CLEAR),
                     (unsigned)meter_demo_catalog.faults[i].id,

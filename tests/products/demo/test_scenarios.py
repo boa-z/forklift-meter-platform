@@ -12,12 +12,17 @@ def run(*args):
     assert report["result"] == "PASS", report
     assert report["objects"] == report["objects_final"], report
     assert report["decode_failed"] == report["overflow"] == 0, report
+    assert report["faults"] == len(report["fault_ids"]), report
     return report
+# 故障身份与产品目录同源于 schema，所以场景断言指向具体条目，
+# 而不是平台某个字里的位序号。
+catalog = json.loads((Path(__file__).resolve().parents[3] / "schema/demo_catalog.json").read_text(encoding="utf-8"))
+FAULTS = {row[1]: row[0] for row in catalog["faults"]}
 normal=run("--scenario", "normal"); assert normal["speed_state"]==1 and normal["dispatched"]>0
-warning=run("--scenario", "warning"); assert warning["faults"] & 1 and warning["faults"] & (1<<8)
+warning=run("--scenario", "warning"); assert {FAULTS["low_charge"], FAULTS["generic_warning"]} <= set(warning["fault_ids"])
 for name in ("stale", "offline"):
-    r=run("--scenario",name); assert r["speed_state"]==2 and r["speed"]==25 and r["faults"] & (1<<4),r
-assert run("--scenario","error")["faults"] & (1<<3)
+    r=run("--scenario",name); assert r["speed_state"]==2 and r["speed"]==25 and FAULTS["communication_fault"] in r["fault_ids"],r
+assert FAULTS["sensor_fault"] in run("--scenario","error")["fault_ids"]
 assert run("--scenario","unknown")["speed_state"]==0
 for language, locale in (("english", "en"), ("chinese", "zh-CN")):
     for page in range(4):

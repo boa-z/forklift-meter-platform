@@ -48,7 +48,12 @@ static int check_glyphs(lv_obj_t *obj)
 int main(void)
 {
     meter_core_t core;
-    CHECK(meter_core_init(&core, &meter_demo_catalog));
+    meter_value_t signal_slots[DEMO_SIGNAL_SLOTS];
+    float parameter_slots[DEMO_PARAMETER_SLOTS];
+    meter_fault_state_t fault_slots[DEMO_FAULT_SLOTS];
+    meter_core_storage_t storage = {signal_slots, DEMO_SIGNAL_SLOTS, parameter_slots, DEMO_PARAMETER_SLOTS,
+                                    fault_slots, DEMO_FAULT_SLOTS};
+    CHECK(meter_core_init(&core, &meter_demo_catalog, &storage));
     lv_init();
     CHECK(meter_i18n_init());
     CHECK(demo_i18n_init());
@@ -67,16 +72,17 @@ int main(void)
         CHECK(core.snapshot.language == language);
         if (language == METER_LANGUAGE_ZH)
             for (unsigned i = 0; i < METER_TXT_COUNT; ++i)
-                /* Resolving to the tag would mean the generic pack lost its Chinese row. */
+                /* 若结果仍等于标签本身，说明通用翻译包丢了这一条中文译文。 */
                 CHECK(strcmp(meter_i18n_text((meter_text_id_t)i), meter_i18n_tag((meter_text_id_t)i)) != 0);
         for (unsigned state = METER_VALUE_UNKNOWN; state <= METER_VALUE_ERROR; ++state)
         {
-            for (unsigned i = 0; i < METER_SIGNAL_COUNT; ++i)
+            for (size_t i = 0; i < core.snapshot.catalog->signal_count; ++i)
             {
                 core.snapshot.signals[i].state = (meter_value_state_t)state;
                 core.snapshot.signals[i].value = 1;
             }
-            core.snapshot.active_faults = state % 2 ? 0x3ff : 0;
+            for (size_t i = 0; i < core.snapshot.catalog->fault_count; ++i)
+                core.snapshot.faults[i].active = state % 2 != 0;
             core.snapshot.connected = state != METER_VALUE_STALE;
             for (unsigned page = 0; page < DEMO_PAGE_COUNT; ++page)
             {
