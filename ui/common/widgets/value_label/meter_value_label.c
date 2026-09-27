@@ -1,4 +1,4 @@
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
@@ -73,7 +73,7 @@ void meter_value_label_set(meter_value_label_t *v, float value, meter_value_stat
 void meter_value_label_set_language(meter_value_label_t *v, meter_language_t language)
 {
     v->language = language;
-    meter_i18n_apply_font(v->label, language);
+    meter_i18n_apply_font(v->label, language, meter_font_role_of(v->style.value_font));
     redraw(v);
 }
 void meter_value_label_set_style(meter_value_label_t *v, const meter_widget_style_t *style)

@@ -51,8 +51,9 @@ int main(void)
     CHECK(meter_core_init(&core, &meter_demo_catalog));
     lv_init();
     CHECK(meter_i18n_init());
-    CHECK(!strcmp(meter_i18n_text((meter_text_id_t)-1), ""));
-    CHECK(!strcmp(meter_i18n_text(METER_TXT_COUNT), ""));
+    CHECK(demo_i18n_init());
+    CHECK(!strcmp(demo_i18n_text((demo_text_id_t)-1), ""));
+    CHECK(!strcmp(demo_i18n_text(DEMO_TXT_COUNT), ""));
     CHECK(meter_host_open(true));
     meter_ui_actions_t actions = {send, &core};
     demo_ui_t *ui = demo_ui_create(lv_screen_active(), &actions);
@@ -64,6 +65,10 @@ int main(void)
         if (round)
             lv_obj_send_event(ui->language_button, LV_EVENT_CLICKED, NULL);
         CHECK(core.snapshot.language == language);
+        if (language == METER_LANGUAGE_ZH)
+            for (unsigned i = 0; i < METER_TXT_COUNT; ++i)
+                /* Resolving to the tag would mean the generic pack lost its Chinese row. */
+                CHECK(strcmp(meter_i18n_text((meter_text_id_t)i), meter_i18n_tag((meter_text_id_t)i)) != 0);
         for (unsigned state = METER_VALUE_UNKNOWN; state <= METER_VALUE_ERROR; ++state)
         {
             for (unsigned i = 0; i < METER_SIGNAL_COUNT; ++i)
@@ -84,9 +89,9 @@ int main(void)
                 CHECK(!strcmp(lv_label_get_text(ui->nav_labels[0]), language == METER_LANGUAGE_ZH ? "仪表盘" : "Dashboard"));
                 CHECK(!strcmp(lv_label_get_text(ui->monitor_labels[0]), language == METER_LANGUAGE_ZH ? "车速" : "Vehicle speed"));
                 CHECK(!strcmp(lv_label_get_text(lv_obj_get_child(ui->root, 0)), language == METER_LANGUAGE_ZH ? "现场仪表" : "FIELD"));
-                CHECK(!strcmp(lv_translation_get_language(), language == METER_LANGUAGE_ZH ? "zh-CN" : "en"));
-                for (unsigned i = 0; i < METER_TXT_COUNT; ++i)
-                    CHECK(strlen(meter_i18n_text((meter_text_id_t)i)) > 0);
+                CHECK(!strcmp(lv_translation_get_language(), meter_i18n_language_code(language)));
+                for (unsigned i = 0; i < DEMO_TXT_COUNT; ++i)
+                    CHECK(strlen(demo_i18n_text((demo_text_id_t)i)) > 0);
             }
         }
     }
@@ -94,7 +99,7 @@ int main(void)
     lv_obj_send_event(ui->language_button, LV_EVENT_CLICKED, NULL);
     demo_ui_present(ui, &core.snapshot, 16);
     CHECK(core.snapshot.language == METER_LANGUAGE_EN && ui->action_failed);
-    CHECK(!strcmp(lv_label_get_text(ui->setting_status), meter_i18n_text(METER_TXT_SETTINGS_ERROR)));
+    CHECK(!strcmp(lv_label_get_text(ui->setting_status), demo_i18n_text(DEMO_TXT_SETTINGS_ERROR)));
     CHECK(check_glyphs(ui->root) == 0);
     demo_ui_destroy(ui);
     meter_host_close();

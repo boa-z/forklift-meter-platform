@@ -32,6 +32,33 @@ manifest=json.loads((ROOT/'cmake/sources.json').read_text())
 for file in (ROOT/'ui/common/widgets').glob('*/*.c'):
     if re.search(r'lv_obj_get_child\s*\(', file.read_text(encoding='utf-8')):
         errors.append(f'{file.relative_to(ROOT)} styles a child by LVGL index instead of a stored pointer')
+# Product wording and product font symbols belong to the product; common widgets render
+# tags and font roles they cannot name.
+for file in (ROOT/'ui/common').rglob('*'):
+    if file.suffix not in ('.c','.h'): continue
+    text=file.read_text(encoding='utf-8')
+    for word in ('FIELD','Dashboard','Monitor','Faults','Settings'):
+        if re.search(r'\b'+word+r'\b', text):
+            errors.append(f'{file.relative_to(ROOT)} carries product wording: {word}')
+    # Generated font symbols carry a size suffix, so a word-bounded match would let
+    # meter_demo_cjk_14 through.
+    for symbol in set(re.findall(r'meter_demo_cjk\w*', text)):
+        errors.append(f'{file.relative_to(ROOT)} carries a product font symbol: {symbol}')
+for file in (ROOT/'ui/common').rglob('*.c'):
+    if 'demo' in file.name.casefold():
+        errors.append(f'{file.relative_to(ROOT)} is a product source inside common')
+for group in ('ui_common','ui_math'):
+    for file in manifest[group]:
+        if re.search(r'demo', file, re.I): errors.append(f'{group} compiles a Demo source: {file}')
+# lv_translation scans every registered pack for a tag, so a tag claimed twice resolves
+# by registration order rather than by intent.
+owners={}
+for file in list((ROOT/'ui/common/i18n').glob('*.c')) + list((ROOT/'ui/products').glob('*/*_i18n.c')):
+    for block in re.findall(r'tags\[\]\s*=\s*\{(.*?)\n\};', file.read_text(encoding='utf-8'), re.S):
+        for tag in re.findall(r'"([^"]+)"', block):
+            if tag in owners and owners[tag] != file.name:
+                errors.append(f'Translation tag {tag} claimed by {owners[tag]} and {file.name}')
+            owners[tag]=file.name
 for group, files in manifest.items():
     assert len(files)==len(set(files)), group
     for file in files:

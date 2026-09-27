@@ -1,4 +1,4 @@
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
 #include <stdio.h>

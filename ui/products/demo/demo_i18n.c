@@ -1,12 +1,10 @@
-#include "ui/common/i18n/meter_i18n.h"
-#include "ui/common/formatter/meter_format.h"
+#include "ui/products/demo/demo_i18n.h"
 #include <lvgl.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-
-static const char * const languages[] = {"en", "zh-CN", NULL};
-static const char * const tags[] = {
+#include <stddef.h>
+LV_FONT_DECLARE(meter_demo_cjk_14);
+LV_FONT_DECLARE(meter_demo_cjk_20);
+static const char *const languages[] = {METER_LANGUAGE_CODE_EN, METER_LANGUAGE_CODE_ZH, NULL};
+static const char *const tags[] = {
     "FIELD",
     "REFERENCE",
     "WAITING",
@@ -39,10 +37,6 @@ static const char * const tags[] = {
     "LANGUAGE",
     "ENGLISH",
     "CHINESE",
-    "LIVE",
-    "STALE_STATE",
-    "NO_DATA",
-    "ERROR_STATE",
     "ACTIVE",
     "CLEAR",
     "SEAT",
@@ -50,8 +44,6 @@ static const char * const tags[] = {
     "NEUTRAL",
     "CHARGE",
     "WARNING",
-    "ON",
-    "OFF",
     "MONITOR_0",
     "MONITOR_1",
     "MONITOR_2",
@@ -78,7 +70,7 @@ static const char * const tags[] = {
     "FAULT_9",
     NULL
 };
-static const char * const translations[] = {
+static const char *const translations[] = {
     "FIELD", "现场仪表",
     "FORKLIFT / REFERENCE DEMO", "叉车 / 参考演示",
     "WAITING FOR TELEMETRY", "等待遥测数据",
@@ -111,10 +103,6 @@ static const char * const translations[] = {
     "Language", "语言",
     "English", "英语",
     "中文", "中文",
-    "LIVE", "实时",
-    "STALE", "过期",
-    "NO DATA", "无数据",
-    "SENSOR ERROR", "传感器错误",
     "ACTIVE", "活动",
     "CLEAR ", "正常 ",
     "Seat", "座椅",
@@ -122,8 +110,6 @@ static const char * const translations[] = {
     "Neutral", "空挡",
     "Charge", "充电",
     "Warning", "告警",
-    "ON", "开",
-    "OFF", "关",
     "Vehicle speed", "车速",
     "Battery charge", "电池电量",
     "Lift height", "起升高度",
@@ -149,55 +135,40 @@ static const char * const translations[] = {
     "Injected demonstration warning", "注入的演示告警",
     "Steering angle advisory", "转向角度告警",
 };
-_Static_assert(sizeof(tags) / sizeof(tags[0]) == METER_TXT_COUNT + 1, "translation tag count");
-_Static_assert(sizeof(translations) / sizeof(translations[0]) == METER_TXT_COUNT * 2, "translation value count");
-bool meter_i18n_init(void)
-{
-    if (!lv_translation_add_static(languages, tags, translations))
-        return false;
-    lv_translation_set_language("en");
-    return true;
-}
-const char *meter_i18n_tag(meter_text_id_t id)
-{
-    return (unsigned)id < METER_TXT_COUNT ? tags[id] : "";
-}
-const char *meter_i18n_text(meter_text_id_t id)
-{
-    return (unsigned)id < METER_TXT_COUNT ? lv_tr(tags[id]) : "";
-}
-const char *meter_i18n_monitor_label(size_t i)
-{
-    return i < 14 ? meter_i18n_text((meter_text_id_t)(METER_TXT_MONITOR_0 + i)) : "";
-}
-const char *meter_i18n_fault_description(size_t i)
-{
-    return i < 10 ? meter_i18n_text((meter_text_id_t)(METER_TXT_FAULT_0 + i)) : "";
-}
-const char *meter_i18n_state(meter_value_state_t state)
-{
-    meter_text_id_t id = state == METER_VALUE_UNKNOWN ? METER_TXT_NO_DATA
-                         : state == METER_VALUE_STALE ? METER_TXT_STALE_STATE
-                         : state == METER_VALUE_ERROR ? METER_TXT_ERROR_STATE : METER_TXT_LIVE;
-    return meter_i18n_text(id);
-}
-void meter_i18n_format_value(char *out, size_t size, float value, meter_value_state_t state,
-                             const char *unit, unsigned decimals, meter_language_t language)
+_Static_assert(sizeof(tags) / sizeof(tags[0]) == DEMO_TXT_COUNT + 1, "demo tag count");
+_Static_assert(sizeof(translations) / sizeof(translations[0]) == DEMO_TXT_COUNT * 2,
+               "demo translation count");
+#define DEMO_MONITOR_COUNT (DEMO_TXT_FAULT_0 - DEMO_TXT_MONITOR_0)
+#define DEMO_FAULT_COUNT (DEMO_TXT_COUNT - DEMO_TXT_FAULT_0)
+/* English already matches the runtime fallback, so only Chinese needs the checked-in subset. */
+const lv_font_t *demo_font_resolve(meter_language_t language, meter_font_role_t role)
 {
     if (language != METER_LANGUAGE_ZH)
-    {
-        meter_format_value(out, size, value, state, unit, decimals);
-        return;
-    }
-    if (state == METER_VALUE_ERROR || !isfinite(value))
-        snprintf(out, size, "错误 %s", unit);
-    else
-    {
-        meter_format_value(out, size, value, state == METER_VALUE_STALE ? METER_VALUE_VALID : state, unit, decimals);
-        if (state == METER_VALUE_STALE && size)
-        {
-            size_t used = strlen(out);
-            snprintf(out + used, size - used, " / %s", meter_i18n_text(METER_TXT_STALE_STATE));
-        }
-    }
+        return NULL;
+    return role == METER_FONT_VALUE ? &meter_demo_cjk_20 : &meter_demo_cjk_14;
+}
+bool demo_i18n_init(void)
+{
+    meter_font_provider_set(demo_font_resolve);
+    return lv_translation_add_static(languages, tags, translations) != NULL;
+}
+const char *demo_i18n_tag(demo_text_id_t id)
+{
+    return (unsigned)id < DEMO_TXT_COUNT ? tags[id] : "";
+}
+const char *demo_i18n_text(demo_text_id_t id)
+{
+    return meter_i18n_tr(demo_i18n_tag(id));
+}
+void demo_i18n_bind_label(lv_obj_t *label, demo_text_id_t id)
+{
+    meter_i18n_bind_label(label, demo_i18n_tag(id));
+}
+const char *demo_i18n_monitor_label(size_t i)
+{
+    return i < DEMO_MONITOR_COUNT ? demo_i18n_text((demo_text_id_t)(DEMO_TXT_MONITOR_0 + i)) : "";
+}
+const char *demo_i18n_fault_description(size_t i)
+{
+    return i < DEMO_FAULT_COUNT ? demo_i18n_text((demo_text_id_t)(DEMO_TXT_FAULT_0 + i)) : "";
 }

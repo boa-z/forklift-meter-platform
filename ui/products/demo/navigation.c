@@ -22,8 +22,8 @@ void demo_navigation_show(demo_ui_t *u, unsigned page)
 }
 void demo_navigation_create(demo_ui_t *u)
 {
-    const meter_text_id_t ids[] = {METER_TXT_DASHBOARD, METER_TXT_MONITOR, METER_TXT_FAULTS,
-                                   METER_TXT_SETTINGS};
+    const demo_text_id_t ids[] = {DEMO_TXT_DASHBOARD, DEMO_TXT_MONITOR, DEMO_TXT_FAULTS,
+                                  DEMO_TXT_SETTINGS};
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
         u->nav[i] = lv_button_create(u->root);

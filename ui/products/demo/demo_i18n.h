@@ -1,0 +1,80 @@
+#ifndef DEMO_I18N_H
+#define DEMO_I18N_H
+#include "contracts/meter_domain.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
+typedef struct _lv_obj_t lv_obj_t;
+typedef enum
+{
+    DEMO_TXT_FIELD,
+    DEMO_TXT_REFERENCE,
+    DEMO_TXT_WAITING,
+    DEMO_TXT_CONNECTED,
+    DEMO_TXT_OFFLINE,
+    DEMO_TXT_STALE,
+    DEMO_TXT_DASHBOARD,
+    DEMO_TXT_MONITOR,
+    DEMO_TXT_FAULTS,
+    DEMO_TXT_SETTINGS,
+    DEMO_TXT_TRACTION,
+    DEMO_TXT_ENERGY,
+    DEMO_TXT_STEERING,
+    DEMO_TXT_LIFT_HEIGHT,
+    DEMO_TXT_LOAD,
+    DEMO_TXT_LIVE_TELEMETRY,
+    DEMO_TXT_TELEMETRY_SUBTITLE,
+    DEMO_TXT_ADVISORIES,
+    DEMO_TXT_FAULT_SUBTITLE,
+    DEMO_TXT_LOCAL_PREFERENCES,
+    DEMO_TXT_SETTINGS_SUBTITLE,
+    DEMO_TXT_SPEED_UNITS,
+    DEMO_TXT_BRIGHTNESS,
+    DEMO_TXT_SPEED_LIMIT,
+    DEMO_TXT_LIMITS_NOTE,
+    DEMO_TXT_SETTINGS_OK,
+    DEMO_TXT_SETTINGS_ERROR,
+    DEMO_TXT_METRIC,
+    DEMO_TXT_IMPERIAL,
+    DEMO_TXT_LANGUAGE,
+    DEMO_TXT_ENGLISH,
+    DEMO_TXT_CHINESE,
+    DEMO_TXT_ACTIVE,
+    DEMO_TXT_CLEAR,
+    DEMO_TXT_SEAT,
+    DEMO_TXT_BRAKE,
+    DEMO_TXT_NEUTRAL,
+    DEMO_TXT_CHARGE,
+    DEMO_TXT_WARNING,
+    DEMO_TXT_MONITOR_0,
+    DEMO_TXT_MONITOR_1,
+    DEMO_TXT_MONITOR_2,
+    DEMO_TXT_MONITOR_3,
+    DEMO_TXT_MONITOR_4,
+    DEMO_TXT_MONITOR_5,
+    DEMO_TXT_MONITOR_6,
+    DEMO_TXT_MONITOR_7,
+    DEMO_TXT_MONITOR_8,
+    DEMO_TXT_MONITOR_9,
+    DEMO_TXT_MONITOR_10,
+    DEMO_TXT_MONITOR_11,
+    DEMO_TXT_MONITOR_12,
+    DEMO_TXT_MONITOR_13,
+    DEMO_TXT_FAULT_0,
+    DEMO_TXT_FAULT_1,
+    DEMO_TXT_FAULT_2,
+    DEMO_TXT_FAULT_3,
+    DEMO_TXT_FAULT_4,
+    DEMO_TXT_FAULT_5,
+    DEMO_TXT_FAULT_6,
+    DEMO_TXT_FAULT_7,
+    DEMO_TXT_FAULT_8,
+    DEMO_TXT_FAULT_9,
+    DEMO_TXT_COUNT
+} demo_text_id_t;
+bool demo_i18n_init(void);
+const char *demo_i18n_tag(demo_text_id_t id);
+const char *demo_i18n_text(demo_text_id_t id);
+void demo_i18n_bind_label(lv_obj_t *label, demo_text_id_t id);
+const char *demo_i18n_monitor_label(size_t index);
+const char *demo_i18n_fault_description(size_t index);
+const lv_font_t *demo_font_resolve(meter_language_t language, meter_font_role_t role);
+#endif

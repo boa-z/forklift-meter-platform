@@ -1,4 +1,4 @@
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
@@ -120,14 +120,14 @@ void meter_ring_set_style(meter_ring_t *r, const meter_widget_style_t *style)
 {
     if (style) r->style = *style;
     apply_style(r);
-    meter_i18n_apply_font(r->label, r->language);
+    meter_i18n_apply_font(r->label, r->language, meter_font_role_of(r->style.value_font));
     redraw(r);
 }
 
 void meter_ring_set_language(meter_ring_t *r, meter_language_t language)
 {
     r->language = language;
-    meter_i18n_apply_font(r->label, language);
-    meter_i18n_apply_font(r->validity, language);
+    meter_i18n_apply_font(r->label, language, meter_font_role_of(r->style.value_font));
+    meter_i18n_apply_font(r->validity, language, meter_font_role_of(r->style.label_font));
     redraw(r);
 }

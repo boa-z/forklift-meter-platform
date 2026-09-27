@@ -20,8 +20,8 @@ Private inventory and donor baselines remain outside this repository. Existing p
 | protocols/demo | Original | Invented five-message example protocol |
 | runtime | Original | Fixed queue, budgets, generation and diagnostics |
 | products/demo | Original | Capability, binding, routes, UI and policy composition |
-| ui/common | Original | Instruments, formatting and presentation primitives |
-| ui/products/demo | Original | Product-owned pages and navigation |
+| ui/common | Original | Instruments, formatting, translation runtime and presentation primitives, without product wording |
+| ui/products/demo | Original | Product-owned pages, navigation, translation pack and font subset |
 | platform | Original | Host and RT-Thread adapters |
 | LVGL / lvgl-aic | Pinned public upstream | Rendering and board adaptation |
 

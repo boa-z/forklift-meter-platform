@@ -1,4 +1,4 @@
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/common/widgets/needle/meter_needle.h"
@@ -188,7 +188,7 @@ void meter_gauge_set_state(meter_gauge_t *g, meter_value_state_t state)
 void meter_gauge_set_language(meter_gauge_t *g, meter_language_t language)
 {
     g->language = language;
-    meter_i18n_apply_font(g->value, language);
-    meter_i18n_apply_font(g->state_label, language);
+    meter_i18n_apply_font(g->value, language, meter_font_role_of(g->style.value_font));
+    meter_i18n_apply_font(g->state_label, language, meter_font_role_of(g->style.label_font));
     redraw(g);
 }

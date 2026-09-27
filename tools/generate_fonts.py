@@ -26,8 +26,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
-    source = (ROOT / 'ui/common/i18n/meter_i18n.c').read_text(encoding='utf-8')
-    symbols = ''.join(sorted({c for c in source if ord(c) > 127}))
+    text = ''.join((ROOT / source).read_text(encoding='utf-8') for source in
+                   ('ui/common/i18n/meter_i18n_runtime.c', 'ui/products/demo/demo_i18n.c'))
+    symbols = ''.join(sorted({c for c in text if ord(c) > 127}))
     manifest_path = ROOT / 'assets/fonts.json'
     head = subprocess.check_output(['git', '-C', str(ROOT / 'third_party/lvgl'), 'rev-parse', 'HEAD'], text=True).strip()
     assert head == PIN, 'Unreviewed LVGL font source revision'

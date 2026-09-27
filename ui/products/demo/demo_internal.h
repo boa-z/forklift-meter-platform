@@ -3,7 +3,8 @@
 #include "generated/demo_catalog.h"
 #include "generated/demo_icons.h"
 #include "ui/products/demo/demo_theme.h"
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/products/demo/demo_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/products/demo/demo_ui.h"
 enum
@@ -35,7 +36,7 @@ typedef struct
     bool language_presented;
     meter_language_t presented_language;
 } demo_ui_t;
-lv_obj_t *demo_text(demo_ui_t *ui, lv_obj_t *parent, int x, int y, meter_text_id_t id,
+lv_obj_t *demo_text(demo_ui_t *ui, lv_obj_t *parent, int x, int y, demo_text_id_t id,
                     const lv_font_t *font, uint32_t color);
 lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int width, int height);
 void demo_dashboard_create(demo_ui_t *ui);

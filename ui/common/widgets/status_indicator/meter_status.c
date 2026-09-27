@@ -1,4 +1,4 @@
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <string.h>
 struct meter_status
@@ -47,7 +47,7 @@ void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state)
     s->active = active;
     s->state = state;
     const char *tag = state == METER_VALUE_VALID
-        ? meter_i18n_text(active ? METER_TXT_ON : METER_TXT_OFF)
+        ? meter_i18n_text(active ? METER_TXT_STATE_ON : METER_TXT_STATE_OFF)
         : meter_i18n_state(state);
     lv_snprintf(s->text, sizeof(s->text), "%s %s", s->name, tag);
     lv_label_set_text_static(s->label, s->text);
@@ -64,7 +64,7 @@ void meter_status_set_name(meter_status_t *s, const char *name)
 void meter_status_set_language(meter_status_t *s, meter_language_t language)
 {
     s->language = language;
-    meter_i18n_apply_font(s->label, language);
+    meter_i18n_apply_font(s->label, language, meter_font_role_of(s->style.label_font));
     meter_status_set(s, s->active, s->state);
 }
 void meter_status_set_style(meter_status_t *s, const meter_widget_style_t *style)

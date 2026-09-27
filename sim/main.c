@@ -1,9 +1,10 @@
-#include "ui/common/i18n/meter_i18n.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "platform/host/host_platform.h"
 #include "products/demo/product.h"
 #include "runtime/meter_runtime.h"
 #include "sim/synthetic.h"
 #include "ui/common/widgets/meter_widgets.h"
+#include "ui/products/demo/demo_i18n.h"
 #include "ui/products/demo/demo_ui.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,6 +111,8 @@ int main(int argc, char **argv)
     }
     lv_init();
     if (!meter_i18n_init())
+        return 5;
+    if (!demo_i18n_init())
         return 5;
     if (!meter_host_open(hidden))
     {

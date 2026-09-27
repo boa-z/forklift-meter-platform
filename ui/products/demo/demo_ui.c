@@ -1,11 +1,11 @@
 #include "ui/products/demo/demo_internal.h"
 #include <string.h>
-lv_obj_t *demo_text(demo_ui_t *u, lv_obj_t *parent, int x, int y, meter_text_id_t id,
+lv_obj_t *demo_text(demo_ui_t *u, lv_obj_t *parent, int x, int y, demo_text_id_t id,
                     const lv_font_t *font, uint32_t color)
 {
     (void)u;
-    lv_obj_t *label = meter_text(parent, x, y, meter_i18n_text(id), font, color);
-    meter_i18n_bind_label(label, id);
+    lv_obj_t *label = meter_text(parent, x, y, demo_i18n_text(id), font, color);
+    demo_i18n_bind_label(label, id);
     return label;
 }
 lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int w, int h)
@@ -31,11 +31,11 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
     demo_theme_panel(u->root);
-    demo_text(u, u->root, 22, 15, METER_TXT_FIELD, &lv_font_montserrat_24,
+    demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24,
                0x5de5ca);
-    demo_text(u, u->root, 111, 20, METER_TXT_REFERENCE,
+    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE,
                &lv_font_montserrat_12, 0x9cb5c4);
-    u->connection = demo_text(u, u->root, 491, 18, METER_TXT_WAITING,
+    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING,
                                &lv_font_montserrat_12, 0xf3ba65);
     u->clock = meter_text(u->root, 714, 18, "00:00", &lv_font_montserrat_14, 0xe9f2f5);
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
@@ -62,7 +62,7 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
     u->snapshot = *snapshot;
     if (!u->language_presented || u->presented_language != snapshot->language)
     {
-        lv_translation_set_language(snapshot->language == METER_LANGUAGE_ZH ? "zh-CN" : "en");
+        lv_translation_set_language(meter_i18n_language_code(snapshot->language));
         u->language_presented = true;
         u->presented_language = snapshot->language;
     }
@@ -70,13 +70,13 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
     for (unsigned i = 0; i < METER_SIGNAL_COUNT; ++i)
         if (snapshot->signals[i].state == METER_VALUE_STALE)
             stale = true;
-    strcpy(u->connection_text, !snapshot->connected ? meter_i18n_text(METER_TXT_OFFLINE)
-                               : stale              ? meter_i18n_text(METER_TXT_STALE)
+    strcpy(u->connection_text, !snapshot->connected ? demo_i18n_text(DEMO_TXT_OFFLINE)
+                               : stale              ? demo_i18n_text(DEMO_TXT_STALE)
                                : snapshot->signals[METER_SPEED].state == METER_VALUE_UNKNOWN
-                                   ? meter_i18n_text(METER_TXT_WAITING)
-                                   : meter_i18n_text(METER_TXT_CONNECTED));
+                                   ? demo_i18n_text(DEMO_TXT_WAITING)
+                                   : demo_i18n_text(DEMO_TXT_CONNECTED));
     lv_label_set_text_static(u->connection, u->connection_text);
-    meter_i18n_apply_font(u->connection, snapshot->language);
+    meter_i18n_apply_font(u->connection, snapshot->language, METER_FONT_LABEL);
     uint32_t sec = lv_tick_get() / 1000;
     lv_snprintf(u->clock_text, sizeof(u->clock_text), "%02u:%02u", (unsigned)(sec / 60 % 60),
                 (unsigned)(sec % 60));
