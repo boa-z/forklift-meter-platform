@@ -1,5 +1,7 @@
 # D50T-2-Lite SDK board test image
 
+> [中文版](sdk-board-test.zh-CN.md)
+
 Date: 2026-09-27. Build status: `IMAGE_READY`. Revision `boardfix2` full-screen change hardware status: `NOT_RUN`.
 The preceding image booted on the user's board, but touch failure and a background resembling the previous UI were reported. That image did not pass board acceptance.
 Follow-up: the user now reports touch working normally after the preceding fixes. The report does not provide an image hash or a complete display/CAN acceptance record.

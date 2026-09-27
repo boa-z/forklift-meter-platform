@@ -8,6 +8,6 @@
 | python-can | 4.6.1 | LGPL-3.0 | host tools | CAN capture, candump/ASC/BLF replay | no firmware dependency; pinned in requirements |
 | PyYAML | 6.0.3 | MIT | host tools | Domain map and UI fixture input | no firmware dependency; pinned in requirements |
 | canmatrix | optional | MIT | host tooling | future database conversion when needed | add only for a concrete format requirement |
-| CANopenNode | 4.x | Apache-2.0 | firmware when selected | future CANopen adapter | not linked by Demo; review footprint before use |
+| CANopenNode | v4.1, ac2140717c3c498d9b0351bce052bab630a74764 | Apache-2.0 | selected product / host tests | module-level SDO Client protocol engine | no upstream patches; static segmented client; test-only server; Demo/Reference-B excluded |
 
 Firmware never runs Python and never parses DBC, YAML or JSON. It links generated static C plus LVGL and the platform adapter.

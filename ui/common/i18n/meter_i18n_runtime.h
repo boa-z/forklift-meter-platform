@@ -1,5 +1,6 @@
 #ifndef METER_I18N_RUNTIME_H
 #define METER_I18N_RUNTIME_H
+#include <stddef.h>
 #include "contracts/meter_domain.h"
 typedef struct _lv_obj_t lv_obj_t;
 typedef struct _lv_font_t lv_font_t;

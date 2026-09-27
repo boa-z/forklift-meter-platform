@@ -198,7 +198,7 @@ int main(int argc, char **argv)
             meter_synthetic_step(&runtime, now, scenario);
         meter_runtime_poll(&runtime, 8);
         meter_core_connection(&core, runtime.connected, runtime.generation);
-        meter_core_tick(&core, now, 750);
+        meter_core_tick(&core, now);
         if (product->evaluate)
             product->evaluate(&core.snapshot);
         lv_tick_inc(16);

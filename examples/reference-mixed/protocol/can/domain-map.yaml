@@ -1,0 +1,9 @@
+database: mixed
+bus: 0
+source: 31
+owner: 1
+decode: mixed_can0_decode
+catalog_header: catalog/catalog.h
+signals:
+  motion.speed: MIXED_CAN0_SPEED
+  energy.soc: MIXED_CAN0_SOC

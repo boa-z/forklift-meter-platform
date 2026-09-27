@@ -27,7 +27,7 @@ for area, allowed in RULES.items():
             if (area.startswith('protocols') or area.endswith('/protocol')) and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
             if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
-manifest=json.loads((ROOT/'cmake/sources.json').read_text())
+manifest=json.loads((ROOT/'cmake/sources.json').read_text(encoding='utf-8'))
 # 控件通过保存的指针管理自己的子对象；只有 ui/common/widgets/ 内的共享树助手可以按位置遍历子对象。
 for file in (ROOT/'ui/common/widgets').glob('*/*.c'):
     if re.search(r'lv_obj_get_child\s*\(', file.read_text(encoding='utf-8')):
@@ -92,7 +92,7 @@ for group, files in manifest.items():
         if not (ROOT/file).is_file(): errors.append(f'Missing build source {file}')
 core_sources=manifest['core']
 assert all(p.startswith('core/') for p in core_sources)
-cmake=(ROOT/'CMakeLists.txt').read_text()
+cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
 for deps in re.findall(r'target_link_libraries\(meter_core\s+([^)]*)\)',cmake,re.S):
     if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')

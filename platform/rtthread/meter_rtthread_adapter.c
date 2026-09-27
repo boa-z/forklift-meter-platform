@@ -38,7 +38,7 @@ bool meter_rtthread_adapter_poll(meter_rtthread_adapter_t *a, size_t budget)
     meter_core_connection(a->core, a->runtime.connected, a->runtime.generation);
     uint32_t now = a->board.now_ms(a->board.context);
     (void)meter_runtime_process(&a->runtime, now);
-    meter_core_tick(a->core, now, 750);
+    meter_core_tick(a->core, now);
     if (a->runtime.product->evaluate)
         a->runtime.product->evaluate(&a->core->snapshot);
     return true;

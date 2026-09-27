@@ -1,5 +1,7 @@
 # @PRODUCT_ID@
 
-这是独立 Product 模板。编辑 catalog、DBC/domain-map 和 ui，然后运行 Platform 的 tools/protocol/generate_can.py --product-root 本目录。
+> [中文版](README.zh-CN.md)
 
-CMake 使用 -DMETER_PRODUCT_ROOT=本目录；添加产品不需要编辑 Platform 公共代码。Firmware entry 在 product/sources.json 的 firmware 数组注册。
+A standalone product template. Edit the catalog, DBC/domain-map and UI, then run the Platform's tools/protocol/generate_can.py with --product-root pointing at this directory.
+
+CMake uses -DMETER_PRODUCT_ROOT=<this directory>; adding a product needs no edits to Platform common code. The firmware entry is registered in the firmware array of product/sources.json.

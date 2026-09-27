@@ -1,5 +1,6 @@
 #ifndef METER_WIDGETS_H
 #define METER_WIDGETS_H
+#include <stddef.h>
 #include "contracts/meter_domain.h"
 #include <lvgl.h>
 typedef struct meter_gauge meter_gauge_t;

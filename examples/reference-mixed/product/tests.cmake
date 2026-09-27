@@ -1,0 +1,8 @@
+add_test(NAME mixed-domain COMMAND ${Python3_EXECUTABLE} "${METER_PRODUCT_ROOT}/tests/test_product.py" $<TARGET_FILE:meter-protocol-runner>)
+add_executable(test-mixed-canopen "${METER_PRODUCT_ROOT}/tests/test_canopen_adapter.c")
+target_link_libraries(test-mixed-canopen PRIVATE meter_core meter_runtime meter_protocol_common meter_protocol_product meter_catalog meter_product_data meter_sdo_test_peer)
+target_include_directories(test-mixed-canopen PRIVATE "${METER_PRODUCT_ROOT}")
+add_test(NAME mixed-canopen COMMAND test-mixed-canopen)
+if(METER_BUILD_UI)
+    add_test(NAME mixed-smoke COMMAND meter-demo --smoke)
+endif()

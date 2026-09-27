@@ -38,7 +38,7 @@ static uint8_t blob[METER_SETTINGS_OVERHEAD + PARAMETER_COUNT * 4u];
 static void build(void)
 {
     for (unsigned i = 0; i < SIGNAL_COUNT; ++i)
-        signal_table[i] = (meter_signal_def_t){ID(i), synthetic_key};
+        signal_table[i] = (meter_signal_def_t){ID(i), synthetic_key, "u", 750};
     for (unsigned i = 0; i < PARAMETER_COUNT; ++i)
         parameter_table[i] = (meter_parameter_def_t){ID(i), synthetic_key, "u", 0.0f, 1000.0f, 25.0f};
     for (unsigned i = 0; i < MONITOR_COUNT; ++i)
@@ -105,7 +105,7 @@ static int updates(void)
     /* 声明 128 个信号不能顺手把第 129 个槽位交给解码器。 */
     meter_update_t stray = {ID(SIGNAL_COUNT), {1.0f, 1, METER_VALUE_VALID}};
     CHECK(!meter_core_apply(&core, &stray));
-    meter_core_tick(&core, 1000u + SIGNAL_COUNT + 750, 750);
+    meter_core_tick(&core, 1000u + SIGNAL_COUNT + 750);
     unsigned stale = 0;
     for (unsigned i = 0; i < SIGNAL_COUNT; ++i)
         if (meter_snapshot_read(&core.snapshot, ID(i)).state == METER_VALUE_STALE)

@@ -28,12 +28,12 @@ static const meter_signal_def_t anonymous_signals[] = {{0, "gap"}};
 static const meter_monitor_def_t dangling_monitor[] = {{"Gap", "gap", METER_WARNING + 100}};
 static const meter_fault_def_t duplicate_faults[] = {{DEMO_FAULT_LOW_CHARGE, "one", "first"},
                                                      {DEMO_FAULT_LOW_CHARGE, "two", "second"}};
-static bool keep_first_source(void *context, meter_signal_id_t signal, meter_source_id_t incoming,
-                              meter_source_id_t current)
+static bool keep_first_source(void *context, meter_signal_id_t signal, const meter_value_t *incoming,
+                              const meter_value_t *current)
 {
     (void)context;
     (void)signal;
-    return current == METER_SOURCE_NONE || incoming == current;
+    return current->source == METER_SOURCE_NONE || incoming->source == current->source;
 }
 static meter_core_storage_t storage(void)
 {
@@ -118,14 +118,17 @@ static int core(void)
     CHECK(meter_core_apply(&c, &u));
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).source == METER_SOURCE_NONE);
     CHECK(c.snapshot.revision == 1);
+    CHECK(meter_core_apply(&c, &u));
+    CHECK(c.snapshot.revision == 1);
     u.signal = METER_SOC;
     u.value.timestamp_ms = 100;
     CHECK(meter_core_apply(&c, &u));
     u.signal = METER_SPEED;
-    meter_core_tick(&c, 849, 750);
+    meter_core_tick(&c, 849);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_VALID);
-    meter_core_tick(&c, 850, 750);
+    meter_core_tick(&c, 850);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_STALE);
+    CHECK(c.snapshot.revision == 3);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).value == 12.5f);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SOC).state == METER_VALUE_VALID);
     meter_catalog_t policy_catalog = meter_demo_catalog;
@@ -139,7 +142,7 @@ static int core(void)
     CHECK(meter_core_init(&c, &meter_demo_catalog, &bound));
     u.value.timestamp_ms = UINT32_MAX - 49;
     CHECK(meter_core_apply(&c, &u));
-    meter_core_tick(&c, 700, 100);
+    meter_core_tick(&c, 750);
     CHECK(meter_snapshot_read(&c.snapshot, METER_SPEED).state == METER_VALUE_STALE);
     u.value.value = NAN;
     CHECK(meter_core_apply(&c, &u));
@@ -152,11 +155,17 @@ static int core(void)
     CHECK(!meter_core_apply(&c, &u));
     CHECK(meter_snapshot_read(&c.snapshot, METER_ID_PRIVATE_FIRST).state == METER_VALUE_UNKNOWN);
     CHECK(meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, 50));
+    uint32_t revision = c.snapshot.revision;
+    CHECK(meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, 50));
+    CHECK(c.snapshot.revision == revision);
     CHECK(!meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, 51));
     CHECK(!meter_core_parameter(&c, DEMO_PARAMETER_MAX_SPEED, NAN));
     CHECK(!meter_core_parameter(&c, 999, 10));
     /* 故障状态用同样的方式寻址，产品无法触发自己不存在的条目。 */
     CHECK(meter_snapshot_fault_set(&c.snapshot, DEMO_FAULT_LOW_CHARGE, true));
+    revision = c.snapshot.revision;
+    CHECK(meter_snapshot_fault_set(&c.snapshot, DEMO_FAULT_LOW_CHARGE, true));
+    CHECK(c.snapshot.revision == revision);
     CHECK(meter_snapshot_fault_active(&c.snapshot, DEMO_FAULT_LOW_CHARGE));
     CHECK(!meter_snapshot_fault_set(&c.snapshot, 999, true));
     /* 存储小于目录规模属于集成错误，必须在写入任何槽位之前被拦下。 */

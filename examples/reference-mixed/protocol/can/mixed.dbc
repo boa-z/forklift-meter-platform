@@ -1,0 +1,8 @@
+VERSION "reference-mixed-synthetic-only"
+NS_ :
+BS_:
+BU_: Bench Instrument
+BO_ 256 motion: 8 Bench
+ SG_ speed : 0|16@1+ (0.1,0) [0|50] "m/s" Instrument
+BO_ 257 energy: 8 Bench
+ SG_ soc : 0|8@1+ (0.5,0) [0|100] "%" Instrument

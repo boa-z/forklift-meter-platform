@@ -1,0 +1,25 @@
+{
+  "protocol": [
+    "generated/can/mixed.c",
+    "generated/can/mixed_adapter.c",
+    "canopen/mixed_canopen.c",
+    "services/startup_parameter_sync.c"
+  ],
+  "catalog": [
+    "catalog/catalog.c"
+  ],
+  "product": [
+    "product/product.c"
+  ],
+  "ui": [
+    "ui/ui.c"
+  ],
+  "ui_binding": [],
+  "host": [
+    "sim/main.c"
+  ],
+  "firmware": [],
+  "features": [
+    "canopennode-sdo"
+  ]
+}

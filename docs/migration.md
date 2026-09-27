@@ -1,5 +1,7 @@
 # Reference platform migration
 
+> [中文版](migration.zh-CN.md)
+
 This repository starts with a clean Git history. Its application code, example protocol, catalogs and UI are original reference implementations created from functional requirements. No proprietary product source, assets, capture, document, object dictionary or Git history is imported.
 
 ## Sequence

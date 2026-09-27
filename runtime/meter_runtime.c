@@ -1,9 +1,21 @@
 #include "runtime/meter_runtime.h"
 #include "protocols/common/meter_frame_router.h"
 #include <string.h>
-bool meter_runtime_init(meter_runtime_t *r, const meter_product_t *p, meter_update_sink_t sink, void *context)
+
+static void runtime_services(const meter_runtime_t *r, const meter_can_tx_port_t *tx,
+                             meter_protocol_services_t *services)
 {
-    if (!r || !p || !p->protocols || !meter_routes_valid(p->routes) || !sink ||
+    services->update = r->update;
+    services->update_context = r->update_context;
+    services->event = r->event_sink;
+    services->event_context = r->event_context;
+    services->tx = tx ? tx : r->tx;
+}
+
+bool meter_runtime_init(meter_runtime_t *r, const meter_product_t *p, meter_update_sink_t update,
+                        void *update_context)
+{
+    if (!r || !p || !p->protocols || !meter_routes_valid(p->routes) || !update ||
         (p->protocols->count && !p->protocols->bindings))
         return false;
     for (size_t i = 0; i < p->protocols->count; ++i)
@@ -26,9 +38,18 @@ bool meter_runtime_init(meter_runtime_t *r, const meter_product_t *p, meter_upda
     }
     memset(r, 0, sizeof(*r));
     r->product = p;
-    r->sink = sink;
-    r->context = context;
+    r->update = update;
+    r->update_context = update_context;
     return true;
+}
+void meter_runtime_bind_services(meter_runtime_t *r, meter_protocol_event_sink_t event_sink,
+                                 void *event_context, const meter_can_tx_port_t *tx)
+{
+    if (!r)
+        return;
+    r->event_sink = event_sink;
+    r->event_context = event_context;
+    r->tx = tx;
 }
 void meter_runtime_connection(meter_runtime_t *r, bool connected)
 {
@@ -87,8 +108,17 @@ size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
             const meter_protocol_binding_t *b = &r->product->protocols->bindings[i];
             if (b->owner == route->owner)
             {
-                bool handled = b->adapter ? b->adapter->on_frame(b->adapter->context, &q.frame, r->sink, r->context)
-                                          : b->decode(&q.frame, r->sink, r->context);
+                bool handled;
+                if (b->adapter)
+                {
+                    meter_protocol_services_t services;
+                    runtime_services(r, NULL, &services);
+                    handled = b->adapter->on_frame(b->adapter->context, &q.frame, &services);
+                }
+                else
+                {
+                    handled = b->decode(&q.frame, r->update, r->update_context);
+                }
                 if (handled)
                     ++r->diagnostics.dispatched;
                 else
@@ -107,22 +137,38 @@ bool meter_runtime_process(meter_runtime_t *r, uint32_t now_ms)
     for (size_t i = 0; i < r->product->protocols->count; ++i)
     {
         const meter_protocol_binding_t *b = &r->product->protocols->bindings[i];
-        if (b->adapter && b->adapter->process &&
-            !b->adapter->process(b->adapter->context, now_ms, r->sink, r->context))
-            ok = false;
+        if (b->adapter && b->adapter->process)
+        {
+            meter_protocol_services_t services;
+            runtime_services(r, NULL, &services);
+            if (!b->adapter->process(b->adapter->context, now_ms, &services))
+                ok = false;
+        }
     }
     return ok;
 }
-bool meter_runtime_command(meter_runtime_t *r, meter_frame_route_owner_t owner,
-                           const meter_command_t *command, const meter_can_tx_port_t *tx)
+bool meter_runtime_command(meter_runtime_t *r, const meter_command_t *command)
 {
-    if (!r || !r->connected || !command || !tx || !tx->send || !r->product || !r->product->protocols)
+    if (!r || !r->connected || !command || !r->product || !r->product->protocols)
+        return false;
+    if (!r->tx || !r->tx->send)
+        return false;
+    if (!r->product->command_route)
+        return false;
+    meter_frame_route_owner_t owner = 0;
+    if (!r->product->command_route(r->product->command_route_context, command, &owner))
         return false;
     for (size_t i = 0; i < r->product->protocols->count; ++i)
     {
         const meter_protocol_binding_t *b = &r->product->protocols->bindings[i];
         if (b->owner == owner)
-            return b->adapter && b->adapter->command && b->adapter->command(b->adapter->context, command, tx);
+        {
+            if (!b->adapter || !b->adapter->command)
+                return false;
+            meter_protocol_services_t services;
+            runtime_services(r, NULL, &services);
+            return b->adapter->command(b->adapter->context, command, &services);
+        }
     }
     return false;
 }

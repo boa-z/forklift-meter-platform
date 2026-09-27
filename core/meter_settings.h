@@ -1,5 +1,6 @@
 #ifndef METER_SETTINGS_H
 #define METER_SETTINGS_H
+#include <stddef.h>
 #include "core/meter_core.h"
 /* 4 字节魔数、4 字节状态字段与末尾校验和，中间是每个参数一个 4 字节浮点，
  * 因此整块大小由产品目录决定，而不是固定的平台容量。 */

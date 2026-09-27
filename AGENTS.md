@@ -7,3 +7,4 @@
 - Demo UI must support English and Simplified Chinese. Use the LVGL translation pack and label translation tags; extend the checked-in font subsets when text changes.
 - This is a clean-history public reference product. Do not import customer protocols, UI, assets, captures or private repository history.
 - Validate with CMake/Ninja and CTest, including architecture, public-clean, assets, fonts and bilingual SDL checks. Host results do not establish board acceptance.
+- Documentation is bilingual: every first-party document ships `X.md` (English, canonical) and `X.zh-CN.md` (Simplified Chinese); update both together. CI (`docs_sync`) checks pair coverage and structural sync (headings, code blocks, tables, links). See `docs/bilingual-docs.md`.

@@ -1,5 +1,7 @@
 # D133ECS / Luban-Lite integration boundary
 
+> [中文版](d133-integration.zh-CN.md)
+
 This repository does not contain the vendor SDK or claim firmware acceptance. Build it on a clean, isolated Luban-Lite checkout for `d13x/d50t-2-lite`.
 
 1. Pin SDK and the public LVGL submodule to the SHAs in `NOTICE` and `assets/manifest.json`.

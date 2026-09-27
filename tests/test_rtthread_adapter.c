@@ -40,17 +40,16 @@ static bool read_frame(void *ctx, meter_can_frame_t *frame)
     *frame = (meter_can_frame_t){.bus = METER_BUS_CAN0, .id = 0x123, .size = 1, .timestamp_ms = b->now};
     return true;
 }
-static bool decode(void *ctx, const meter_can_frame_t *f, meter_update_sink_t sink, void *sc)
+static bool decode(void *ctx, const meter_can_frame_t *f, const meter_protocol_services_t *s)
 {
     (void)ctx;
     meter_update_t update = {42, {17, f->timestamp_ms, METER_VALUE_VALID, 1}};
-    return sink(sc, &update);
+    return s->update(s->update_context, &update);
 }
-static bool process(void *ctx, uint32_t now, meter_update_sink_t sink, void *sc)
+static bool process(void *ctx, uint32_t now, const meter_protocol_services_t *s)
 {
     (void)now;
-    (void)sink;
-    (void)sc;
+    (void)s;
     ++((board_t *)ctx)->processed;
     return true;
 }

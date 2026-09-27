@@ -1,5 +1,6 @@
 #ifndef METER_PRODUCT_H
 #define METER_PRODUCT_H
+#include <stddef.h>
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
 #include "contracts/meter_protocol.h"
@@ -15,6 +16,14 @@ typedef struct
     const meter_protocol_binding_t *bindings;
     size_t count;
 } meter_protocol_profile_t;
+/** @brief Product 只选择业务命令的目标协议 owner，不触碰 TX；Runtime 统一调用 Adapter。
+ *
+ * 返回 true 且写 *owner_out 表示可路由；返回 false 表示未知命令。
+ * Router 不得直接调用 tx 发送，发送只能由目标 Adapter 的 command() 通过
+ * services->tx 完成，避免绕过协议适配层。
+ */
+typedef bool (*meter_command_route_fn_t)(void *context, const meter_command_t *command,
+                                         meter_frame_route_owner_t *owner_out);
 typedef struct
 {
     const meter_frame_route_t *entries;
@@ -56,6 +65,8 @@ typedef struct
     const meter_auth_profile_t *auth;
     const meter_catalog_t *catalog;
     void (*evaluate)(meter_snapshot_t *snapshot);
+    meter_command_route_fn_t command_route;
+    void *command_route_context;
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

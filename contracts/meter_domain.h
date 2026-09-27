@@ -56,8 +56,9 @@ typedef struct
     const char *unit;
     uint32_t stale_ms;
 } meter_signal_def_t;
+/** @brief 以完整值查看当前与候选来源，返回 true 才接受候选值。 */
 typedef bool (*meter_source_policy_fn_t)(void *context, meter_signal_id_t signal,
-                                         meter_source_id_t incoming, meter_source_id_t current);
+                                         const meter_value_t *incoming, const meter_value_t *current);
 /**
  * @brief 可写参数定义。
  *
@@ -209,7 +210,11 @@ static inline bool meter_snapshot_fault_set(meter_snapshot_t *snapshot, uint16_t
     size_t index = meter_catalog_fault_index(snapshot->catalog, id);
     if (index >= snapshot->catalog->fault_count)
         return false;
-    snapshot->faults[index].active = active;
+    if (snapshot->faults[index].active != active)
+    {
+        snapshot->faults[index].active = active;
+        ++snapshot->revision;
+    }
     return true;
 }
 /** @brief UI 动作类别。METER_ACTION_PARAMETER 使用 id，其余类别忽略 id。 */

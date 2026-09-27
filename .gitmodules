@@ -4,3 +4,6 @@
 [submodule "third_party/lvgl-aic"]
 	path = third_party/lvgl-aic
 	url = https://github.com/boa-z/lvgl-aic.git
+[submodule "third_party/CANopenNode"]
+	path = third_party/CANopenNode
+	url = https://github.com/CANopenNode/CANopenNode.git

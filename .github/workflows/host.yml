@@ -23,3 +23,8 @@ jobs:
           cmake -S . -B build-reference -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=examples/reference-b
           cmake --build build-reference
           ctest --test-dir build-reference --output-on-failure
+      - name: Build and test Reference-Mixed
+        run: |
+          cmake -S . -B build-mixed -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=examples/reference-mixed
+          cmake --build build-mixed
+          ctest --test-dir build-mixed --output-on-failure

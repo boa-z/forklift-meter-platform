@@ -25,8 +25,8 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const m
  * 身份未声明返回 false；非有限浮点降级为 ERROR。在解码方所在线程执行，宿主实现与 UI 同线程。
  */
 bool meter_core_apply(void *context, const meter_update_t *update);
-/** @brief 把超过 stale_ms 的 VALID 降级为 STALE；now_ms 为单调毫秒，允许 32 位回绕。 */
-void meter_core_tick(meter_core_t *core, uint32_t now_ms, uint32_t stale_ms);
+/** @brief 按目录中每个信号自己的 stale_ms 降级；0 表示不自动超时。 */
+void meter_core_tick(meter_core_t *core, uint32_t now_ms);
 /** @brief 更新连接状态与代数；断开时立即把所有 VALID 降级为 STALE，并保留最后可读值。 */
 void meter_core_connection(meter_core_t *core, bool connected, uint32_t generation);
 /** @brief 应用 UI 设置动作；越界或未知类别返回 false 且不改变状态。在 UI 线程执行。 */

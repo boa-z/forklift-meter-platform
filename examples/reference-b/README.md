@@ -1,6 +1,8 @@
 # Reference-B
 
-完全虚构的第二产品。CAN1、29-bit 扩展帧、m/s 速度、独立信号 ID、400/600/2400/5000 ms stale，四个信号，无称重。
+> [中文版](README.zh-CN.md)
 
-两页原生 LVGL tabview，浅紫主题，英语和简体中文；与 Demo 的四页 UI 和协议独立。
-使用 -DMETER_PRODUCT_ROOT=examples/reference-b 构建。协议码、路由、字体均为静态 C；无 firmware Python 依赖。
+A fully fictional second product. CAN1, 29-bit extended frames, m/s velocity, independent signal IDs, 400/600/2400/5000 ms stale times, four signals, no weighing.
+
+Two-page native LVGL tabview, light-purple theme, English and Simplified Chinese; independent from the Demo's four-page UI and protocol.
+Build with -DMETER_PRODUCT_ROOT=examples/reference-b. Protocol code, routes and fonts are static C; no firmware Python dependency.

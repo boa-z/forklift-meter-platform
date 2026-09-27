@@ -52,7 +52,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
         if (!fixture && step) step(&runtime,now);
         meter_runtime_poll(&runtime,32);
         if (!meter_runtime_process(&runtime,now)) return 7;
-        meter_core_tick(&core,now,750);
+        meter_core_tick(&core, now);
         if(p->evaluate) p->evaluate(&core.snapshot);
         p->ui->present(ui,&core.snapshot,16);
         lv_tick_inc(16); lv_timer_handler();

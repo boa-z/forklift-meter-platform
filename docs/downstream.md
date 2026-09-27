@@ -1,5 +1,7 @@
 # Private downstream guide
 
+> [中文版](downstream.zh-CN.md)
+
 Start a new private repository from a tagged public platform release and set:
 
 ```text

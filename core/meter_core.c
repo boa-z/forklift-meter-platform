@@ -44,6 +44,11 @@ static bool catalog_valid(const meter_catalog_t *catalog)
     }
     return true;
 }
+static bool value_equal(const meter_value_t *a, const meter_value_t *b)
+{
+    return a->value == b->value && a->timestamp_ms == b->timestamp_ms && a->state == b->state &&
+           a->source == b->source;
+}
 bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const meter_core_storage_t *storage)
 {
     if (!core || !storage || !catalog_valid(catalog) || catalog->signal_count > storage->signal_capacity ||
@@ -82,26 +87,31 @@ bool meter_core_apply(void *context, const meter_update_t *update)
     }
     const meter_value_t current = core->snapshot.signals[index];
     const meter_source_policy_fn_t policy = core->snapshot.catalog->source_policy;
-    if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, value.source,
-                          current.source))
+    if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
         return false;
+    if (value_equal(&value, &current))
+        return true;
     core->snapshot.signals[index] = value;
     ++core->snapshot.revision;
     return true;
 }
-void meter_core_tick(meter_core_t *core, uint32_t now_ms, uint32_t stale_ms)
+void meter_core_tick(meter_core_t *core, uint32_t now_ms)
 {
     const meter_catalog_t *catalog = core->snapshot.catalog;
     for (size_t i = 0; i < catalog->signal_count; ++i)
     {
         meter_value_t *v = &core->snapshot.signals[i];
-        const uint32_t limit = catalog->signals[i].stale_ms ? catalog->signals[i].stale_ms : stale_ms;
+        const uint32_t limit = catalog->signals[i].stale_ms;
         if (v->state == METER_VALUE_VALID && limit && (uint32_t)(now_ms - v->timestamp_ms) >= limit)
+        {
             v->state = METER_VALUE_STALE;
+            ++core->snapshot.revision;
+        }
     }
 }
 void meter_core_connection(meter_core_t *core, bool connected, uint32_t generation)
 {
+    bool changed = core->snapshot.connected != connected || core->snapshot.generation != generation;
     core->snapshot.connected = connected;
     core->snapshot.generation = generation;
     if (connected)
@@ -109,7 +119,12 @@ void meter_core_connection(meter_core_t *core, bool connected, uint32_t generati
     const meter_catalog_t *catalog = core->snapshot.catalog;
     for (size_t i = 0; i < catalog->signal_count; ++i)
         if (core->snapshot.signals[i].state == METER_VALUE_VALID)
+        {
             core->snapshot.signals[i].state = METER_VALUE_STALE;
+            changed = true;
+        }
+    if (changed)
+        ++core->snapshot.revision;
 }
 bool meter_core_parameter_valid(const meter_core_t *core, uint16_t id, float value)
 {
@@ -125,7 +140,11 @@ bool meter_core_parameter(meter_core_t *core, uint16_t id, float value)
 {
     if (!meter_core_parameter_valid(core, id, value))
         return false;
-    core->snapshot.parameters[meter_catalog_parameter_index(core->snapshot.catalog, id)] = value;
+    size_t index = meter_catalog_parameter_index(core->snapshot.catalog, id);
+    if (core->snapshot.parameters[index] == value)
+        return true;
+    core->snapshot.parameters[index] = value;
+    ++core->snapshot.revision;
     return true;
 }
 bool meter_core_action(meter_core_t *core, const meter_action_t *action)
@@ -137,13 +156,19 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
     case METER_ACTION_UNITS:
         if (action->value != 0 && action->value != 1)
             return false;
-        core->snapshot.imperial = action->value != 0;
+        bool next_units = action->value != 0;
+        if (core->snapshot.imperial == next_units)
+            return true;
+        core->snapshot.imperial = next_units;
         ++core->snapshot.revision;
         return true;
     case METER_ACTION_BRIGHTNESS:
         if (action->value < 10 || action->value > 100)
             return false;
-        core->snapshot.brightness = (uint8_t)action->value;
+        uint8_t next_brightness = (uint8_t)action->value;
+        if (core->snapshot.brightness == next_brightness)
+            return true;
+        core->snapshot.brightness = next_brightness;
         ++core->snapshot.revision;
         return true;
     case METER_ACTION_PARAMETER:
@@ -151,7 +176,10 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
     case METER_ACTION_LANGUAGE:
         if (action->value != METER_LANGUAGE_EN && action->value != METER_LANGUAGE_ZH)
             return false;
-        core->snapshot.language = (meter_language_t)action->value;
+        meter_language_t next_language = (meter_language_t)action->value;
+        if (core->snapshot.language == next_language)
+            return true;
+        core->snapshot.language = next_language;
         ++core->snapshot.revision;
         return true;
     default:

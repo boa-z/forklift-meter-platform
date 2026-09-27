@@ -64,7 +64,7 @@ int main(int argc, char **argv)
         }
         else return 2;
         if (!meter_runtime_process(&runtime, now)) return 4;
-        meter_core_tick(&core, now, 750);
+        meter_core_tick(&core, now);
     }
     if (ferror(stdin)) return 2;
     if (p->evaluate) p->evaluate(&core.snapshot);
