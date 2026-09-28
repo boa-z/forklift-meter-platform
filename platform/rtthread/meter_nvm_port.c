@@ -1,6 +1,4 @@
-#ifdef METER_ENABLE_CAN_UPDATE
-#include "platform/rtthread/meter_update_port.h"
-#endif
+#include "platform/rtthread/meter_execution_port.h"
 #include "contracts/meter_product.h"
 #include "platform/rtthread/meter_eeprom_i2c.h"
 #include "platform/rtthread/meter_nvm_port.h"
@@ -23,12 +21,12 @@
 
 typedef struct
 {
-    bool scan, initialize;
+    bool scan, initialize, stop;
     meter_nvm_job_t job;
 } work_t;
 typedef struct
 {
-    bool scan, degraded;
+    bool scan, degraded, stopped;
     meter_slots_result_t result;
     meter_io_result_t error;
     uint32_t generation;
@@ -69,7 +67,7 @@ static struct
     struct rt_thread worker;
     rt_ubase_t stack[4096u / sizeof(rt_ubase_t)];
     meter_diag_storage_t diag;
-    bool started, outstanding, loaded, retry, initialize;
+    bool started, outstanding, loaded, retry, initialize, stopping, stopped;
 } port;
 
 static void worker(void *arg)
@@ -79,6 +77,12 @@ static void worker(void *arg)
     while (rt_mq_recv(&port.requests, &work, sizeof(work), RT_WAITING_FOREVER) == RT_EOK)
     {
         result_t result = {0};
+        if (work.stop)
+        {
+            result.stopped = true;
+            (void)rt_mq_send(&port.results, &result, sizeof(result));
+            return;
+        }
         result.scan = work.scan;
         result.generation = work.job.generation;
         result.revision = work.job.revision;
@@ -209,12 +213,13 @@ void meter_board_nvm_poll(uint32_t now, meter_diag_storage_t *status)
 {
     if (!port.started)
         return;
-    if (port.loaded)
+    if (port.loaded && !port.stopping)
         process_command(now);
     result_t result;
     if (rt_mq_recv(&port.results, &result, sizeof(result), 0) == RT_EOK)
     {
         port.outstanding = false;
+        if (result.stopped) { port.stopped = true; return; }
         if (result.scan)
         {
             meter_diag_increment(&port.diag.reads);
@@ -247,7 +252,7 @@ void meter_board_nvm_poll(uint32_t now, meter_diag_storage_t *status)
         port.retry = false;
         (void)submit_scan();
     }
-    if (!port.outstanding)
+    if (!port.outstanding && !port.stopping)
     {
         work_t work = {0};
         if (meter_nvm_take(&port.service, now, &work.job))
@@ -302,13 +307,11 @@ static void process_command(uint32_t now)
     if (rt_mq_recv(&commands, &command, sizeof(command), 0) != RT_EOK)
         return;
     command_result_t result = {false, 0u};
-#ifdef METER_ENABLE_CAN_UPDATE
-    if (meter_board_update_maintenance())
+    if (!meter_execution_settings_allowed())
     {
         (void)rt_mq_send(&command_results, &result, sizeof(result));
         return;
     }
-#endif
     if (command.kind == 1u)
     {
         result.target = meter_board_nvm_flush();
@@ -363,6 +366,8 @@ static int meter_settings(int argc, char **argv)
                    result.applied ? "APPLIED_OR_QUEUED" : "REJECTED", target);
         return RT_EOK;
     }
+    if (!meter_execution_settings_allowed())
+    { rt_kprintf("settings REJECTED by runtime mode or lifecycle\n"); return -RT_ERROR; }
     command_t command = {0};
     if (argc == 2 && !strcmp(argv[1], "save"))
         command.kind = 1u;
@@ -411,3 +416,15 @@ static int meter_settings(int argc, char **argv)
     return RT_EOK;
 }
 MSH_CMD_EXPORT(meter_settings, Local settings asynchronous commands);
+
+void meter_board_nvm_stop(void)
+{
+    if (!port.started || port.stopping || port.outstanding) return;
+    work_t work = {.stop = true};
+    if (rt_mq_send(&port.requests, &work, sizeof(work)) == RT_EOK)
+    { port.stopping = true; port.outstanding = true; }
+}
+bool meter_board_nvm_stopped(void)
+{
+    return !port.started || port.stopped;
+}

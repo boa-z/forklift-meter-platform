@@ -1,3 +1,4 @@
+#include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/debug/meter_debug_console.h"
 #include "platform/common/meter_diag_commands.h"
 #include <finsh.h>
@@ -55,7 +56,7 @@ static int meter(int argc, char **argv)
     rt_mutex_take(&console_mutex, RT_WAITING_FOREVER);
     meter_diag_view_t view = {.snapshot = &snapshot, .build = identity};
     meter_debug_lock();
-    uint32_t now = (uint32_t)rt_tick_get_millisecond();
+    uint32_t now = (uint32_t)meter_board_now_ms();
     meter_diagnostics_snapshot(diagnostics, now, &snapshot);
     if (query.kind == METER_QUERY_SIGNAL && meter_diagnostics_signal(diagnostics, query.key, now, &signal))
         view.signal = &signal;

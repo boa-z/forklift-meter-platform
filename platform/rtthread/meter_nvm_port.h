@@ -16,4 +16,8 @@ uint64_t meter_board_nvm_flush(void);
 bool meter_board_nvm_barrier(uint64_t target);
 /** @brief App 显式重读并重试失败记录，不覆盖当前 RAM。 */
 bool meter_board_nvm_retry(void);
+/** @brief App 在 durable 且无在途 I/O 后请求退出，不强杀 worker。 */
+void meter_board_nvm_stop(void);
+/** @brief App 处理退出结果后返回 true；等待时资源保持有效。 */
+bool meter_board_nvm_stopped(void);
 #endif

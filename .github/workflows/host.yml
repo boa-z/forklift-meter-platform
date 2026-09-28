@@ -1,6 +1,33 @@
 name: host
 on: [push, pull_request]
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - run: git submodule update --init third_party/lvgl third_party/CANopenNode third_party/iso14229
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang clang-tidy cppcheck ninja-build
+          python -m pip install -r tools/hil/requirements.txt -r tools/ota/requirements.txt
+      - name: Build instrumented portable code
+        run: |
+          cmake -S . -B build-quality -G Ninja -DMETER_BUILD_UI=OFF -DMETER_ENABLE_UPDATE=ON -DMETER_SANITIZE=ON -DMETER_FUZZ=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake --build build-quality
+      - name: ASan and UBSan
+        run: ctest --test-dir build-quality --output-on-failure
+      - name: Cppcheck OSS
+        run: cppcheck --enable=warning,performance,portability --error-exitcode=1 --std=c11 -I . runtime core storage update
+      - name: Clang analyzer and advisory checks
+        run: |
+          find core runtime storage update -name '*.c' -print0 | xargs -0 -n 1 clang-tidy -p build-quality
+      - name: Bounded fuzz smoke
+        run: build-quality/fuzz-runtime -max_total_time=30 -max_len=4096 -seed=1
   host:
     runs-on: ubuntu-latest
     steps:

@@ -1,6 +1,7 @@
 #ifndef METER_CORE_H
 #define METER_CORE_H
 #include "contracts/meter_domain.h"
+#include "contracts/meter_batch.h"
 #include "diagnostics/meter_diagnostics.h"
 /**
  * @brief 域内核：只读快照加上它所绑定的产品存储。
@@ -27,6 +28,10 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const m
  * 身份未声明返回 false；非有限浮点降级为 ERROR。在解码方所在线程执行，宿主实现与 UI 同线程。
  */
 bool meter_core_apply(void *context, const meter_update_t *update);
+/** @brief App 独占调用；先验证整批身份、代数、来源仲裁，再一次提交。
+ * @details 失败不修改 Domain；策略必须为纯判定。同步无 I/O，不持有 batch 指针。
+ */
+bool meter_core_apply_batch(meter_core_t *core, const meter_update_batch_t *batch);
 /** @brief 按目录中每个信号自己的 stale_ms 降级；0 表示不自动超时。 */
 void meter_core_tick(meter_core_t *core, uint32_t now_ms);
 /** @brief 更新连接状态与代数；断开时立即把所有 VALID 降级为 STALE，并保留最后可读值。 */

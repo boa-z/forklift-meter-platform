@@ -167,7 +167,7 @@ def test_virtual_hil_is_skip_not_physical_pass(tmp_path):
     assert result.returncode == 0, result.stdout+result.stderr
     metadata = json.loads(next(tmp_path.glob('*/metadata.json')).read_text())
     assert metadata['status'] == 'HIL_NOT_RUN'
-    assert len([t for t in metadata['tests'] if t['outcome'] == 'skipped']) == 6
+    assert len([t for t in metadata['tests'] if t['outcome'] == 'skipped']) == 8
     assert not any(metadata['coverage'].values())
     assert next(tmp_path.glob('*/junit.xml')).exists()
 
@@ -215,3 +215,18 @@ def test_uart_nvm_diagnostics_wait_for_final_line():
     assert complete('meter diag', ''.join(rows))
     assert complete('meter storage', ''.join(rows[1:]))
     assert complete('meter diag', rows[0] + 'storage unavailable (no NVM backend)\n')
+
+
+def test_runtime_diagnostic_completion():
+    assert not complete('meter_exec', 'execution state=2 mode=1\n')
+    assert complete('meter_exec', 'shutdown wait_ms=0 overdue=0; blocked idle workers are healthy\n')
+    assert complete('meter_settings result', 'settings result=PENDING_OR_NONE\n')
+    assert complete('meter_settings result', 'settings result=APPLIED_OR_QUEUED target=4 durability=query-meter-storage\n')
+
+
+def test_runtime_serial_modes():
+    from tools.hil.dut import complete
+    assert complete('meter_exec stop', 'runtime stop=QUEUED\n')
+    assert complete('meter_update maintenance on', 'maintenance requested; Product owns admission\n')
+    assert not complete('meter_update info', '{"state":"IDLE"}\n')
+    assert complete('meter_update info', '{"state":"IDLE","received":0,"total":0,"maintenance":0}\n')

@@ -69,7 +69,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 @pytest.fixture(scope='session')
 def hil(request):
-    """先确认 DUT 身份，再打开 CAN；初始化失败仍留下证据。"""
+    """先建立只接收的 CAN 应答端，再确认 DUT 身份；身份确认前不发送测试帧。"""
     import can
     import serial
     from filelock import Timeout
@@ -101,6 +101,12 @@ def hil(request):
             evidence.save()
             pytest.skip('UART unavailable: '+str(exc))
         config.hil_dut = dut
+        try:
+            bus = CanBus(interface, config.getoption('--can-channel'), config.getoption('--can-bitrate'), evidence.path/'can.asc')
+        except (can.CanError, OSError, ImportError) as exc:
+            evidence.metadata['unavailable_reason'] = str(exc)
+            evidence.save()
+            pytest.skip('CAN backend unavailable: '+str(exc))
         raw = dut.command('meter info')
         evidence.text('meter-info.txt', raw)
         identity = info(raw)
@@ -112,12 +118,6 @@ def hil(request):
         evidence.text('diag-before.txt', before)
         state = diagnostics(before)
         assert state['can0']['open'] == 1 and state['can0']['bitrate'] == config.getoption('--can-bitrate')
-        try:
-            bus = CanBus(interface, config.getoption('--can-channel'), config.getoption('--can-bitrate'), evidence.path/'can.asc')
-        except (can.CanError, OSError, ImportError) as exc:
-            evidence.metadata['unavailable_reason'] = str(exc)
-            evidence.save()
-            pytest.skip('CAN backend unavailable: '+str(exc))
         yield SimpleNamespace(dut=dut, bus=bus, dbc=dbc, scenario=scenario, evidence=evidence)
     except BaseException:
         if dut: evidence.capture(dut, 'setup-or-session-failure')
@@ -126,7 +126,6 @@ def hil(request):
         try:
             if bus:
                 evidence.metadata['host_can_counters'] = bus.counters()
-                bus.close()
         finally:
             if dut:
                 try:
@@ -139,5 +138,6 @@ def hil(request):
                     dut.close()
                     config.hil_dut = None
                     evidence.metadata['uart_released'] = True
+                    if bus: bus.close()
                     evidence.metadata['can_released'] = bus is not None
                     evidence.save()

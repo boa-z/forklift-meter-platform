@@ -16,7 +16,7 @@ void mixed_canopen_init(mixed_canopen_state_t *s)
     s->tpdo1_cob = meter_canopen_cob(METER_CANOPEN_COB_TPDO1_BASE, s->node_id);
     s->sdo_resp_cob = meter_canopen_cob(METER_CANOPEN_COB_SDO_RESP_BASE, s->node_id);
     (void)meter_sdo_init(&s->sdo, METER_BUS_CAN1);
-    mixed_startup_reset(&s->startup);
+    (void)meter_deadline_arm(&s->tpdo_deadline, 0u, MIXED_CANOPEN_TPDO_PERIOD_MS);
     s->next_request_id = 3;
     s->tpdo_armed = true;
 }
@@ -30,6 +30,7 @@ static void emit(const meter_protocol_services_t *s, uint16_t id, uint32_t now, 
 }
 static void bind_diag(mixed_canopen_state_t *s, const meter_protocol_services_t *services)
 {
+    if (!s->node_id) mixed_canopen_init(s);
     meter_sdo_bind_diagnostics(&s->sdo, services->diagnostics);
     if (services->diagnostics)
     {
@@ -92,6 +93,8 @@ static bool on_frame(void *ctx, const meter_can_frame_t *frame, const meter_prot
                 METER_DIAG_TRACE(services->diagnostics, METER_TRACE_PDO, PDO_RECOVER, frame->timestamp_ms,
                                  frame->id, 0);
             }
+            if (!st->rpdo_seen || st->timeout_reported)
+                emit(services, MIXED_EVENT_PDO_READY, frame->timestamp_ms, 0u);
             st->last_rpdo_ms = frame->timestamp_ms;
             st->rpdo_seen = true;
             st->timeout_reported = false;
@@ -111,6 +114,16 @@ static void collect_commands(mixed_canopen_state_t *s, uint32_t now,
             meter_sdo_result_t result;
             if (meter_sdo_take(&s->sdo, s->commands[i], &result))
             {
+                bool read = s->command_kinds[i] == MIXED_CMD_READ_MAX_SPEED || s->command_kinds[i] == MIXED_CMD_READ_ACCEL;
+                if (read && result.status == METER_SDO_SUCCESS && result.size != 2u)
+                    result.status = METER_SDO_ABORTED;
+                if (read && result.status == METER_SDO_SUCCESS)
+                    emit(services, s->command_kinds[i] == MIXED_CMD_READ_MAX_SPEED ? MIXED_EVENT_PARAMETER_A : MIXED_EVENT_PARAMETER_B,
+                        now, (uint32_t)result.payload[0] | ((uint32_t)result.payload[1] << 8));
+                if (services->progress && s->command_requests[i].serial)
+                    services->progress(services->progress_context, s->command_requests[i],
+                        result.status == METER_SDO_SUCCESS ? METER_COMMAND_REMOTE_CONFIRMED : METER_COMMAND_FAILED);
+                s->command_requests[i] = (meter_request_id_t){0};
                 emit(services,
                      result.status == METER_SDO_SUCCESS ? MIXED_EVENT_SDO_COMPLETE : MIXED_EVENT_SDO_FAILED,
                      now, result.status == METER_SDO_SUCCESS ? result.request_id : result.abort_code);
@@ -133,35 +146,18 @@ static bool process(void *ctx, uint32_t now, const meter_protocol_services_t *se
                          now - s->last_rpdo_ms);
         meter_sdo_reset(&s->sdo);
         collect_commands(s, now, services);
-        meter_sdo_result_t canceled;
-        (void)meter_sdo_take(&s->sdo, 1, &canceled);
-        (void)meter_sdo_take(&s->sdo, 2, &canceled);
-        mixed_startup_reset(&s->startup);
         emit(services, MIXED_EVENT_PDO_TIMEOUT, now, s->rpdo1_cob);
     }
     meter_sdo_process(&s->sdo, now, services->tx);
     collect_commands(s, now, services);
-    mixed_sync_phase_t before = s->startup.phase;
-    if (mixed_startup_process(&s->startup, &s->sdo,
-                              s->rpdo_seen && !s->timeout_reported && services->tx && services->tx->send))
-    {
-        emit(services, MIXED_EVENT_SYNC_DONE, now, 0);
-        METER_DIAG_TRACE(services->diagnostics, METER_TRACE_PRODUCT, PRODUCT_READY, now, 0, 0);
-    }
-    if (before != MIXED_SYNC_FAILED && s->startup.phase == MIXED_SYNC_FAILED)
-    {
-        emit(services, MIXED_EVENT_SDO_FAILED, now, s->startup.error);
-        METER_DIAG_TRACE(services->diagnostics, METER_TRACE_PRODUCT, PRODUCT_FAILED, now, 0,
-                         s->startup.error);
-    }
-    if (s->tpdo_armed && now - s->last_tpdo_ms >= MIXED_CANOPEN_TPDO_PERIOD_MS && services->tx &&
+    if (s->tpdo_armed && meter_deadline_take(&s->tpdo_deadline, now) && services->tx &&
         services->tx->send)
     {
         meter_can_frame_t f = {.bus = METER_BUS_CAN1,
                                .id = s->tpdo1_cob,
                                .timestamp_ms = now,
                                .size = 2,
-                               .data = {s->startup.phase == MIXED_SYNC_READY, (uint8_t)s->timeouts}};
+                               .data = {s->rpdo_seen && !s->timeout_reported, (uint8_t)s->timeouts}};
         if (services->tx->send(services->tx->context, &f))
         {
             s->last_tpdo_ms = now;
@@ -181,7 +177,9 @@ static bool command(void *ctx, const meter_command_t *cmd, const meter_protocol_
         cmd->value < 0 || cmd->value > 6553.5f)
         return false;
     bind_diag(s, services);
-    uint8_t sub = cmd->id == MIXED_CMD_SET_MAX_SPEED ? 1 : cmd->id == MIXED_CMD_SET_ACCEL ? 2 : 0;
+    bool read = cmd->id == MIXED_CMD_READ_MAX_SPEED || cmd->id == MIXED_CMD_READ_ACCEL;
+    uint8_t sub = cmd->id == MIXED_CMD_SET_MAX_SPEED || cmd->id == MIXED_CMD_READ_MAX_SPEED ? 1 :
+        cmd->id == MIXED_CMD_SET_ACCEL || cmd->id == MIXED_CMD_READ_ACCEL ? 2 : 0;
     if (!sub || s->timeout_reported)
         return false;
     unsigned slot = 0;
@@ -194,7 +192,7 @@ static bool command(void *ctx, const meter_command_t *cmd, const meter_protocol_
                              .node_id = s->node_id,
                              .index = 0x2000,
                              .subindex = sub,
-                             .operation = METER_SDO_WRITE,
+                             .operation = read ? METER_SDO_READ : METER_SDO_WRITE,
                              .size = 2,
                              .payload = {(uint8_t)raw, (uint8_t)(raw >> 8)},
                              .timeout_ms = MIXED_CANOPEN_SDO_TIMEOUT_MS,
@@ -203,6 +201,8 @@ static bool command(void *ctx, const meter_command_t *cmd, const meter_protocol_
     if (!meter_sdo_submit(&s->sdo, &r))
         return false;
     s->commands[slot] = r.request_id;
+    s->command_kinds[slot] = cmd->id;
+    s->command_requests[slot] = services->request;
     if (++s->next_request_id < 3)
         s->next_request_id = 3;
     return true;
@@ -213,18 +213,30 @@ static void reset(void *ctx)
     if (!s)
         return;
     meter_diagnostics_t *diag = s->sdo.diag;
-    bool armed = s->tpdo_armed;
+    bool armed = s->node_id == 0u || s->tpdo_armed;
     meter_sdo_reset(&s->sdo);
     mixed_canopen_init(s);
     s->tpdo_armed = armed;
     meter_sdo_bind_diagnostics(&s->sdo, diag);
 }
-const meter_protocol_adapter_t mixed_canopen_adapter = {&mixed_canopen_state, on_frame, process, command,
-                                                        reset};
+static void cancel(void *context, meter_request_id_t request)
+{
+    mixed_canopen_state_t *s = context;
+    for (unsigned i = 0u; i < METER_SDO_CAPACITY; ++i)
+        if (meter_request_id_equal(s->command_requests[i], request))
+        {
+            /* 此产品只接纳一个 App 请求；通道 reset 停止所有本机重试。 */
+            meter_sdo_reset(&s->sdo);
+            return;
+        }
+}
+const meter_protocol_adapter_t mixed_canopen_adapter = {.context = &mixed_canopen_state,
+    .on_frame = on_frame, .process = process, .command = command, .reset = reset, .cancel = cancel};
 bool mixed_command_route(void *ctx, const meter_command_t *cmd, meter_frame_route_owner_t *owner)
 {
     (void)ctx;
-    if (!cmd || !owner || (cmd->id != MIXED_CMD_SET_MAX_SPEED && cmd->id != MIXED_CMD_SET_ACCEL))
+    if (!cmd || !owner || (cmd->id != MIXED_CMD_SET_MAX_SPEED && cmd->id != MIXED_CMD_SET_ACCEL &&
+        cmd->id != MIXED_CMD_READ_MAX_SPEED && cmd->id != MIXED_CMD_READ_ACCEL))
         return false;
     *owner = 2;
     return true;

@@ -111,15 +111,12 @@ int main(void)
     assert(console_output[expected_size] == '\n');
     /* 维护入口清空旧业务帧，流控丢弃单独计数；离开后恢复接收。 */
     meter_core_t core = {0};
-    meter_can_frame_t frame = {0}, observed;
-    normal_frame(&frame);
-    assert(normal_rx.full);
+    meter_can_frame_t frame = {0};
+    assert(!meter_board_update_frame(&frame));
     shared.maintenance = true;
     meter_board_update_poll(&core, true);
-    assert(meter_board_update_exclusive() && shared.admitted && !normal_rx.full);
-    assert(shared.suppressed == 1 && shared.drops == 0);
-    normal_frame(&frame);
-    assert(shared.suppressed == 2 && !normal_rx.full);
+    assert(meter_board_update_exclusive() && shared.admitted);
+
     shared.total = 1065984;
     shared.received = 532992;
     meter_update_view_t view;
@@ -134,16 +131,15 @@ int main(void)
     cancel_work(&discarded);
     meter_board_update_poll(&core, true);
     assert(!meter_board_update_exclusive());
-    normal_frame(&frame);
-    assert(meter_board_update_read(&observed));
+
     nvm_ready = true;
     shared.maintenance = true;
     test_product.update_exclusive = false;
     meter_board_update_poll(&core, true);
     assert(shared.admitted && !meter_board_update_exclusive());
-    normal_frame(&frame);
-    normal_frame(&frame);
-    assert(shared.drops == 1 && shared.suppressed == 2);
+    meter_board_update_stop();
+    assert(shared.stopping && !shared.admitted && !meter_board_update_stopped());
+    assert(!submit(NULL, &job));
     return 0;
 }
 
@@ -311,3 +307,10 @@ bool meter_board_can_send(const meter_can_frame_t *f)
     UNEXPECTED();
     return false;
 }
+
+bool meter_execution_can_submit(const meter_can_frame_t *frame, bool urgent)
+{
+    (void)frame; (void)urgent; UNEXPECTED(); return false;
+}
+
+uint32_t meter_board_now_ms(void) { return rt_tick_get_millisecond(); }

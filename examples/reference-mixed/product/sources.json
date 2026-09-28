@@ -2,14 +2,14 @@
   "protocol": [
     "generated/can/mixed.c",
     "generated/can/mixed_adapter.c",
-    "canopen/mixed_canopen.c",
-    "services/startup_parameter_sync.c"
+    "canopen/mixed_canopen.c"
   ],
   "catalog": [
     "catalog/catalog.c"
   ],
   "product": [
-    "product/product.c"
+    "product/product.c",
+    "services/startup_parameter_sync.c"
   ],
   "ui": [
     "ui/ui.c"

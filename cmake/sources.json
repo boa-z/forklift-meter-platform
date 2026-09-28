@@ -5,6 +5,7 @@
     "core/meter_snapshot.c"
   ],
   "runtime": [
+    "runtime/meter_execution.c",
     "runtime/meter_runtime.c",
     "runtime/meter_requests.c",
     "runtime/meter_batch_builder.c"

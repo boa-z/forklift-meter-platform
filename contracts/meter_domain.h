@@ -233,9 +233,9 @@ typedef struct
     float value;
 } meter_action_t;
 /**
- * @brief UI 到 core 的动作回调，在 UI 线程同步执行。
+ * @brief UI 提交语义意图的动作回调，在 UI 线程执行。
  *
- * 返回 false 表示动作被拒绝且状态未变。实现若需持久化，只投递请求，不得在 UI 线程
+ * 生产端返回 true 仅表示 QUEUED，不代表 APPLIED；最终以 App 结果/快照为准。返回 false 表示未接纳。实现若需持久化，只投递请求，不得在 UI 线程
  * 等待介质写入完成。
  */
 typedef bool (*meter_action_send_t)(void *context, const meter_action_t *action);

@@ -1,6 +1,7 @@
 #include "contracts/meter_product.h"
 #include "catalog/catalog.h"
 #include "canopen/mixed_canopen.h"
+#include "services/startup_parameter_sync.h"
 #ifndef METER_HEADLESS
 extern const meter_ui_factory_t product_ui;
 #define UI_FACTORY &product_ui
@@ -35,10 +36,10 @@ static const meter_product_t product = {.id = "reference-mixed",
                                         .resources = &resources,
                                         .auth = &auth,
                                         .command_route = mixed_command_route,
-                                        .command_route_context = NULL};
+                                        .command_route_context = NULL, .on_event = mixed_startup_event,
+                                        .app_reset = mixed_startup_reset, .app_run = mixed_startup_run};
 /** @brief 返回静态产品定义；CAN0 为 DBC 私有协议，CAN1 为 PDO+SDO（无 NMT/Heartbeat）。 */
 const meter_product_t *meter_product_get(void)
 {
-    mixed_canopen_init(&mixed_canopen_state);
     return &product;
 }

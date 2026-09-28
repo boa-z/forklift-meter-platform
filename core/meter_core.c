@@ -85,9 +85,8 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const m
     core->snapshot.brightness = 80;
     return true;
 }
-bool meter_core_apply(void *context, const meter_update_t *update)
+static bool apply_value(meter_core_t *core, const meter_update_t *update, bool arbitrate)
 {
-    meter_core_t *core = context;
     if (!core || !update || (unsigned)update->value.state > METER_VALUE_ERROR)
         return false;
     size_t index = meter_catalog_index(core->snapshot.catalog, update->signal);
@@ -101,7 +100,7 @@ bool meter_core_apply(void *context, const meter_update_t *update)
     }
     const meter_value_t current = core->snapshot.signals[index];
     const meter_source_policy_fn_t policy = core->snapshot.catalog->source_policy;
-    if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
+    if (arbitrate && policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
         return false;
     METER_DIAG_INC(core->diag, domain, updates);
     if (value.state == METER_VALUE_ERROR)
@@ -127,6 +126,32 @@ bool meter_core_apply(void *context, const meter_update_t *update)
         return true;
     core->snapshot.signals[index] = value;
     ++core->snapshot.revision;
+    return true;
+}
+bool meter_core_apply(void *context, const meter_update_t *update)
+{
+    return apply_value(context, update, true);
+}
+bool meter_core_apply_batch(meter_core_t *core, const meter_update_batch_t *batch)
+{
+    if (!core || !batch || !batch->updates || !batch->count || !batch->sequence ||
+        !batch->source || batch->generation != core->snapshot.generation) return false;
+    const meter_catalog_t *c = core->snapshot.catalog;
+    for (size_t i = 0u; i < batch->count; ++i)
+    {
+        const meter_update_t *u = &batch->updates[i];
+        size_t index = meter_catalog_index(c, u->signal);
+        if (index >= c->signal_count || u->value.source != batch->source ||
+            (unsigned)u->value.state > (unsigned)METER_VALUE_ERROR) return false;
+        for (size_t j = 0u; j < i; ++j)
+            if (batch->updates[j].signal == u->signal) return false;
+        meter_value_t value = u->value;
+        if (!isfinite(value.value)) { value.value = 0.0f; value.state = METER_VALUE_ERROR; }
+        if (c->source_policy && !c->source_policy(c->source_policy_context, u->signal,
+                                                 &value, &core->snapshot.signals[index])) return false;
+    }
+    for (size_t i = 0u; i < batch->count; ++i)
+        (void)apply_value(core, &batch->updates[i], false);
     return true;
 }
 void meter_core_tick(meter_core_t *core, uint32_t now_ms)

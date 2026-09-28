@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* App 单写者驱动 Domain 与 LVGL；可选 OTA 使用独立协议、发送和安装线程。 */
+/* UI 独占 LVGL；App 独占 Domain，协议/发送/NVM/升级由各自 owner 驱动。 */
 #define LOG_TAG "meter.boot"
 #define LOG_LVL LOG_LVL_INFO
 #include "meter_build_identity.h"
 #include "platform/rtthread/debug/meter_debug_console.h"
 #include "platform/rtthread/meter_board_port.h"
-#include "platform/rtthread/meter_nvm_port.h"
+#include "platform/rtthread/meter_execution_port.h"
 #include "product/demo_storage.h"
 #include "product/product.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
@@ -25,148 +25,85 @@
 #endif
 #define METER_STRING_IMPL(x) #x
 #define METER_STRING(x) METER_STRING_IMPL(x)
-static meter_rtthread_adapter_t adapter;
+
 static meter_core_t core;
-static demo_domain_store_t storage;
-static meter_diagnostics_t diagnostics;
+static demo_domain_store_t domain_store, presentation_store, diagnostic_store, ui_store;
+static meter_diagnostics_t diagnostics, ui_diagnostics;
 static meter_build_info_t identity;
-static bool board_action(void *ctx, const meter_action_t *action)
-{
-    const meter_product_t *product = meter_product_get();
-    if (!product->auth->local_settings ||
-        (action->kind == METER_ACTION_PARAMETER && !product->capabilities->parameter_write))
-        return false;
-#ifdef METER_ENABLE_CAN_UPDATE
-    if (meter_board_update_maintenance())
-        return false;
-#endif
-    if (!meter_board_nvm_ready() || !meter_core_action(ctx, action))
-        return false;
-    /* RAM 应用和 durable 分开发布，保存失败不伪造回滚。 */
-    (void)meter_board_nvm_changed(rt_tick_get_millisecond());
-    return true;
-}
 static void meter_thread(void *parameter)
 {
     (void)parameter;
     const meter_product_t *product = meter_product_get();
-    meter_core_storage_t bound = demo_domain_bind(&storage);
+    meter_core_storage_t bound = demo_domain_bind(&domain_store);
+    meter_core_storage_t ui_bound = demo_domain_bind(&ui_store);
+    meter_snapshot_t snapshot = {0};
     meter_diagnostics_init(&diagnostics);
-    identity = (meter_build_info_t){product->id,
-                                    METER_BUILD_PLATFORM,
-                                    METER_BUILD_SDK,
-                                    METER_STRING(LVGL_VERSION_MAJOR) "." METER_STRING(
-                                        LVGL_VERSION_MINOR) "." METER_STRING(LVGL_VERSION_PATCH),
-                                    METER_BUILD_LVGL_AIC,
-                                    METER_BUILD_BOARD,
-                                    __DATE__,
-                                    __TIME__};
+    meter_diagnostics_init(&ui_diagnostics);
+    identity = (meter_build_info_t){.product = product->id, .platform_revision = METER_BUILD_PLATFORM,
+        .sdk_revision = METER_BUILD_SDK,
+        .lvgl_version = METER_STRING(LVGL_VERSION_MAJOR) "." METER_STRING(LVGL_VERSION_MINOR) "." METER_STRING(LVGL_VERSION_PATCH),
+        .lvgl_aic_revision = METER_BUILD_LVGL_AIC, .board = METER_BUILD_BOARD,
+        .build_date = __DATE__, .build_time = __TIME__};
 #ifdef METER_ENABLE_CAN_UPDATE
     identity.firmware_version = METER_UPDATE_FIRMWARE_VERSION;
 #endif
-    if (!meter_debug_init(&diagnostics, &identity))
-    {
-        LOG_E("diagnostics mutex init failed");
-        return;
-    }
-    meter_debug_lock();
-    meter_rtthread_board_port_t board = meter_board_port(&diagnostics);
-    meter_ui_actions_t actions = {board_action, &core};
+    if (!meter_debug_init(&diagnostics, &identity)) return;
     lv_init();
     meter_debug_lvgl_log_init();
-    LOG_I("boot platform=%s", METER_BUILD_PLATFORM);
-    if (!meter_i18n_init() || !demo_i18n_init() || !meter_core_init(&core, product->catalog, &bound))
-    {
-        LOG_E("core/i18n initialization failed");
-        goto failed;
-    }
-    meter_core_bind_diagnostics(&core, &diagnostics);
-    if (!meter_rtthread_adapter_init(&adapter, product, &core, &board))
-    {
-        LOG_E("board/runtime initialization failed");
-        goto failed;
-    }
-    bool nvm_started = product->storage && product->storage->enabled && meter_board_nvm_start(&core);
-    if (product->storage && product->storage->enabled && !nvm_started)
-        LOG_E("NVM worker initialization failed; settings remain RAM-only");
+    meter_rtthread_board_port_t board = meter_board_port(&ui_diagnostics);
+    if (!meter_i18n_init() || !demo_i18n_init() || !meter_core_init(&core, product->catalog, &bound) ||
+        !board.display_init(board.context) || !board.touch_init(board.context))
+    { LOG_E("UI/core startup failed"); return; }
     lv_obj_t *screen = lv_screen_active();
     lv_obj_set_style_bg_color(screen, lv_color_hex(0x101820), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(screen, 0, 0);
+    static const meter_ui_actions_t actions = {.send = meter_execution_action};
     void *ui = product->ui->create(screen, &actions);
-    if (!ui)
+    if (!ui) { LOG_E("UI allocation failed"); meter_board_close(&ui_diagnostics); lv_deinit(); return; }
+    meter_execution_config_t config = {.product = product, .core = &core,
+        .published_storage = demo_domain_bind(&presentation_store),
+        .diagnostic_storage = demo_domain_bind(&diagnostic_store), .public_diagnostics = &diagnostics};
+    if (!meter_execution_start(&config)) { LOG_E("runtime startup failed"); product->ui->destroy(ui); meter_board_close(&ui_diagnostics); lv_deinit(); return; }
+    LOG_I("product=%s; runtime=production; UI/Protocol/App owners separated", product->id);
+    uint32_t previous = meter_board_now_ms();
+    ui_diagnostics.data.ui.available = true;
+    while (!meter_execution_ui_shutdown_requested())
     {
-        LOG_E("UI allocation failed");
-        goto failed;
-    }
-    LOG_I("product=%s; English/Chinese enabled; settings=%s", product->id,
-          nvm_started ? "async-nvm" : "RAM-only");
-#ifdef METER_ENABLE_CAN_UPDATE
-    if (!meter_board_update_start())
-    {
-        LOG_E("OTA workers initialization failed; firmware stopped before CAN owner handoff");
-        for (;;)
-            rt_thread_mdelay(1000);
-    }
-#endif
-    uint32_t previous = board.now_ms(board.context);
-    diagnostics.data.ui.available = true;
-    meter_debug_unlock();
-    bool first_frame = false;
-    for (;;)
-    {
-        meter_debug_lock();
-        uint32_t now = board.now_ms(board.context);
-        meter_diagnostics_time(&diagnostics, now);
-        bool exclusive = false;
-#ifdef METER_ENABLE_CAN_UPDATE
-        exclusive = meter_board_update_exclusive();
-#endif
-        if (!exclusive)
-            meter_rtthread_adapter_poll(&adapter, 8);
-        meter_board_nvm_poll(now, &diagnostics.data.storage);
-#ifdef METER_ENABLE_CAN_UPDATE
-        meter_board_update_poll(&core, first_frame);
-        exclusive = meter_board_update_exclusive();
-        if (product->ui->present_update)
+        uint32_t now = meter_board_now_ms();
+        bool normal = false;
+        meter_update_view_t update;
+        if (meter_execution_present(&snapshot, &ui_bound, &update, &normal))
         {
-            meter_update_view_t view;
-            meter_board_update_view(&view);
-            product->ui->present_update(ui, &view, core.snapshot.language);
+            if (product->ui->present_update) product->ui->present_update(ui, &update, snapshot.language);
+            if (normal)
+            {
+                product->ui->present(ui, &snapshot, now - previous);
+                meter_diag_increment(&ui_diagnostics.data.ui.present_count);
+            }
         }
-#endif
-        if (!exclusive)
-        {
-            product->ui->present(ui, &core.snapshot, (uint32_t)(now - previous));
-            meter_diag_increment(&diagnostics.data.ui.present_count);
-        }
+        meter_request_result_t result;
+        if (meter_execution_action_result(&result) && result.code != METER_RESULT_APPLIED)
+            LOG_W("UI intention rejected by App mode or validation");
         previous = now;
-        lv_timer_handler();
-        meter_board_diagnostics(&diagnostics);
-        if (!first_frame && diagnostics.data.ui.flush_count > 0U)
-        {
-            LOG_I("first frame flushed; board visual/touch verification still required");
-            first_frame = true;
-        }
-        meter_debug_unlock();
+        (void)lv_timer_handler();
+        meter_board_diagnostics(&ui_diagnostics);
+        meter_execution_ui_diagnostics(&ui_diagnostics);
         meter_debug_log_drain();
-        rt_thread_mdelay(exclusive ? 100 : 16);
+        rt_thread_mdelay(normal ? 16 : 50);
     }
-failed:
-    meter_board_close(&diagnostics);
+    product->ui->destroy(ui);
+    meter_board_close(&ui_diagnostics);
     lv_deinit();
-    meter_debug_unlock();
+    meter_execution_ui_diagnostics(&ui_diagnostics);
+    meter_execution_ui_stopped();
+    LOG_I("UI teardown acknowledged; App completes runtime stop");
 }
 int main(void)
 {
-    rt_thread_t thread = rt_thread_create("meter_demo", meter_thread, RT_NULL, LPKG_LVGL_THREAD_STACK_SIZE,
-                                          LPKG_LVGL_THREAD_PRIO, 10);
-    if (!thread)
-        return -1;
-    if (rt_thread_startup(thread) != RT_EOK)
-    {
-        rt_thread_delete(thread);
-        return -1;
-    }
-    return 0;
+    static struct rt_thread ui_thread;
+    static rt_ubase_t stack[LPKG_LVGL_THREAD_STACK_SIZE / sizeof(rt_ubase_t)];
+    if (rt_thread_init(&ui_thread, "meter_ui", meter_thread, RT_NULL, stack, sizeof(stack),
+                       LPKG_LVGL_THREAD_PRIO + 2, 10) != RT_EOK) return -1;
+    return rt_thread_startup(&ui_thread) == RT_EOK ? 0 : -1;
 }

@@ -4,6 +4,7 @@
 #include "contracts/meter_domain.h"
 #include "contracts/meter_protocol.h"
 #include "contracts/meter_update_view.h"
+#include "contracts/meter_execution.h"
 #include <stddef.h>
 typedef bool (*meter_decode_fn_t)(const meter_can_frame_t *frame, meter_update_sink_t sink, void *context);
 typedef struct
@@ -63,6 +64,13 @@ typedef struct
     uint16_t record_type, product_namespace, schema;
     uint32_t debounce_ms, max_delay_ms;
 } meter_storage_profile_t;
+/** @brief Protocol 周期报文；Product 提供完整帧，维护模式仅保留标为 critical 的报文。 */
+typedef struct
+{
+    meter_can_frame_t frame;
+    uint32_t period_ms;
+    bool critical;
+} meter_periodic_frame_t;
 typedef struct
 {
     const char *id;
@@ -84,6 +92,19 @@ typedef struct
     bool (*update_admission)(const meter_snapshot_t *, bool maintenance);
     /** @brief Product 选择升级维护时暂停正常协议业务与仪表刷新。 */
     bool update_exclusive;
+    /** @brief 可选模式策略，App 调用并复制结果到其他 owner；不得操作设备。 */
+    meter_mode_policy_t (*mode_policy)(meter_mode_t mode);
+    /** @brief 不可变周期配置；配置及数组覆盖整个运行期。 */
+    const meter_periodic_frame_t *periodic;
+    size_t periodic_count;
+    /** @brief App 消费协议事件并执行产品 workflow；禁止解码 CAN 或操作设备。 */
+    void (*on_event)(const meter_protocol_event_t *event);
+    /** @brief App 在 generation 切换时先复位产品工作流，再接收新事件。 */
+    void (*app_reset)(uint32_t generation);
+    /** @brief App 有界 runnable；只能通过语义命令端口访问协议，不阻塞。 */
+    void (*app_run)(uint32_t now_ms, const meter_command_port_t *commands);
+    /** @brief 可选命令完成条件；纯函数，返回 APPLIED/TX_COMPLETED/REMOTE_CONFIRMED，默认要求远端确认。 */
+    meter_command_stage_t (*command_completion)(const meter_command_t *command);
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

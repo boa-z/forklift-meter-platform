@@ -1,8 +1,9 @@
+#include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_update_port.h"
 #include "contracts/meter_product.h"
 #include "meter_build_identity.h"
 #include "meter_update_build.h"
-#include "platform/rtthread/meter_board_port.h"
+#include "platform/rtthread/meter_execution_port.h"
 #include "platform/rtthread/meter_nvm_port.h"
 #include "platform/rtthread/meter_update_backend.h"
 #include "protocols/uds/meter_uds.h"
@@ -22,32 +23,32 @@ typedef struct
     meter_update_error_t error;
     uint32_t generation, offset;
 } completion_t;
-static struct rt_messagequeue jobs, results, normal_rx, tx;
+static struct rt_messagequeue jobs, results;
 POOL(job_pool, meter_update_job_t, 1);
 POOL(result_pool, completion_t, 1);
-POOL(rx_pool, meter_can_frame_t, 64);
-POOL(tx_pool, meter_can_frame_t, 16);
-static struct rt_thread protocol_thread, update_thread, tx_thread;
-static rt_ubase_t protocol_stack[6144 / sizeof(rt_ubase_t)], update_stack[12288 / sizeof(rt_ubase_t)],
-    tx_stack[2048 / sizeof(rt_ubase_t)];
+
+static struct rt_thread update_thread;
+static rt_ubase_t update_stack[12288 / sizeof(rt_ubase_t)];
 static struct rt_mutex lock;
 static struct rt_event barrier_event;
 static meter_aic_update_t backend;
 static meter_firmware_update_t service;
 static meter_uds_t uds;
 static UDSTpISOTpC_t transport;
-static struct
+typedef struct
 {
     bool started, maintenance, admitted, healthy, cancel, abandon, barrier_requested, busy, exclusive;
+    bool stopping, stopped;
     uint64_t barrier_target;
     meter_update_state_t state;
     meter_update_error_t error;
     uint32_t generation, received, total, rx, tx, drops, tx_errors, suppressed;
     char target[METER_UPDATE_VERSION_SIZE];
-} shared;
+} update_shared_t;
+static update_shared_t shared;
 uint32_t UDSMillis(void)
 {
-    return rt_tick_get_millisecond();
+    return meter_board_now_ms();
 }
 uint32_t isotp_user_get_us(void)
 {
@@ -66,7 +67,12 @@ int isotp_user_send_can(uint32_t id, const uint8_t *data, uint8_t size)
     f.id = id;
     f.size = size;
     memcpy(f.data, data, size);
-    return rt_mq_send(&tx, &f, sizeof(f)) == RT_EOK ? ISOTP_RET_OK : ISOTP_RET_NOSPACE;
+    bool queued = meter_execution_can_submit(&f, true);
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    if (queued) meter_diag_increment(&shared.tx);
+    else meter_diag_increment(&shared.drops);
+    rt_mutex_release(&lock);
+    return queued ? ISOTP_RET_OK : ISOTP_RET_NOSPACE;
 }
 static void publish(void)
 {
@@ -130,7 +136,17 @@ static void update_entry(void *arg)
         bool got = rt_mq_recv(&jobs, &job, sizeof(job), rt_tick_from_millisecond(20)) == RT_EOK;
         rt_mutex_take(&lock, RT_WAITING_FOREVER);
         bool cancel = shared.cancel, admitted = shared.admitted, healthy = shared.healthy;
+        bool stopping = shared.stopping;
         rt_mutex_release(&lock);
+        if (stopping)
+        {
+            (void)meter_update_abort(&service, service.generation);
+            publish();
+            rt_mutex_take(&lock, RT_WAITING_FOREVER);
+            shared.stopped = true;
+            rt_mutex_release(&lock);
+            return;
+        }
         if (cancel)
         {
             cancel_work(&job);
@@ -186,7 +202,7 @@ static bool submit(void *ctx, const meter_update_job_t *job)
 {
     (void)ctx;
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    bool accepted = !shared.cancel && !shared.busy && rt_mq_send(&jobs, job, sizeof(*job)) == RT_EOK;
+    bool accepted = !shared.stopping && !shared.cancel && !shared.busy && rt_mq_send(&jobs, job, sizeof(*job)) == RT_EOK;
     if (accepted)
         shared.busy = true;
     rt_mutex_release(&lock);
@@ -214,21 +230,22 @@ static size_t info(void *ctx, uint8_t *out, size_t capacity)
     (void)ctx;
     const meter_product_t *p = meter_product_get();
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    update_shared_t snapshot = shared;
+    rt_mutex_release(&lock);
     int n = snprintf(
         (char *)out, capacity,
         "{\"product\":\"%s\",\"hardware\":\"%s\",\"version\":\"%s\",\"platform\":\"%s\",\"sdk\":\"%s\","
         "\"target\":\"%s\","
         "\"state\":\"%s\",\"error\":%u,\"received\":%u,\"total\":%u,\"backend_supported\":%s,\"backend_"
-        "reason\":\"%s\",\"maintenance\":%u,\"exclusive\":%u,\"suppressed\":%u,\"rx\":%u,\"tx\":%u,\"drops\":"
+        "reason\":\"%s\",\"maintenance\":%u,\"exclusive\":%u,\"suppressed\":%u,\"rx\":%u,\"tx_queued\":%u,\"queue_rejected\":"
         "%u,\"tx_errors\":%u,\"os_file\":"
         "\"d13x_os.itb\",\"candidate_capacity\":%u,\"confirmation\":\"native_auto\"}",
         p->id, METER_BUILD_BOARD, METER_UPDATE_FIRMWARE_VERSION, METER_BUILD_PLATFORM, METER_BUILD_SDK,
-        shared.target, meter_update_state_name(shared.state), (unsigned)shared.error,
-        (unsigned)shared.received, (unsigned)shared.total, meter_aic_update_supported() ? "true" : "false",
-        meter_aic_update_reason(), shared.maintenance, shared.exclusive, (unsigned)shared.suppressed,
-        (unsigned)shared.rx, (unsigned)shared.tx, (unsigned)shared.drops, (unsigned)shared.tx_errors,
+        snapshot.target, meter_update_state_name(snapshot.state), (unsigned)snapshot.error,
+        (unsigned)snapshot.received, (unsigned)snapshot.total, meter_aic_update_supported() ? "true" : "false",
+        meter_aic_update_reason(), snapshot.maintenance, snapshot.exclusive, (unsigned)snapshot.suppressed,
+        (unsigned)snapshot.rx, (unsigned)snapshot.tx, (unsigned)snapshot.drops, (unsigned)snapshot.tx_errors,
         (unsigned)meter_aic_update_capacity());
-    rt_mutex_release(&lock);
     return n >= 0 && (size_t)n < capacity ? (size_t)n : 0;
 }
 static bool can_reset(void *ctx)
@@ -252,56 +269,35 @@ static void cancel(void *ctx)
     shared.abandon = true;
     rt_mutex_release(&lock);
 }
-static void tx_entry(void *arg)
+bool meter_board_update_frame(const meter_can_frame_t *frame)
 {
-    (void)arg;
-    meter_can_frame_t frame;
-    for (;;)
-        if (rt_mq_recv(&tx, &frame, sizeof(frame), RT_WAITING_FOREVER) == RT_EOK)
-        {
-            bool ok = meter_board_can_send(&frame);
-            rt_mutex_take(&lock, RT_WAITING_FOREVER);
-            if (ok)
-                shared.tx++;
-            else
-                shared.tx_errors++;
-            rt_mutex_release(&lock);
-        }
-}
-/* 维护模式有意丢弃业务帧，独立统计，不伪装成硬件或队列零丢帧。 */
-static void normal_frame(const meter_can_frame_t *frame)
-{
+    if (!shared.started || frame->bus != METER_BUS_CAN0 || frame->id != RX_ID ||
+        frame->extended || frame->remote || frame->size > 8u) return false;
+    isotp_on_can_message(&transport.phys_link, frame->data, frame->size);
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    if (shared.exclusive)
-        shared.suppressed++;
-    else if (rt_mq_send(&normal_rx, frame, sizeof(*frame)) != RT_EOK)
-        shared.drops++;
+    shared.rx++;
+    rt_mutex_release(&lock);
+    return true;
+}
+void meter_board_update_protocol(void)
+{
+    if (shared.started) UDSServerPoll(&uds.server);
+}
+void meter_board_update_stop(void)
+{
+    if (!shared.started) return;
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    shared.stopping = true;
+    shared.admitted = false;
     rt_mutex_release(&lock);
 }
-static void protocol_entry(void *arg)
+bool meter_board_update_stopped(void)
 {
-    (void)arg;
-    for (;;)
-    {
-        meter_can_frame_t frame;
-        for (unsigned i = 0; i < 32u && meter_board_can_raw_read(NULL, &frame); ++i)
-        {
-            if (frame.bus == METER_BUS_CAN0 && frame.id == RX_ID && !frame.extended && !frame.remote &&
-                frame.size <= 8u)
-            {
-                isotp_on_can_message(&transport.phys_link, frame.data, frame.size);
-                rt_mutex_take(&lock, RT_WAITING_FOREVER);
-                shared.rx++;
-                rt_mutex_release(&lock);
-            }
-            else
-            {
-                normal_frame(&frame);
-            }
-        }
-        UDSServerPoll(&uds.server);
-        rt_thread_mdelay(1);
-    }
+    if (!shared.started) return true;
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    bool value = shared.stopped;
+    rt_mutex_release(&lock);
+    return value;
 }
 bool meter_board_update_start(void)
 {
@@ -318,31 +314,16 @@ bool meter_board_update_start(void)
     if (rt_mq_init(&jobs, "ota_job", job_pool, sizeof(meter_update_job_t), sizeof(job_pool),
                    RT_IPC_FLAG_FIFO) != RT_EOK ||
         rt_mq_init(&results, "ota_res", result_pool, sizeof(completion_t), sizeof(result_pool),
-                   RT_IPC_FLAG_FIFO) != RT_EOK ||
-        rt_mq_init(&normal_rx, "ota_rx", rx_pool, sizeof(meter_can_frame_t), sizeof(rx_pool),
-                   RT_IPC_FLAG_FIFO) != RT_EOK ||
-        rt_mq_init(&tx, "ota_tx", tx_pool, sizeof(meter_can_frame_t), sizeof(tx_pool), RT_IPC_FLAG_FIFO) !=
-            RT_EOK)
+                   RT_IPC_FLAG_FIFO) != RT_EOK)
         return false;
     meter_uds_port_t port = {NULL, submit, result, info, can_reset, reset, cancel};
     if (UDSServerTpISOTpCInit(&transport, RX_ID, TX_ID, UDS_TP_NOOP_ADDR) != UDS_OK ||
         !meter_uds_init(&uds, &transport.hdl, &port))
         return false;
     if (rt_thread_init(&update_thread, "meter_upd", update_entry, NULL, update_stack, sizeof(update_stack),
-                       25, 10) != RT_EOK ||
-        rt_thread_init(&tx_thread, "meter_tx", tx_entry, NULL, tx_stack, sizeof(tx_stack), 18, 5) != RT_EOK ||
-        rt_thread_init(&protocol_thread, "meter_proto", protocol_entry, NULL, protocol_stack,
-                       sizeof(protocol_stack), 19, 5) != RT_EOK)
-        return false;
-    /* 静态线程先全部初始化；启动失败不让主线程读取同一 CAN 外设。 */
-    if (rt_thread_startup(&update_thread) != RT_EOK || rt_thread_startup(&tx_thread) != RT_EOK)
+                       25, 10) != RT_EOK || rt_thread_startup(&update_thread) != RT_EOK)
         return false;
     shared.started = true;
-    if (rt_thread_startup(&protocol_thread) != RT_EOK)
-    {
-        shared.started = false;
-        return false;
-    }
     return true;
 }
 void meter_board_update_poll(meter_core_t *core, bool ui_healthy)
@@ -358,12 +339,6 @@ void meter_board_update_poll(meter_core_t *core, bool ui_healthy)
     shared.healthy = ui_healthy && meter_board_nvm_ready();
     /* 暂停业务必须保留 App/NVM 门禁轮询，不能挂起整个 App 线程。 */
     shared.exclusive = (shared.maintenance || shared.cancel || shared.busy) && p->update_exclusive;
-    if (shared.exclusive)
-    {
-        meter_can_frame_t discarded;
-        while (rt_mq_recv(&normal_rx, &discarded, sizeof(discarded), 0) == RT_EOK)
-            shared.suppressed++;
-    }
     if (shared.barrier_requested)
     {
         if (!shared.barrier_target)
@@ -411,10 +386,6 @@ bool meter_board_update_maintenance(void)
 bool meter_board_update_started(void)
 {
     return shared.started;
-}
-bool meter_board_update_read(meter_can_frame_t *f)
-{
-    return rt_mq_recv(&normal_rx, f, sizeof(*f), 0) == RT_EOK;
 }
 static int meter_update(int argc, char **argv)
 {

@@ -2,6 +2,15 @@
 #define METER_PROTOCOL_H
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
+#include "contracts/meter_request.h"
+/** @brief 请求进度互不等价；TX_COMPLETED 仅表示驱动完成，REMOTE_CONFIRMED 必须来自协议响应。 */
+typedef enum
+{
+    METER_COMMAND_QUEUED, METER_COMMAND_APPLIED, METER_COMMAND_TX_COMPLETED,
+    METER_COMMAND_REMOTE_CONFIRMED, METER_COMMAND_FAILED, METER_COMMAND_CANCELLED
+} meter_command_stage_t;
+/** @brief 按请求身份复制进度；Protocol owner 调用，回调不得阻塞或写 Core。 */
+typedef void (*meter_command_progress_fn_t)(void *context, meter_request_id_t id, meter_command_stage_t stage);
 struct meter_diagnostics;
 /** @brief 同步提交 Domain 更新；sink context 独立于协议状态，返回是否接受更新。 */
 typedef bool (*meter_update_sink_t)(void *context, const meter_update_t *update);
@@ -18,6 +27,13 @@ typedef struct
     float value;
     uint32_t argument;
 } meter_command_t;
+/** @brief App 请求端口；仅传递复制值与身份，不暴露协议对象或 CAN 字节。 */
+typedef struct
+{
+    void *context;
+    meter_request_admission_t (*submit)(void *, const meter_command_t *, uint32_t, meter_request_id_t *);
+    bool (*result)(void *, meter_request_id_t, meter_command_stage_t *, bool acknowledge);
+} meter_command_port_t;
 /** @brief 协议层瞬时事件；事件不写入持续 signal 槽位。 */
 typedef struct
 {
@@ -42,6 +58,9 @@ typedef struct
     void *event_context;
     const meter_can_tx_port_t *tx;
     struct meter_diagnostics *diagnostics; /**< 可选观测实例，不拥有其生命周期。 */
+    meter_request_id_t request; /**< 当前 command 调用身份，process/on_frame 时为零。 */
+    meter_command_progress_fn_t progress; /**< 异步 Adapter 保存身份，不保存 services 指针。 */
+    void *progress_context;
 } meter_protocol_services_t;
 /**
  * @brief 有状态协议适配器的唯一生命周期回调；回调运行在协议上下文，不得触碰 LVGL。
@@ -57,5 +76,7 @@ typedef struct
     bool (*process)(void *context, uint32_t now_ms, const meter_protocol_services_t *services);
     bool (*command)(void *context, const meter_command_t *command, const meter_protocol_services_t *services);
     void (*reset)(void *context);
+    /** @brief Protocol 取消对应请求；必须停止本机重试，不能保证已经发送的远端写被撤回。 */
+    void (*cancel)(void *context, meter_request_id_t request);
 } meter_protocol_adapter_t;
 #endif

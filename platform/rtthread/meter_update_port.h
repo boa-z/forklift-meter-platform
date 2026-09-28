@@ -8,8 +8,14 @@ bool meter_board_update_start(void);
 void meter_board_update_poll(meter_core_t *, bool ui_healthy);
 /** @brief 查询维护状态，冻结可持久化设置直到会话结束。 */
 bool meter_board_update_maintenance(void);
-/** @brief Protocol worker 转交普通 CAN 帧给既有 App owner。 */
-bool meter_board_update_read(meter_can_frame_t *);
+/** @brief 统一 Protocol owner 投递 UDS 帧；true 表示已由升级协议消费。 */
+bool meter_board_update_frame(const meter_can_frame_t *frame);
+/** @brief 统一 Protocol owner 驱动 UDS/ISO-TP 超时，不执行 Flash。 */
+void meter_board_update_protocol(void);
+/** @brief App 请求 worker 协作退出；在途 Flash 返回后退出，不回收活跃资源。 */
+void meter_board_update_stop(void);
+/** @brief App 查询退出确认；未启动视为已停止。 */
+bool meter_board_update_stopped(void);
 /** @brief 查询 CAN 接收所有者是否已移交给 Protocol worker。 */
 bool meter_board_update_started(void);
 /** @brief 查询 Product 独占维护模式；该模式暂停正常业务。 */

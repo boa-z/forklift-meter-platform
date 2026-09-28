@@ -1,0 +1,4 @@
+Checks: '-*,clang-analyzer-*,bugprone-*,cert-*,performance-*'
+WarningsAsErrors: 'clang-analyzer-*'
+HeaderFilterRegex: '.*(contracts|core|runtime|storage|update)/.*'
+FormatStyle: file

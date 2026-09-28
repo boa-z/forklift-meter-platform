@@ -2,6 +2,38 @@
 #include "protocols/common/meter_frame_router.h"
 #include <string.h>
 
+bool meter_runtime_bind_batches(meter_runtime_t *r, meter_batch_builder_t *b,
+                                meter_batch_submit_fn_t submit, void *context)
+{
+    if (!r || !b || !b->storage || !b->capacity || !submit || r->connected) return false;
+    r->batch_builder = b;
+    r->batch_submit = submit;
+    r->batch_context = context;
+    return true;
+}
+static bool batch_update(void *context, const meter_update_t *update)
+{
+    meter_batch_builder_t *b = context;
+    if (update && b->batch.count == 0u) b->batch.source = update->value.source;
+    return meter_batch_builder_add(b, update);
+}
+static bool batch_begin(meter_runtime_t *r, uint32_t now, uint8_t bus)
+{
+    if (!r->batch_builder) return true;
+    if (r->batch_sequence == UINT64_MAX) return false;
+    meter_update_batch_t metadata = {.generation = r->generation, .sequence = ++r->batch_sequence,
+        .received_ms = now, .bus = bus, .source = METER_SOURCE_DEMO};
+    return meter_batch_builder_begin(r->batch_builder, &metadata);
+}
+static bool batch_finish(meter_runtime_t *r, bool decoded)
+{
+    if (!r->batch_builder) return decoded;
+    meter_batch_result_t result = meter_batch_builder_finish(r->batch_builder, decoded,
+                                                            r->batch_submit, r->batch_context);
+    if (result != METER_BATCH_QUEUED) meter_diag_increment(&r->batch_rejected);
+    return result == METER_BATCH_QUEUED;
+}
+
 static void diag_sync(meter_runtime_t *r)
 {
     if (!r || !r->diag)
@@ -22,11 +54,14 @@ static void runtime_services(const meter_runtime_t *r, const meter_can_tx_port_t
                              meter_protocol_services_t *services)
 {
     services->diagnostics = r->diag;
-    services->update = r->update;
-    services->update_context = r->update_context;
+    services->update = r->batch_builder ? batch_update : r->update;
+    services->update_context = r->batch_builder ? r->batch_builder : r->update_context;
     services->event = r->event_sink;
     services->event_context = r->event_context;
     services->tx = tx ? tx : r->tx;
+    services->request = r->command_request;
+    services->progress = r->command_progress;
+    services->progress_context = r->command_progress_context;
 }
 
 bool meter_runtime_init(meter_runtime_t *r, const meter_product_t *p, meter_update_sink_t update,
@@ -89,6 +124,25 @@ void meter_runtime_connection(meter_runtime_t *r, bool connected)
     }
     diag_sync(r);
 }
+bool meter_runtime_session(meter_runtime_t *r, uint32_t generation)
+{
+    if (!r || !r->product || !r->product->protocols || !generation) return false;
+    if (r->connected && r->generation == generation) return true;
+    for (size_t i = 0u; i < r->product->protocols->count; ++i)
+    {
+        const meter_protocol_adapter_t *a = r->product->protocols->bindings[i].adapter;
+        if (a && a->reset) a->reset(a->context);
+    }
+    r->head = r->tail = r->count = 0u;
+    r->generation = generation;
+    r->connected = true;
+    meter_diag_increment(&r->diagnostics.resets);
+    uint32_t now = r->diag ? r->diag->data.uptime_ms : 0u;
+    METER_DIAG_TRACE(r->diag, METER_TRACE_RUNTIME, RUNTIME_CONNECT, now, generation, 0u);
+    METER_DIAG_TRACE(r->diag, METER_TRACE_RUNTIME, RUNTIME_RESET, now, generation, 0u);
+    diag_sync(r);
+    return true;
+}
 bool meter_runtime_push(meter_runtime_t *r, const meter_can_frame_t *f)
 {
     if (!r)
@@ -148,6 +202,11 @@ size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
             if (b->owner == route->owner)
             {
                 bool handled;
+                if (!batch_begin(r, q.frame.timestamp_ms, (uint8_t)q.frame.bus))
+                {
+                    meter_diag_increment(&r->batch_rejected);
+                    break;
+                }
                 if (b->adapter)
                 {
                     meter_protocol_services_t services;
@@ -156,8 +215,10 @@ size_t meter_runtime_poll(meter_runtime_t *r, size_t budget)
                 }
                 else
                 {
-                    handled = b->decode(&q.frame, r->update, r->update_context);
+                    handled = b->decode(&q.frame, r->batch_builder ? batch_update : r->update,
+                                         r->batch_builder ? r->batch_builder : r->update_context);
                 }
+                handled = batch_finish(r, handled);
                 if (handled)
                     ++r->diagnostics.dispatched;
                 else
@@ -186,7 +247,9 @@ bool meter_runtime_process(meter_runtime_t *r, uint32_t now_ms)
         {
             meter_protocol_services_t services;
             runtime_services(r, NULL, &services);
-            if (!b->adapter->process(b->adapter->context, now_ms, &services))
+            if (!batch_begin(r, now_ms, 0u))
+                ok = false;
+            else if (!batch_finish(r, b->adapter->process(b->adapter->context, now_ms, &services)))
                 ok = false;
         }
     }
@@ -212,8 +275,31 @@ bool meter_runtime_command(meter_runtime_t *r, const meter_command_t *command)
                 return false;
             meter_protocol_services_t services;
             runtime_services(r, NULL, &services);
-            return b->adapter->command(b->adapter->context, command, &services);
+            if (!batch_begin(r, r->diag ? r->diag->data.uptime_ms : 0u, 0u)) return false;
+            return batch_finish(r, b->adapter->command(b->adapter->context, command, &services));
         }
     }
     return false;
+}
+bool meter_runtime_command_request(meter_runtime_t *r, const meter_command_t *command,
+                                   meter_request_id_t id, meter_command_progress_fn_t progress, void *context)
+{
+    if (!r || !id.session || !id.serial || !progress || r->command_request.serial) return false;
+    r->command_request = id;
+    r->command_progress = progress;
+    r->command_progress_context = context;
+    bool accepted = meter_runtime_command(r, command);
+    r->command_request = (meter_request_id_t){0};
+    progress(context, id, accepted ? METER_COMMAND_APPLIED : METER_COMMAND_FAILED);
+    return accepted;
+}
+
+void meter_runtime_cancel(meter_runtime_t *r, meter_request_id_t request)
+{
+    if (!r || !request.serial) return;
+    for (size_t i = 0u; i < r->product->protocols->count; ++i)
+    {
+        const meter_protocol_adapter_t *adapter = r->product->protocols->bindings[i].adapter;
+        if (adapter && adapter->cancel) adapter->cancel(adapter->context, request);
+    }
 }

@@ -25,7 +25,7 @@ identity_dir = os.path.join(cwd, 'build-firmware')
 # 公开身份使用集成者指定的别名，不泄露 SDK 内部板型名称。
 board_id = os.environ.get('METER_BOARD_ID', 'reference-board')
 identity.generate(cwd, AIC_ROOT, board_id, os.path.join(identity_dir,'meter_build_identity.h'))
-common = ['main.c', 'platform/rtthread/meter_rtthread_adapter.c',
+common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_board_port.c', 'platform/rtthread/meter_nvm_port.c',
           'platform/rtthread/meter_eeprom_i2c.c',
           'third_party/CANopenNode/301/crc16-ccitt.c', 'storage/meter_file.c', 'platform/common/meter_diag_commands.c',

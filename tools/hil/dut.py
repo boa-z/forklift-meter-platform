@@ -1,5 +1,6 @@
 """基于 pySerial 的单所有者 DUT 会话和稳定诊断字段解析。"""
 import hashlib
+import json
 import math
 import os
 from pathlib import Path
@@ -97,6 +98,24 @@ def complete(command, text):
     # UART 可在字段中间分片；仅以已经收到换行的完整行参与判定。
     text = text[:text.rfind('\n')+1]
     try:
+        if command == 'meter_exec stop':
+            return 'runtime stop=QUEUED' in clean(text).splitlines()
+        if command.startswith('meter_update maintenance '):
+            return 'maintenance requested; Product owns admission' in clean(text).splitlines()
+        if command == 'meter_update info':
+            for row in clean(text).splitlines():
+                if row.startswith('{'):
+                    try:
+                        return {'state', 'received', 'total', 'maintenance'} <= json.loads(row).keys()
+                    except (ValueError, TypeError):
+                        pass
+            return False
+        if command == 'meter_exec':
+            return bool(re.search(r'^shutdown wait_ms=\d+ overdue=[01];', clean(text), re.M))
+        if command.startswith('meter_settings '):
+            if command.endswith(' result'):
+                return bool(re.search(r'^settings result=(?:PENDING_OR_NONE|(?:APPLIED_OR_QUEUED|REJECTED).*durability=query-meter-storage)$', clean(text), re.M))
+            return bool(re.search(r'^settings (result=QUEUED;|REJECTED|BUSY)', clean(text), re.M))
         if command.startswith('canstat '):
             driver_status(text)
             return True

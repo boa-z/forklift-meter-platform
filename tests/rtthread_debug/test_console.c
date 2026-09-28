@@ -102,3 +102,5 @@ int main(void)
     puts("production MSH frontend: query copies, unlock-before-output, explicit trace clear PASS");
     return 0;
 }
+
+uint32_t meter_board_now_ms(void) { return rt_tick_get_millisecond(); }
