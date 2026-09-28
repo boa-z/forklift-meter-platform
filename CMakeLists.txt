@@ -219,3 +219,52 @@ if(BUILD_TESTING)
     get_property(all_tests DIRECTORY PROPERTY TESTS)
     set_tests_properties(${all_tests} PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy;METER_PLATFORM_ROOT=${CMAKE_CURRENT_SOURCE_DIR}" TIMEOUT 120)
 endif()
+
+# Host 与未来固件复用同一只读包策略，不实现第二套安装器。
+add_library(meter_package STATIC update/meter_package.c)
+target_link_libraries(meter_package PUBLIC meter_contracts)
+add_executable(meter-ota-inspect sim/package_inspector.c)
+target_link_libraries(meter-ota-inspect PRIVATE meter_package)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(meter_package PRIVATE -Wall -Wextra -Werror)
+    target_compile_options(meter-ota-inspect PRIVATE -Wall -Wextra -Werror)
+endif()
+
+option(METER_ENABLE_UPDATE "Build optional firmware update service" OFF)
+if(METER_ENABLE_UPDATE)
+    add_library(meter_update STATIC update/meter_update.c)
+    target_link_libraries(meter_update PUBLIC meter_contracts)
+    add_library(meter_uds STATIC
+        protocols/uds/meter_uds.c
+        third_party/iso14229/src/server.c third_party/iso14229/src/tp.c
+        third_party/iso14229/src/util.c third_party/iso14229/src/log.c
+        third_party/iso14229/src/tp/isotp_c.c third_party/iso14229/src/tp/isotp-c/isotp.c)
+    target_link_libraries(meter_uds PUBLIC meter_update)
+    target_include_directories(meter_uds PUBLIC third_party/iso14229/src)
+    target_compile_definitions(meter_uds PUBLIC UDS_SYS=0 UDS_TP_ISOTP_C UDS_LOG_LEVEL=0
+        UDS_SERVER_RECV_BUF_SIZE=1024 UDS_SERVER_SEND_BUF_SIZE=1024
+        ISO_TP_DEFAULT_ST_MIN_US=5000 ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000)
+    if(BUILD_TESTING)
+        add_executable(test-update tests/test_update.c)
+        target_link_libraries(test-update PRIVATE meter_update)
+        add_test(NAME update-service COMMAND test-update)
+        add_executable(test-uds-update tests/test_uds_update.c)
+        target_link_libraries(test-uds-update PRIVATE meter_uds)
+        add_test(NAME uds-update COMMAND test-uds-update)
+        add_executable(test-update-sdk-boundary tests/test_update_sdk_boundary.c platform/rtthread/meter_update_backend.c)
+        target_link_libraries(test-update-sdk-boundary PRIVATE meter_update)
+        add_test(NAME update-sdk-boundary COMMAND test-update-sdk-boundary)
+        set_tests_properties(update-service uds-update update-sdk-boundary PROPERTIES TIMEOUT 120)
+    endif()
+endif()
+
+# 直接覆盖应用取消逻辑；硬件调度与真实 IPC 仍由 HIL 验证。
+if(BUILD_TESTING AND METER_ENABLE_UPDATE AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    add_executable(test-update-port tests/test_update_port.c)
+    target_include_directories(test-update-port PRIVATE tests/stubs/update_port third_party/iso14229/src)
+    target_compile_definitions(test-update-port PRIVATE METER_ENABLE_CAN_UPDATE METER_AIC_OTA UDS_SYS=0 UDS_TP_ISOTP_C UDS_LOG_LEVEL=0)
+    target_compile_options(test-update-port PRIVATE -O1 -ffunction-sections -fdata-sections)
+    target_link_options(test-update-port PRIVATE -Wl,--gc-sections)
+    target_link_libraries(test-update-port PRIVATE meter_uds)
+    add_test(NAME update-port-cancel COMMAND test-update-port)
+endif()

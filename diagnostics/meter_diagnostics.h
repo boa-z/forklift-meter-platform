@@ -89,7 +89,7 @@ typedef struct
 typedef struct
 {
     const char *product, *platform_revision, *sdk_revision, *lvgl_version, *lvgl_aic_revision, *board,
-        *build_date, *build_time;
+        *build_date, *build_time, *firmware_version;
 } meter_build_info_t;
 /** @brief 调用者持有的静态诊断实例；字段仅允许 owner 更新，跨线程由宿主锁保护。 */
 typedef struct meter_diagnostics

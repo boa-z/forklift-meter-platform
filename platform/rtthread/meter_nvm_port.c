@@ -1,6 +1,9 @@
-#include "platform/rtthread/meter_nvm_port.h"
+#ifdef METER_ENABLE_CAN_UPDATE
+#include "platform/rtthread/meter_update_port.h"
+#endif
 #include "contracts/meter_product.h"
 #include "platform/rtthread/meter_eeprom_i2c.h"
+#include "platform/rtthread/meter_nvm_port.h"
 #include "storage/meter_file.h"
 #include <finsh.h>
 #include <rtdevice.h>
@@ -299,6 +302,13 @@ static void process_command(uint32_t now)
     if (rt_mq_recv(&commands, &command, sizeof(command), 0) != RT_EOK)
         return;
     command_result_t result = {false, 0u};
+#ifdef METER_ENABLE_CAN_UPDATE
+    if (meter_board_update_maintenance())
+    {
+        (void)rt_mq_send(&command_results, &result, sizeof(result));
+        return;
+    }
+#endif
     if (command.kind == 1u)
     {
         result.target = meter_board_nvm_flush();

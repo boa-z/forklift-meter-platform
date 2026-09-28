@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Demo smoke 由一个 owner 线程驱动 LVGL、协议和 Domain；生产线程分工见架构文档。 */
+/* App 单写者驱动 Domain 与 LVGL；可选 OTA 使用独立协议、发送和安装线程。 */
 #define LOG_TAG "meter.boot"
 #define LOG_LVL LOG_LVL_INFO
 #include "meter_build_identity.h"
@@ -13,6 +13,10 @@
 #include <lvgl.h>
 #include <rtthread.h>
 #include <ulog.h>
+#ifdef METER_ENABLE_CAN_UPDATE
+#include "meter_update_build.h"
+#include "platform/rtthread/meter_update_port.h"
+#endif
 #ifndef LPKG_LVGL_THREAD_STACK_SIZE
 #define LPKG_LVGL_THREAD_STACK_SIZE 32768
 #endif
@@ -32,6 +36,10 @@ static bool board_action(void *ctx, const meter_action_t *action)
     if (!product->auth->local_settings ||
         (action->kind == METER_ACTION_PARAMETER && !product->capabilities->parameter_write))
         return false;
+#ifdef METER_ENABLE_CAN_UPDATE
+    if (meter_board_update_maintenance())
+        return false;
+#endif
     if (!meter_board_nvm_ready() || !meter_core_action(ctx, action))
         return false;
     /* RAM 应用和 durable 分开发布，保存失败不伪造回滚。 */
@@ -53,6 +61,9 @@ static void meter_thread(void *parameter)
                                     METER_BUILD_BOARD,
                                     __DATE__,
                                     __TIME__};
+#ifdef METER_ENABLE_CAN_UPDATE
+    identity.firmware_version = METER_UPDATE_FIRMWARE_VERSION;
+#endif
     if (!meter_debug_init(&diagnostics, &identity))
     {
         LOG_E("diagnostics mutex init failed");
@@ -90,6 +101,14 @@ static void meter_thread(void *parameter)
     }
     LOG_I("product=%s; English/Chinese enabled; settings=%s", product->id,
           nvm_started ? "async-nvm" : "RAM-only");
+#ifdef METER_ENABLE_CAN_UPDATE
+    if (!meter_board_update_start())
+    {
+        LOG_E("OTA workers initialization failed; firmware stopped before CAN owner handoff");
+        for (;;)
+            rt_thread_mdelay(1000);
+    }
+#endif
     uint32_t previous = board.now_ms(board.context);
     diagnostics.data.ui.available = true;
     meter_debug_unlock();
@@ -101,6 +120,9 @@ static void meter_thread(void *parameter)
         meter_diagnostics_time(&diagnostics, now);
         meter_rtthread_adapter_poll(&adapter, 8);
         meter_board_nvm_poll(now, &diagnostics.data.storage);
+#ifdef METER_ENABLE_CAN_UPDATE
+        meter_board_update_poll(&core, first_frame);
+#endif
         product->ui->present(ui, &core.snapshot, (uint32_t)(now - previous));
         meter_diag_increment(&diagnostics.data.ui.present_count);
         previous = now;

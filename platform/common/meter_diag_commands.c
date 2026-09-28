@@ -246,6 +246,7 @@ void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, 
         FIELD("board", board);
         FIELD("build_date", build_date);
         FIELD("build_time", build_time);
+        FIELD("firmware_version", firmware_version);
 #undef FIELD
         line(emit, ctx, "uptime_ms : %lu", U(s->uptime_ms));
         break;

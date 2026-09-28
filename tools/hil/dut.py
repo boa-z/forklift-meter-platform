@@ -112,8 +112,10 @@ def complete(command, text):
         if command == 'meter trace clear':
             return diagnostics(text).get('trace', {}).get('result') == 'OK'
         data = diagnostics(text)
-        if command == 'meter diag':
-            return 'storage' in data and 'error' in data.get('domain', {})
+        if command in ('meter diag', 'meter storage'):
+            row = data.get('storage', {})
+            storage_complete = row.get('available') is False or {'state', 'durable_revision', 'imperial'} <= row.keys()
+            return storage_complete and (command == 'meter storage' or 'error' in data.get('domain', {}))
         if command == 'meter runtime': return 'resets' in data.get('runtime', {})
         if command == 'meter domain': return 'error' in data.get('domain', {})
         if command == 'meter trace': return 'overwritten' in data.get('trace', {})

@@ -201,3 +201,17 @@ def test_uart_fragmented_last_field_requires_newline():
         assert not complete('meter info', prefix+ending)
     assert complete('meter info', prefix+'uptime_ms : 1234\n')
     assert info('uptime_ms : \n') == {}
+
+
+def test_uart_nvm_diagnostics_wait_for_final_line():
+    rows = ['domain updates=1 error=0\n', 'storage reads=1 writes=0 errors=0\n',
+            'storage backend=eeprom state=READY dirty=0\n',
+            'storage ram_revision=6 inflight_revision=0 durable_revision=6\n',
+            'storage language=1 brightness=65 imperial=1\n']
+    for count in range(1, len(rows)):
+        assert not complete('meter diag', ''.join(rows[:count]))
+        assert not complete('meter storage', ''.join(rows[1:count]))
+    assert not complete('meter diag', ''.join(rows).rstrip('\n'))
+    assert complete('meter diag', ''.join(rows))
+    assert complete('meter storage', ''.join(rows[1:]))
+    assert complete('meter diag', rows[0] + 'storage unavailable (no NVM backend)\n')

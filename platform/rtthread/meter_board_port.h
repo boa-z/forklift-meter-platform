@@ -7,4 +7,10 @@ meter_rtthread_board_port_t meter_board_port(meter_diagnostics_t *diag);
 void meter_board_diagnostics(meter_diagnostics_t *diag);
 /** @brief 初始化失败时关闭本应用已打开的设备；owner 锁内调用。 */
 void meter_board_close(meter_diagnostics_t *diag);
+#ifdef METER_ENABLE_CAN_UPDATE
+/** @brief Protocol owner 独占读取硬件接收 FIFO。 */
+bool meter_board_can_raw_read(void *, meter_can_frame_t *);
+/** @brief 独立 TX worker 调用可能等待硬件的原生发送接口。 */
+bool meter_board_can_send(const meter_can_frame_t *);
+#endif
 #endif

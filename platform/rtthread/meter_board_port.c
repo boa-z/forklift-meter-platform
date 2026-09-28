@@ -10,6 +10,9 @@
 #include <rtthread.h>
 #include <string.h>
 #include <ulog.h>
+#ifdef METER_ENABLE_CAN_UPDATE
+#include "platform/rtthread/meter_update_port.h"
+#endif
 static rt_device_t can_devices[METER_BUS_COUNT];
 static unsigned next_bus;
 static uint32_t board_now(void *ctx)
@@ -71,7 +74,11 @@ static bool board_can_open(void *ctx, meter_bus_role_t bus)
     d->available = true;
     d->board_available = true;
     rt_device_t dev = rt_device_find(names[bus]);
-    if (!dev || rt_device_open(dev, RT_DEVICE_FLAG_INT_RX) != RT_EOK)
+    unsigned flags = RT_DEVICE_FLAG_INT_RX;
+#ifdef METER_ENABLE_CAN_UPDATE
+    flags |= RT_DEVICE_FLAG_INT_TX;
+#endif
+    if (!dev || rt_device_open(dev, flags) != RT_EOK)
     {
         meter_diagnostics_can(diag, bus, METER_CAN_RX_ERROR, board_now(NULL));
         ulog_e("meter.can", "cannot open %s", names[bus]);
@@ -92,7 +99,11 @@ static bool board_can_open(void *ctx, meter_bus_role_t bus)
     ulog_i("meter.can", "%s opened at 500000 bit/s (public Demo RX)", names[bus]);
     return true;
 }
+#ifdef METER_ENABLE_CAN_UPDATE
+bool meter_board_can_raw_read(void *ctx, meter_can_frame_t *frame)
+#else
 static bool board_can_read(void *ctx, meter_can_frame_t *frame)
+#endif
 {
     for (unsigned i = 0; i < METER_BUS_COUNT; ++i)
     {
@@ -117,6 +128,26 @@ static bool board_can_read(void *ctx, meter_can_frame_t *frame)
     return false;
 }
 
+#ifdef METER_ENABLE_CAN_UPDATE
+static bool board_can_read(void *ctx, meter_can_frame_t *frame)
+{
+    return meter_board_update_started() ? meter_board_update_read(frame)
+                                        : meter_board_can_raw_read(ctx, frame);
+}
+bool meter_board_can_send(const meter_can_frame_t *frame)
+{
+    if (!frame || (unsigned)frame->bus >= METER_BUS_COUNT || !can_devices[frame->bus] || frame->size > 8u)
+        return false;
+    struct rt_can_msg message = {0};
+    message.id = frame->id;
+    message.len = frame->size;
+    message.ide = frame->extended;
+    message.rtr = frame->remote;
+    message.hdr = -1;
+    memcpy(message.data, frame->data, frame->size);
+    return rt_device_write(can_devices[frame->bus], 0, &message, sizeof(message)) == sizeof(message);
+}
+#endif
 meter_rtthread_board_port_t meter_board_port(meter_diagnostics_t *diag)
 {
     return (meter_rtthread_board_port_t){.display_init = board_display,

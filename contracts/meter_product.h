@@ -75,6 +75,10 @@ typedef struct
     meter_command_route_fn_t command_route;
     void *command_route_context;
     const meter_storage_profile_t *storage;
+    /** @brief 可选升级身份和容量策略；未绑定时不启用。 */
+    const struct meter_update_policy *update;
+    /** @brief App 提供快照，Product 决定维护模式与业务准入。 */
+    bool (*update_admission)(const meter_snapshot_t *, bool maintenance);
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif
