@@ -2,7 +2,7 @@
 
 > [中文版](parameter-service.zh-CN.md)
 
-This is an opt-in internal framework seam. No existing Product, UI, native worker, CAN encoder, SDO channel or NVM backend calls it yet. It closes the deterministic transaction boundary, not real-product parameter integration. Priorities and decisions remain in the [maintenance plan](maintenance-plan.md).
+This opt-in internal framework seam now has a deterministic reference Application and copied presentation witness. Existing production Products, native workers, CAN encoders, SDO channels and NVM backends remain unbound. The active priorities remain in the [maintenance plan](maintenance-plan.md).
 
 ## Ownership and identity
 
@@ -51,3 +51,17 @@ Calibration should be an App workflow over fresh Domain measurements and typed p
 `tests/test_parameters.c` exercises duplicate owner-qualified keys, unconfirmed data, admission failure atomicity, permission masks/expiry/regrant, clock wrap, wrong replies, retained results, read retry, queued/active cancellation, write uncertainty and identity exhaustion. `tests/test_product_boundaries.c` characterizes the existing dual-bus router, timeout/value/source retention, recovery and independent 20/50 ms schedules. Synthetic deadlines are not physical CAN timing evidence.
 
 Run these through CTest: `parameter-contracts`, `product-boundaries`, `guard-boundary-fixtures` and `assertion-witness`. Test assertions remain enabled in Debug and Release. The complete selected Product matrix and actual limitations are recorded in the maintenance plan. No current-tree firmware, controller interoperability, HIL, migration or calibration acceptance is claimed.
+
+## Reference Application and presentation boundary
+
+`examples/parameter-workflow/app.c` is an opt-in reference App owner, linked only by the CTest witness. It composes the existing transaction service and grant with three nonblocking copied-message port operations: ready, send and receive. A real Product implements these through its protocol owner's IPC; the reference does not select CAN, encode frames, load credentials or change the production App callback ABI. It is not an additional Product linked into firmware.
+
+App consumes a value intent containing a profile generation, panel lifetime token, owner-qualified key, operation and desired value. Stale profile generations and zero panel tokens fail before admission. The App owns timeout/retry policy; UI cannot change it. Authentication code running under App ownership supplies/revokes the grant. Every App step processes deadlines, consumes at most one reply, dispatches at most one attempt when the backend is ready, and copies a terminal result into its presentation value. Call steps and intent/ack handlers serially; initialized objects, non-overlapping output storage and valid nonblocking port callbacks are required.
+
+`ui/presentation.h` contains only value contracts. Pending never means success and contains no optimistic confirmed value. UI renders a result only when its profile generation and panel token match and `has_result` is true. A cancelled/timed-out dispatched write may have taken effect; preserve `effect_unknown` instead of showing rollback. Result detail does not change machine health. A terminal result remains retained until App receives acknowledgement of both its panel token and request identity. A replaced panel may ignore an old result, but App still must explicitly acknowledge it; ignoring a publication never frees result credit. Product policy must decide who acknowledges orphaned panels.
+
+Backend readiness includes resource ownership and drain/quarantine independently of UI result credit. Cancelling or acknowledging a write leaves the backend busy. A later intent may be admitted but cannot dispatch until that backend releases its channel; the total deadline still runs. The test backend returns the original copied token on late completion, never stamps a newer request onto it. If a ready/send race rejects a handoff after `take`, the reference retains TRANSPORT_FAILED with conservative write uncertainty and never resubmits the write. Real adapters still need wire-level correlation/drain evidence.
+
+`tests/test_parameter_app.c` verifies admission and owner-specific ranges, stale profile/panel filtering, copied input/output lifetimes, retained results, permission expiry before dispatch and revoke/regrant after dispatch, cancellation with live backend ownership, late completion during a new request, queue rejection, read retry after drain, malformed replies and queued total timeout. All inputs and replies are synthetic. Existing `parameter-contracts` still covers the wider identity, clock-wrap and outcome matrix. Run `ctest --test-dir BUILD --output-on-failure -R parameter` in Debug and Release.
+
+Production integration decision: bind Product-specific descriptors, authentication and semantic IPC endpoints only after backend mappings and lifetime/correlation rules are confirmed. Keep exactly one Product per image. Catalog/profile replacement must explicitly address session allocation, in-flight cancellation, resource drain and retained results before reinitialization; the reference deliberately exposes no live reset shortcut. Local Settings/MSP2 and static auth booleans remain separate, as documented in D-06 in the maintenance plan.

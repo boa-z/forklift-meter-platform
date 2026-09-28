@@ -73,6 +73,11 @@ class GuardBoundaries(unittest.TestCase):
         self.write('main.c', '#include "product/demo_storage.h"')
         self.run_guard('check_runtime_ownership.py', 'Firmware entry imports Product implementation')
 
+    def test_reference_parameter_ui_cannot_import_engine(self):
+        self.write('runtime/engine.h', '')
+        self.write('examples/parameter-workflow/ui/bad.h', '#include "runtime/engine.h"')
+        self.run_guard('check_architecture.py', 'examples/parameter-workflow/ui/bad.h ->')
+
     def test_scan_fails_closed_on_missing_duplicate_or_reversed_anchor(self):
         for source in ('', 'static void protocol_entry(void) {}',
                        'static void set_mode(void) {} static void protocol_entry(void) {}',

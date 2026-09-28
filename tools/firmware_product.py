@@ -24,7 +24,12 @@ def select(app_root, selection=None):
             if not isinstance(entry, str):
                 raise ValueError('Source must be a relative path string')
             source = (product / entry).resolve()
-            if Path(entry).is_absolute() or not source.is_relative_to(product) or not source.is_file():
+            # SCons may use the SDK's older Python; do not require Path.is_relative_to (3.9+).
+            try:
+                source.relative_to(product)
+            except ValueError:
+                raise ValueError('Source escapes package: ' + entry) from None
+            if Path(entry).is_absolute() or not source.is_file():
                 raise ValueError('Source escapes package or is missing: ' + entry)
             if source in sources:
                 raise ValueError('Duplicate Product source: ' + entry)

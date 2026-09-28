@@ -47,6 +47,7 @@ typedef struct
 } meter_resource_profile_t;
 typedef struct
 {
+    /* Static Product policy, not credentials or an expiring meter_authorization_t grant. */
     bool local_settings;
     bool vehicle_control;
 } meter_auth_profile_t;

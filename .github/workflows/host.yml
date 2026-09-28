@@ -30,6 +30,8 @@ jobs:
           find core runtime storage update -name '*.c' -print0 | xargs -0 -n 1 clang-tidy -p build-quality
       - name: Generated production analyzer coverage
         run: python tools/analyze_generated.py
+      - name: Handwritten platform and protocol analysis
+        run: python tools/analyze_handwritten.py
       - name: Bounded fuzz smoke
         run: build-quality/fuzz-runtime -max_total_time=30 -max_len=4096 -seed=1
       - name: Upload quality provenance
@@ -40,6 +42,7 @@ jobs:
           path: |
             evidence/quality-toolchain.json
             evidence/generated-analysis.json
+            evidence/handwritten-analysis.json
             build-quality/compile_commands.json
   host:
     runs-on: ubuntu-latest

@@ -16,6 +16,7 @@ RULES = {
     # 产品协议解析的是产品身份，而这些身份现在位于自动生成的目录中，不再放在公共域头文件里。
     'products/demo/protocol': ('contracts/', 'protocols/common/', 'products/demo/protocol/', 'products/demo/generated/'),
     'ui': ('contracts/', 'ui/', 'generated/'),
+    'examples/parameter-workflow/ui': ('contracts/', 'examples/parameter-workflow/ui/'),
 }
 errors=[]
 for area, allowed in RULES.items():

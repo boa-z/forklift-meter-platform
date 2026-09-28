@@ -60,7 +60,7 @@ typedef struct
 typedef bool (*meter_source_policy_fn_t)(void *context, meter_signal_id_t signal,
                                          const meter_value_t *incoming, const meter_value_t *current);
 /**
- * @brief 可写参数定义。
+ * @brief 本地权威 Settings 定义；不是远端 owner-qualified Parameter 描述符。
  *
  * min、max、initial 使用该参数自身单位，三者必须有限且 initial 落在 [min, max] 内，
  * 范围由产品目录给出，平台不做单位假设。
@@ -217,7 +217,7 @@ static inline bool meter_snapshot_fault_set(meter_snapshot_t *snapshot, uint16_t
     }
     return true;
 }
-/** @brief UI 动作类别。METER_ACTION_PARAMETER 使用 id，其余类别忽略 id。 */
+/** @brief UI 本地设置意图。METER_ACTION_PARAMETER 使用本地 id，不派发远端事务。其余类别忽略 id。 */
 typedef enum
 {
     METER_ACTION_UNITS,

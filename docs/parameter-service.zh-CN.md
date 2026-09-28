@@ -2,7 +2,7 @@
 
 > [English](parameter-service.md)
 
-这是可选的内部框架接口。现有 Product、UI、原生 worker、CAN 编码器、SDO 通道及 NVM 后端均未调用它。它补齐确定性事务边界，不代表真实产品参数已集成。优先级和决策仍在[维护计划](maintenance-plan.zh-CN.md)。
+此可选框架接口现有确定性的参考 App 与复制展示见证。既有生产 Product、原生工作线程、CAN 编码器、SDO 通道及 NVM 后端仍未绑定。优先级继续由[维护计划](maintenance-plan.zh-CN.md)维护。
 
 ## 所有权与身份
 
@@ -51,3 +51,17 @@ App 所有者独占调用 `runtime/meter_parameters.h` 和 `runtime/meter_author
 `tests/test_parameters.c` 覆盖属主限定键重复、未确认数据、准入失败原子性、权限掩码/到期/重授、时钟回绕、错误回复、结果保留、读重试、排队/活动取消、写结果不确定性及身份耗尽。`tests/test_product_boundaries.c` 描述现有双总线路由、超时后的值/来源保留、恢复和独立 20/50 ms 调度。合成期限不构成物理 CAN 时序证据。
 
 通过 CTest 执行 `parameter-contracts`、`product-boundaries`、`guard-boundary-fixtures` 和 `assertion-witness`。Debug 和 Release 均保留测试断言。完整选定 Product 矩阵与实际限制记录在维护计划中，不宣称当前源码固件、控制器互通、HIL、迁移或标定已验收。
+
+## 参考 App 与展示边界
+
+`examples/parameter-workflow/app.c` 是可选参考 App 所有者，仅由 CTest 见证链接。它把既有事务服务和授权与三个非阻塞复制消息端口组合：ready、send、receive。真实 Product 通过协议所有者 IPC 实现端口；参考实现不选择 CAN、不编码帧、不加载凭据、不改变生产 App 回调 ABI。它不是链接进固件的额外 Product。
+
+App 消费值意图：配置代数、面板生命周期令牌、属主限定键、操作及期望值。旧配置代数或零面板令牌在准入前失败。超时/重试策略由 App 所有，UI 无权更改。App 所有权下的认证代码发放/撤销授权。每次 App step 处理期限，最多消费一个回复，在后端就绪时最多派发一次尝试，再把终态复制到展示值。step、意图及确认处理须串行，使用已初始化对象、不重叠输出存储及有效的非阻塞端口回调。
+
+`ui/presentation.h` 只有值契约。pending 不代表成功，不包含乐观的已确认值。UI 仅在配置代数和面板令牌匹配且 `has_result` 为真时渲染结果。派发后取消/超时的写入可能已生效，须保留 `effect_unknown`，不能显示已回滚。结果详情不改变整机健康状态。终态保留到 App 收到同时匹配面板令牌及请求身份的确认。被替换面板可忽略旧结果，但 App 仍须显式确认；忽略发布不会释放结果额度。由 Product 策略决定谁确认已离开面板的结果。
+
+后端 ready 独立于 UI 结果额度，包含资源所有权及排空/隔离。取消或确认写入后后端仍忙。新意图可获准入，但后端释放通道前不能派发，总期限仍推进。测试后端在延迟完成时返回原复制令牌，绝不把新请求盖到旧回复上。ready/send 竞态若在 `take` 后拒绝交接，参考实现保留 TRANSPORT_FAILED 及保守的写入不确定性，不重发写入。真实适配器仍需线上关联/排空证据。
+
+`tests/test_parameter_app.c` 验证准入及属主特定范围、旧配置/面板过滤、输入输出复制生命周期、结果保留、派发前授权到期、派发后撤销再授权、后端仍持有资源的取消、新请求期间的旧完成、队列拒绝、排空后的读重试、畸形回复及排队总超时。全部输入回复为合成值。原 `parameter-contracts` 继续覆盖更广的身份、时钟回绕及结果矩阵。Debug 和 Release 使用 `ctest --test-dir BUILD --output-on-failure -R parameter`。
+
+生产集成决策：后端映射及生命周期/关联规则确认后，才绑定 Product 专属描述符、认证及语义 IPC 端点。每个镜像始终仅一个 Product。目录/配置替换须先明确会话分配、在途取消、资源排空和保留结果，再重新初始化；参考实现有意不提供在线复位捷径。本地 Settings/MSP2 及静态授权布尔值仍独立，见维护计划 D-06。

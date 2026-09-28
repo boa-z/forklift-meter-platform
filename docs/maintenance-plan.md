@@ -12,8 +12,8 @@ Established 2026-09-28 from the [source assessment](maintainability.md), baselin
 | H-02 | Make `runtime/meter_periodic.c` locally readable: descriptive parameters, expanded branches, explicit phase comments. Add independent tests for publication rejection atomicity, encoder rejection/identity and exhausted identities. | Five new named cases pass on the original implementation; existing lifecycle assertions retained; full Product matrix passes; optimized objects identical. No signature, layout, arithmetic, deadline or policy changes. | Complete |
 | H-03 | Establish negative fixtures for architecture/ownership guards (M-07), then tighten relative-include handling. Keep every previous gate and scope. | Fixtures reject deliberate violations, permit valid includes and fail clearly on missing scan anchors; CTest/CI registers them. Record gate changes under governance rules. | Complete |
 | H-04 | Ensure C test setup/checks cannot disappear under NDEBUG (M-08). | Debug and Release both reject a deliberate failing test; test-only enforcement; all Product matrices pass. | Complete |
-| H-05 | Document native shared-state/lock ownership and add incremental startup/stop fault-injection seams (M-01/M-05). No worker movement or synchronization change. | Tests cover every initialized resource and acknowledgement, queue rejection and blocked durability; distinguish deterministic stubs from target results. | Queued |
-| H-06 | Inventory analyzer coverage and extend handwritten first-party scopes in reviewable groups (M-06); exercise documentation links and generator failure paths (M-09). | Scope artifact reconciles selected sources and compile commands; analyzer findings repaired or explicitly pending human review. | Queued |
+| H-05 | Document native shared-state/lock ownership and add incremental startup/stop fault-injection seams (M-01/M-05). No worker movement or synchronization change. | Tests cover every initialized resource and acknowledgement, queue rejection and blocked durability; distinguish deterministic stubs from target results. | Portable characterization complete; D-03/target evidence open |
+| H-06 | Inventory analyzer coverage and extend handwritten first-party scopes in reviewable groups (M-06); exercise documentation links and generator failure paths (M-09). | Scope artifact reconciles selected sources and compile commands; analyzer findings repaired or explicitly pending human review. | Explicit scope added; CI/target and remaining tooling follow-up open |
 
 H-01/H-02 retain their original verification below. The 2026-09-28 continuation pressure-tests these priorities against an external real-product requirement set. For each batch: read affected contracts, characterize before editing, preserve external semantics, run directly relevant tests and the selected Product matrix, and record limitations. Avoid broad formatting churn or new abstraction layers.
 
@@ -23,7 +23,7 @@ Only reusable conclusions belong in this public repository. The private requirem
 
 | Capability | Current implementation / actual gap | Next reusable work |
 |---|---|---|
-| Product composition | Host manifests select Products; firmware startup/storage/i18n remain Demo-bound. | D-02: review a Product-owned bootstrap and selected source closure; do not silently change the firmware contract. |
+| Product composition | Host and firmware now select one Product at build time; generic startup uses the composition contract. | D-02 bootstrap coupling closed; verify target budgets/adaptation separately. |
 | Two CAN networks and periodic RX/TX | Frame and route keys already contain bus/format/ID; periodic definitions accept independent periods. Board topology/bitrate remains fixed by integration. | F-03: explicit overlapping-ID, timeout/recovery and 20/50 ms synthetic regressions. Physical timing and bus assignment remain unverified. |
 | Value/source/freshness | Core already preserves value/source when VALID becomes STALE and starts UNKNOWN. ERROR may replace an invalid value; there is no separate last-good history. | Reuse Core expiry. Decide separately whether last-good history and message-level supervision are required; never present UNKNOWN/STALE as valid zero. |
 | Parameters | Core numeric IDs identify local persisted settings; command ledger and SDO scheduler do not supply a reusable owner-qualified parameter catalog/result boundary. | F-02: isolated App-owned parameter service using existing request identity/ledger; explicit request/attempt correlation and retained typed results. No existing setting or wire format changes. |
@@ -43,12 +43,14 @@ Current bounded delivery: F-02 parameter/permission contracts and deterministic 
 | Item | Proposed next action | Authority / state |
 |---|---|---|
 | D-01 rejection policy | Review actual counters and decide whether semantic validation rejects affect mode. Until decided, document current behavior. | Product/maintainer; open |
-| D-02 firmware Product selection | Design one explicit composition boundary for Product storage/UI/protocol sources; assess two target Products before implementation. | Integrator/maintainer; open |
+| D-02 firmware Product selection | One build-time Product owns static storage and locale setup; Demo and Reference-B compile independently with unchanged default behavior. | Composition coupling closed; target adaptation evidence open |
 | D-03 lifecycle failures | Decide cleanup/restart/durability failure semantics before changing ownership or shutdown guarantees. H-05 may characterize current behavior independently. | Maintainer; open |
 | D-05 persistence migration and counter semantics | Retain unknown-schema refusal and two-slot recovery; review known-schema transforms, counter units/activation/reset/checkpoints and power-loss budget. Do not write unconfirmed mappings or defaults. | Product/maintainer; open |
+| D-06 Settings/Parameters vocabulary | Keep local authoritative Settings names/MSP2 and remote owner-qualified transactions separate; no public rename/migration. | Compatibility retained |
+| D-07 Product App/UI binding | Review confirmed backend correlation/drain, authentication and orphan panel/profile lifecycle before native binding. | Product/maintainer; open |
 | Governance enforcement | Review existing TAD-001 and configure/verify required checks as described in compliance status. No agent approval or blanket exception. | Human reviewer/repository administrator; pending |
 
-These items are proposals, not accepted architecture decisions. Record rationale, alternatives, compatibility and verification when decided. No CAN/protocol behavior, timing guarantee, thread ownership, storage format, update trust/recovery or diagnostic/safety policy changes are authorized by this plan.
+Open rows require the listed human/Product decisions. D-02 is the bounded implementation explicitly authorized for unchanged build-time composition; D-06 records retained compatibility. No CAN/protocol behavior, timing guarantee, thread ownership, storage format, update trust/recovery or diagnostic/safety policy changes are authorized by this plan.
 
 ## Product feature work
 
@@ -121,7 +123,7 @@ The two new runtime sources additionally pass host GCC `-fanalyzer -Wall -Wextra
 
 Accepted baseline: `7ed094f` on `codex/product-framework-hardening`; host/quality green reported by the maintainer. Continue this plan, not a new audit. Current order follows dependencies: characterize native startup/shutdown and failure ownership first; prove build-time firmware composition with independent Products; then exercise opt-in parameter Application integration and copied presentation values with synthetic backends. Add Release/headless CI and extend explicit handwritten analyzer coverage without reducing existing scopes.
 
-H-05 is in progress. D-02 may close only through unchanged Demo behavior and independent composition evidence. D-03 retains cleanup/restart/durability policy decisions. Existing local Settings and remote Parameters remain separate; document compatibility before any public rename. No private wire encoding, credentials, physical timing or persistent format changes are part of this batch.
+Continuation outcome: H-05 portable lifecycle characterization, D-02 single-Product composition and the F-02 App/presentation witness are implemented below. D-03 and D-07 preserve unresolved production policy. No private wire encoding, credentials, physical timing or persisted formats changed.
 
 ### H-05 lifecycle evidence
 
@@ -152,3 +154,28 @@ Demo and Reference-B each compile the same generic firmware entry and link/run t
 D-06 compatibility disposition: retain existing public names and serialized representation. Their overlap is semantic vocabulary, not permission to merge storage or authority. New documentation and boundary examples use Settings for local values and Parameters for remote transactions. Any future public rename, migration or remote-to-local cache must first specify caller compatibility, record versioning, freshness and confirmation policy. No such migration is needed for this batch.
 
 Every firmware image selects exactly one Product. The singular `METER_PRODUCT_ROOT` resolves one manifest and one `meter_product_get` / `meter_firmware_compose` implementation. Demo and Reference-B verification uses separate build directories and executables, never a combined firmware or runtime selector. Local composition batch: Demo 77/77 and Reference-B 67/67 CTests passed; evidence is `build-maintainer-audit/demo-composition.log` and `refb-composition.log`.
+
+### App boundary and analyzer outcome
+
+F-02 now has a synthetic App/transport/UI boundary witness in `examples/parameter-workflow`, described in the [parameter service guide](parameter-service.md). It is test-only and does not add another firmware Product or alter existing runtime callbacks. D-06 retains local Settings names/format. D-07 remains a human/Product integration decision: confirm descriptors, authentication, backend quarantine and panel/profile lifecycle before production binding. No private encoding, credential or safety/health policy is selected.
+
+H-06 adds seven explicit handwritten sources: diagnostics, trace, common routing, diagnostic commands, portable RT-Thread adapter, native execution owner and reference parameter App. `tools/analyze_handwritten.py` records source SHA256, actual analyzer version, command, result and include context; existing portable/generated scopes remain. Local Cppcheck passed all seven. Native analysis uses host RT-Thread stubs with OTA disabled; Clang-tidy/Linux CI and target compiler analysis are not claimed as run locally. The host workflow retains existing jobs and adds Release/headless + update and the explicit scope analysis. GCR-003 records the gate changes.
+
+Remaining lifecycle boundary: partial init retention, failed App startup and one-shot STOPPED behavior are characterized but intentionally unchanged under D-03. State metadata uses `state_lock`; periodic publication copies use `tx_publication_lock`; App/UI snapshot copies use `view_lock`. No lock is held while the deterministic App fixture waits for another owner's acknowledgement. Worker stacks, queues and semaphore storage remain static; App alone advances the stop handshake, while each worker and UI acknowledge their own completion. Optional OTA lifecycle and real scheduler/resource reclamation still need separate evidence.
+
+### Integration batch verification
+
+| Configuration / check | Result | Evidence |
+|---|---|---|
+| Debug headless + update | 75/75 PASS | `build-maintainer-audit/audit-integration-tests.log` |
+| Debug Demo SDL | 78/78 PASS | `build-maintainer-audit/demo-integration-tests.log` |
+| Debug Reference-B SDL | 68/68 PASS | `build-maintainer-audit/refb-integration-tests.log` |
+| Debug Reference-Mixed SDL | 66/66 PASS | `build-maintainer-audit/mixed-integration-tests.log` |
+| Release headless + update | 75/75 PASS | `build-maintainer-audit/release-integration-tests.log` |
+| Python host tools | 112 PASS; 9 physical HIL skipped | `build-maintainer-audit/integration-python.log` |
+| Seven handwritten sources | Cppcheck and GCC `-fanalyzer -Wall -Wextra -Werror` PASS | `build-maintainer-audit/handwritten-cppcheck.json`, `handwritten-gcc.json` |
+| Repository gates | Bilingual, public headers/clean, architecture and ownership including new negative fixtures PASS | CTest `integration-results.xml` in each build directory |
+
+Use the earlier CMake configurations, build each directory and run CTest; Release is headless with update enabled, while each SDL directory selects exactly one Product. `python tools/analyze_handwritten.py --tool cppcheck --output build-maintainer-audit/handwritten-cppcheck.json` reproduces local Cppcheck. CI omits `--tool` to require both Cppcheck and clang-tidy. GNU 16.1.0 / Python 3.13.15 on Windows produced the local results. The Shell stub's missing export reference was repaired after GCC exposed it; native lifecycle tests were rebuilt and rerun. No warning policy was relaxed.
+
+Commits `f30ff95` and `e07f899` separate lifecycle characterization and single-Product composition. Current-tree Linux Clang/sanitizer/fuzz CI, target firmware linking, real controller interoperability, physical timing, UI visual acceptance and HIL remain NOT_RUN. The maintainer-reported green CI belongs to baseline `7ed094f`, not this batch. Next implementation should follow D-03/D-07 decisions or independent H-06 tooling work; this is not approval for wire encoding, credentials, storage migration or health-policy changes.

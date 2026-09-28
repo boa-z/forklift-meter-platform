@@ -12,8 +12,8 @@
 | H-02 | 使 `runtime/meter_periodic.c` 可局部理解：描述性参数、展开分支、明确阶段注释。为发布拒绝原子性、编码拒绝/身份及身份耗尽增加独立测试。 | 五个新增具名用例在原实现通过；保留已有生命周期断言；完整 Product 矩阵通过；优化对象相同。签名、布局、算术、期限和策略不变。 | 完成 |
 | H-03 | 为架构/所有权护栏建立反例（M-07），再增强相对 include 处理。保留所有已有门禁及范围。 | 样例拒绝刻意违反、允许合法 include、扫描锚点缺失时报清楚错误；在 CTest/CI 注册。按治理规则记录门禁变更。 | 完成 |
 | H-04 | 保证 C 测试初始化/检查不因 NDEBUG 消失（M-08）。 | Debug 和 Release 均拒绝故意失败的测试；仅影响测试；所有 Product 矩阵通过。 | 完成 |
-| H-05 | 记录原生共享状态/锁所有权，逐步增加启停故障注入接口（M-01/M-05），不移动 worker 或改变同步。 | 测试覆盖已初始化资源和确认、队列拒绝及耐久阻塞；区分确定性替身与目标结果。 | 待执行 |
-| H-06 | 清点分析器覆盖，按可评审分组扩展手写第一方范围（M-06）；验证文档链接和生成器失败路径（M-09）。 | 范围工件核对选中源码及编译命令；分析发现修复或明确待人工评审。 | 待执行 |
+| H-05 | 记录原生共享状态/锁所有权，逐步增加启停故障注入接口（M-01/M-05），不移动 worker 或改变同步。 | 测试覆盖已初始化资源和确认、队列拒绝及耐久阻塞；区分确定性替身与目标结果。 | 可移植特征验证完成，D-03/目标证据开放 |
+| H-06 | 清点分析器覆盖，按可评审分组扩展手写第一方范围（M-06）；验证文档链接和生成器失败路径（M-09）。 | 范围工件核对选中源码及编译命令；分析发现修复或明确待人工评审。 | 已增加明确范围，CI/目标及其余工具工作开放 |
 
 H-01/H-02 保留下方原始验证记录。2026-09-28 续接工作使用外部真实产品需求检验这些优先级。每批先读相关契约、编辑前建立特征测试、保留外部语义、运行直接相关测试及选定 Product 矩阵并记录限制。避免大范围格式变动或新增抽象层。
 
@@ -23,7 +23,7 @@ H-01/H-02 保留下方原始验证记录。2026-09-28 续接工作使用外部�
 
 | 能力 | 当前实现 / 实际缺口 | 下一步复用工作 |
 |---|---|---|
-| Product 组合 | 宿主清单可选择 Product；固件启动/存储/翻译仍绑定 Demo。 | D-02：评审 Product 自有启动及选中源码闭包，不静默改变固件契约。 |
+| Product 组合 | 宿主及固件均在编译期选择唯一 Product，通用启动使用组合契约。 | D-02 启动耦合已关闭，独立验证目标预算/适配。 |
 | 双 CAN 与周期 RX/TX | 帧及路由键已包含总线/格式/ID；周期定义允许独立周期。板级拓扑/波特率仍由集成固定。 | F-03：增加重叠 ID、超时/恢复及 20/50 ms 合成回归。物理时序和总线分配尚未验证。 |
 | 值/来源/新鲜度 | Core 在 VALID 变 STALE 时已保留值和来源，初始为 UNKNOWN。ERROR 可替换无效值；无独立最后有效值历史。 | 复用 Core 超时。另行决定是否需要最后有效值历史和消息级监督，不将 UNKNOWN/STALE 显示为有效零。 |
 | 参数 | Core 数字 ID 标识本地持久化设置；命令账本和 SDO 调度器不提供可复用的属主限定参数目录/结果边界。 | F-02：独立 App 所有的参数服务，复用请求身份/账本；显式请求/尝试关联及保留的类型化结果。不改已有设置或线上格式。 |
@@ -43,9 +43,11 @@ H-01/H-02 保留下方原始验证记录。2026-09-28 续接工作使用外部�
 | 项目 | 建议下一步 | 决策人 / 状态 |
 |---|---|---|
 | D-01 拒绝策略 | 评审实际计数器，决定语义校验拒绝是否影响模式。决定前只记录现有行为。 | 产品/维护者；未决 |
-| D-02 固件 Product 选择 | 为 Product 存储/UI/协议源码设计一个明确组合边界；实施前评估两个目标 Product。 | 集成者/维护者；未决 |
+| D-02 固件 Product 选择 | 唯一编译期 Product 所有静态存储及本地化，Demo 与 Reference-B 独立编译，默认行为不变。 | 组合耦合已关闭，目标适配证据开放 |
 | D-03 生命周期失败 | 改变所有权或停止保证前决定清理/重启/耐久失败语义。H-05 可独立描述现有行为。 | 维护者；未决 |
 | D-05 持久化迁移与计数语义 | 保留未知模式不覆盖及双槽恢复；评审已知旧模式迁移、计数单位/使能/复位/检查点和掉电预算。未确认映射与默认值不得写入。 | 产品/维护者；未决 |
+| D-06 Settings/Parameters 词汇 | 本地权威 Settings 名称/MSP2 与远端属主限定事务保持独立，不公开重命名/迁移。 | 保留兼容性 |
+| D-07 Product App/UI 绑定 | 原生绑定前评审已确认后端关联/排空、认证及已离开面板/配置的生命周期。 | Product/维护者；开放 |
 | 治理实施 | 按合规状态文档评审现有 TAD-001 并配置/核实必需检查。没有 agent 批准或宽泛豁免。 | 人工评审者/仓库管理员；待处理 |
 
 这些是建议，不是已接受的架构决策。作出决策时记录理由、替代方案、兼容性及验证。本计划不授权改变 CAN/协议行为、时序保证、线程所有权、存储格式、升级信任/恢复或诊断/安全策略。
@@ -121,7 +123,7 @@ Release 复现使用上方无界面配置，加 `-B build-maintainer-release -DC
 
 已接受基线：`codex/product-framework-hardening` 的 `7ed094f`；维护者报告 host/quality 已绿。继续本计划，不重新审计。当前按依赖排序：先描述原生启停及失败所有权，再以独立 Product 证明编译期固件组合，随后用合成后端验证可选参数 App 集成及复制的展示值。增加 Release/无界面 CI 并明确扩展手写源码分析范围，不缩小已有范围。
 
-H-05 正在执行。D-02 仅在 Demo 行为不变且有独立组合证据时关闭。D-03 保留清理/重启/耐久策略决策。现有本地 Settings 与远端 Parameters 保持独立，公开重命名前先记录兼容性。本批不改变私有线上编码、凭据、物理时序或持久化格式。
+续接结果：下方已实现 H-05 可移植生命周期特征验证、D-02 单 Product 组合及 F-02 App/展示见证。D-03 和 D-07 保留未决生产策略，未改变私有线上编码、凭据、物理时序或持久化格式。
 
 ### H-05 生命周期证据
 
@@ -152,3 +154,28 @@ Demo 与 Reference-B 分别编译同一通用固件入口，并对真实目录�
 D-06 兼容性处置：保留现有公开名称及序列化表示。重叠是语义词汇，不授权合并存储或权威。新文档及边界示例用 Settings 表示本地值，Parameters 表示远端事务。未来公开重命名、迁移或远端到本地缓存须先说明调用方兼容、记录版本、新鲜度及确认策略。本批无需此类迁移。
 
 每个实际固件镜像只选择一个 Product。单一 `METER_PRODUCT_ROOT` 解析一份清单及唯一 `meter_product_get` / `meter_firmware_compose` 实现。Demo 与 Reference-B 用独立构建目录和可执行文件验证，绝不组合进同一固件或使用运行时选择器。本地组合批次：Demo 77/77、Reference-B 67/67 CTest 通过，证据为 `build-maintainer-audit/demo-composition.log` 及 `refb-composition.log`。
+
+### App 边界与分析结果
+
+F-02 现有 `examples/parameter-workflow` 中的合成 App/传输/UI 边界见证，详见[参数服务指南](parameter-service.zh-CN.md)。它仅用于测试，不增加固件 Product，也不改变既有运行时回调。D-06 保留本地 Settings 名称/格式。D-07 仍是人工/Product 集成决策：生产绑定前确认描述符、认证、后端隔离及面板/配置生命周期。不选择私有编码、凭据或安全/健康策略。
+
+H-06 增加七份明确手写源码：诊断、trace、通用路由、诊断命令、可移植 RT-Thread 适配、原生执行所有者及参考参数 App。`tools/analyze_handwritten.py` 记录源码 SHA256、实际分析器版本、命令、结果及包含上下文，保留原 portable/generated 范围。本地 Cppcheck 七份均通过。原生分析采用关闭 OTA 的宿主 RT-Thread 桩，不宣称本地执行了 Clang-tidy/Linux CI 或目标编译器分析。host 工作流保留原作业并增加 Release/无界面加 update 及明确范围分析。GCR-003 记录门禁变化。
+
+生命周期剩余边界：D-03 下仅描述部分初始化保留、App 启动失败及 STOPPED 一次性行为，未作改变。`state_lock` 保护状态元数据，`tx_publication_lock` 保护周期发布复制，`view_lock` 保护 App/UI 快照复制。确定性 App 桩等待其他所有者确认时不持有锁。线程栈、队列及信号量存储保持静态，只有 App 推进停机握手，各工作线程和 UI 确认自己的完成。可选 OTA 生命周期及真实调度/资源回收仍需独立证据。
+
+### 集成批次验证
+
+| 配置 / 检查 | 结果 | 证据 |
+|---|---|---|
+| Debug 无界面加 update | 75/75 PASS | `build-maintainer-audit/audit-integration-tests.log` |
+| Debug Demo SDL | 78/78 PASS | `build-maintainer-audit/demo-integration-tests.log` |
+| Debug Reference-B SDL | 68/68 PASS | `build-maintainer-audit/refb-integration-tests.log` |
+| Debug Reference-Mixed SDL | 66/66 PASS | `build-maintainer-audit/mixed-integration-tests.log` |
+| Release 无界面加 update | 75/75 PASS | `build-maintainer-audit/release-integration-tests.log` |
+| Python 宿主工具 | 112 PASS；9 项实板 HIL 跳过 | `build-maintainer-audit/integration-python.log` |
+| 七份手写源码 | Cppcheck 与 GCC `-fanalyzer -Wall -Wextra -Werror` PASS | `build-maintainer-audit/handwritten-cppcheck.json`、`handwritten-gcc.json` |
+| 仓库门禁 | 双语、公开头/清洁、架构及所有权（含新反例）PASS | 各构建目录 CTest `integration-results.xml` |
+
+沿用前述 CMake 配置，分别构建并运行 CTest；Release 为启用 update 的无界面配置，各 SDL 目录只选择一个 Product。`python tools/analyze_handwritten.py --tool cppcheck --output build-maintainer-audit/handwritten-cppcheck.json` 复现本地 Cppcheck。CI 不传 `--tool`，要求 Cppcheck 和 clang-tidy 全部运行。本地结果来自 Windows GNU 16.1.0 / Python 3.13.15。GCC 暴露 Shell 桩缺少导出引用后修正桩，并重建重跑原生生命周期测试，未放宽警告策略。
+
+提交 `f30ff95` 和 `e07f899` 分离生命周期特征验证与单 Product 组合。当前树 Linux Clang/消毒器/模糊 CI、目标固件链接、真实控制器互操作、物理时序、UI 视觉验收及 HIL 仍为 NOT_RUN。维护者报告的绿色 CI 属于基线 `7ed094f`，不是本批。下一步按 D-03/D-07 决策或独立 H-06 工具工作继续，不授权线上编码、凭据、存储迁移或健康策略变更。
