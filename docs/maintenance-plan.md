@@ -15,7 +15,28 @@ Established 2026-09-28 from the [source assessment](maintainability.md), baselin
 | H-05 | Document native shared-state/lock ownership and add incremental startup/stop fault-injection seams (M-01/M-05). No worker movement or synchronization change. | Tests cover every initialized resource and acknowledgement, queue rejection and blocked durability; distinguish deterministic stubs from target results. | Queued |
 | H-06 | Inventory analyzer coverage and extend handwritten first-party scopes in reviewable groups (M-06); exercise documentation links and generator failure paths (M-09). | Scope artifact reconciles selected sources and compile commands; analyzer findings repaired or explicitly pending human review. | Queued |
 
-For each batch: read affected contracts, characterize before editing, preserve external semantics, run directly relevant tests and the selected Product matrix, and record limitations. Avoid broad formatting churn or new abstraction layers.
+H-01/H-02 retain their original verification below. The 2026-09-28 continuation pressure-tests these priorities against an external real-product requirement set. For each batch: read affected contracts, characterize before editing, preserve external semantics, run directly relevant tests and the selected Product matrix, and record limitations. Avoid broad formatting churn or new abstraction layers.
+
+## Requirement-driven continuation
+
+Only reusable conclusions belong in this public repository. The private requirement documents were read as evidence, not copied into code, catalogs or fixtures. A local ignored evidence record retains document hashes and unresolved IDs. All P0 entries remain unresolved: A1/A2/A3, B1/B2/B3/B4, C1/C2, D4, E1, F3 and G1. Suggestions inside those entries are not approvals. Bus allocation, calibration prerequisites, counter policy and defaults also require confirmation even where the source labels them P1. No real-product protocol, password, fault table or configuration is introduced here.
+
+| Capability | Current implementation / actual gap | Next reusable work |
+|---|---|---|
+| Product composition | Host manifests select Products; firmware startup/storage/i18n remain Demo-bound. | D-02: review a Product-owned bootstrap and selected source closure; do not silently change the firmware contract. |
+| Two CAN networks and periodic RX/TX | Frame and route keys already contain bus/format/ID; periodic definitions accept independent periods. Board topology/bitrate remains fixed by integration. | F-03: explicit overlapping-ID, timeout/recovery and 20/50 ms synthetic regressions. Physical timing and bus assignment remain unverified. |
+| Value/source/freshness | Core already preserves value/source when VALID becomes STALE and starts UNKNOWN. ERROR may replace an invalid value; there is no separate last-good history. | Reuse Core expiry. Decide separately whether last-good history and message-level supervision are required; never present UNKNOWN/STALE as valid zero. |
+| Parameters | Core numeric IDs identify local persisted settings; command ledger and SDO scheduler do not supply a reusable owner-qualified parameter catalog/result boundary. | F-02: isolated App-owned parameter service using existing request identity/ledger; explicit request/attempt correlation and retained typed results. No existing setting or wire format changes. |
+| Permissions | Existing auth profile is two static booleans; no expiring/revocable grant. | F-02: explicit permissions and session epoch checked at admission and dispatch; Product owns credentials. Existing UI policy unchanged. |
+| Settings persistence | Defaults, checksums, namespace/schema and two-slot recovery exist; unknown schema blocks overwrite; there is no migration registry. | Reuse storage primitives; D-05 must approve migration mapping and persisted representation before adapters change. |
+| Hour counters and distance | No instrument accumulation/checkpoint/reset service exists. | F-05: specify units, discontinuity, overflow, reset authorization and checkpoint acknowledgements before storage integration. Product supplies activation and cadence; no universal Flash interval. |
+| Diagnostics | Domain, CAN, storage, trace and periodic counters already separate several causes; generic rejection counters still conflate some reasons. | F-02 adds typed parameter outcomes. D-01 keeps product health transitions explicit; later classify remaining ingress/contract failures without mapping all rejection to DEGRADED. |
+| Controller profile and capabilities | Product provides static capability flags and source policy; there is no atomic dynamic profile/capability publication contract. | F-06: specify profile-generation invalidation and normalized capabilities; Product maps brand/feature bits. |
+| Calibration | Product App workflow exists; no reusable calibration lifecycle over fresh measurements and parameter results. | F-07 follows F-02: characterize prerequisites, freshness, write uncertainty and optional readback; no LVGL transaction logic. |
+| Identity/version | Diagnostic build identity exists, but Product/update/controller identities have separate representations; unsupported reads need explicit results. | F-08: propose a read-only provider shared by Product consumers before changing CANopen/update integration. |
+| CANopen maintenance | Mixed provides standalone SDO client; production-maintenance server is not part of this framework. | Separate transport adaptation after confirmed channel/OD requirements; do not infer NMT/Heartbeat or introduce a full DTC system. |
+
+Current bounded delivery: F-02 parameter/permission contracts and deterministic tests; F-03 reuse/negative characterization; H-03 guard negative fixtures and H-04 assertion enforcement where needed for those tests. F-02 remains opt-in internal code, with no production backend binding. Firmware selection, persistent schema/migration, vehicle health policy and worker/timing changes remain explicit decisions. Further capability work stays in this plan rather than a competing roadmap.
 
 ## Architecture decisions
 
@@ -24,6 +45,7 @@ For each batch: read affected contracts, characterize before editing, preserve e
 | D-01 rejection policy | Review actual counters and decide whether semantic validation rejects affect mode. Until decided, document current behavior. | Product/maintainer; open |
 | D-02 firmware Product selection | Design one explicit composition boundary for Product storage/UI/protocol sources; assess two target Products before implementation. | Integrator/maintainer; open |
 | D-03 lifecycle failures | Decide cleanup/restart/durability failure semantics before changing ownership or shutdown guarantees. H-05 may characterize current behavior independently. | Maintainer; open |
+| D-05 persistence migration and counter semantics | Retain unknown-schema refusal and two-slot recovery; review known-schema transforms, counter units/activation/reset/checkpoints and power-loss budget. Do not write unconfirmed mappings or defaults. | Product/maintainer; open |
 | Governance enforcement | Review existing TAD-001 and configure/verify required checks as described in compliance status. No agent approval or blanket exception. | Human reviewer/repository administrator; pending |
 
 These items are proposals, not accepted architecture decisions. Record rationale, alternatives, compatibility and verification when decided. No CAN/protocol behavior, timing guarantee, thread ownership, storage format, update trust/recovery or diagnostic/safety policy changes are authorized by this plan.
@@ -66,6 +88,31 @@ python -m pytest -q -ra
 
 Objects share SHA256 `9bf4e998b6baedb2748863bf7f5eeb668dbf059852ad716d8341c0d09f83cfc9`. This is evidence for this host compiler, not a target timing measurement. Raw build/configure logs and a result manifest remain in the ignored `build-maintainer-audit` directory; the table records the durable repository summary. No current-tree firmware/HIL, Linux analyzer or sanitizer acceptance is implied. Existing [source-bound hardware evidence](validation.md) retains its original identity.
 
-## Guard hardening verification
+## Requirement batch outcome
 
-H-03/H-04 are complete on the continuation branch after audit checkpoint `c3ddb09`. Seven real-CLI fixture methods cover allowed/forbidden includes and ownership scan anchors. Debug and Release assertion witnesses execute their deliberate failure; production targets keep their build-type flags. Governance change GCR-002 is recorded for human review in compliance status. Full framework continuation evidence follows in the next batch.
+The preceding audit is committed separately as `c3ddb09`; the SDK pins it in `81e0408b`. This continuation uses `codex/product-framework-hardening` in both repositories. No sibling private-application changes are included. The original H-01/H-02 evidence above remains a historical record.
+
+| Item | Delivered scope | Remaining boundary |
+|---|---|---|
+| H-03 | Real-CLI negative fixtures; local quoted include resolution and known Product roots; missing/duplicate/reversed scan anchors fail clearly | Lexical checks are not transitive call, macro expansion or concurrency proof; GCR-002 review remains pending |
+| H-04 | Test-only NDEBUG removal and assertion failure witness; full Debug matrix and fresh Release pass | Production optimization/flags unchanged; future test naming/compiler changes require review |
+| F-02 | Owner-qualified numeric catalog, fail-closed unconfirmed entries, permission grants, existing ledger, bounded read retry, typed retained outcomes | Opt-in internal seam only; no production adapter, credentials, protocol encoding, persisted schema or UI binding |
+| F-03 | Overlapping bus/format identity; UNKNOWN/STALE/ERROR, value/source retention and recovery; independent 20/50 ms schedules | Existing implementation characterized; no physical bus/timing/controller acceptance |
+
+The [parameter contract](parameter-service.md) makes ownership, readiness, backend quarantine, cancellation uncertainty, float representation and deadline limitations explicit. Synthetic tests cover result retention, wrong owner/session/serial/operation/attempt, permission lifetime, clock wrap and exhaustion. A successful local token comparison never substitutes for wire-response correlation.
+
+| Current-tree check | Result | Evidence |
+|---|---|---|
+| Debug headless + update | 46/46 PASS | `build-maintainer-audit/build-maintainer-audit-final-ctest.log` |
+| Debug Demo SDL | 48/48 PASS | `build-maintainer-audit/build-maintainer-demo-final-ctest.log` |
+| Debug Reference-B SDL | 38/38 PASS | `build-maintainer-audit/build-maintainer-refb-final-ctest.log` |
+| Debug Reference-Mixed SDL | 37/37 PASS | `build-maintainer-audit/build-maintainer-mixed-final-ctest.log` |
+| Fresh Release headless + update | 46/46 PASS | `build-maintainer-audit/build-maintainer-release-final-ctest.log` |
+| Python host tools | 107 PASS, 9 physical HIL skipped | `build-maintainer-audit/framework-python.log` |
+| Documentation / formatting / scope | 27 bilingual pairs, public-clean, headers, architecture and ownership PASS; changed C satisfies clang-format | CTest XML per build plus local final checks |
+
+Release reproduction uses the headless configuration above with `-B build-maintainer-release -DCMAKE_BUILD_TYPE=Release`, followed by build and CTest. Existing SDL build directories were incrementally rebuilt. GNU 16.1.0 and Python 3.13.15 on Windows supplied this evidence; Linux sanitizer/analyzer jobs and current-tree firmware/HIL remain NOT_RUN. The first guard-fixture run caught Windows path separators; diagnostics were normalized and the full matrix rerun without removing checks.
+
+Next safe batches are H-05 owner/lifecycle characterization and F-07 calibration workflow specification over F-02; F-05 counters, F-06 profile/capability publication and F-08 identity provider remain designed work, not implemented features. D-01/D-02/D-03/D-05 and all unresolved requirement entries stay open. Real-product adaptation requires confirmed descriptors plus backend correlation/drain tests before any production parameter writes.
+
+The two new runtime sources additionally pass host GCC `-fanalyzer -Wall -Wextra -Werror`; this does not replace CI Clang/Cppcheck or target analysis. `build-maintainer-audit/framework-evidence.json` records tool version and source SHA256; final matrix XML is `final-framework-results.xml` in each build.

@@ -5,6 +5,7 @@ This directory maintains current contracts, operational guides and validation re
 - [Runtime ownership and lifecycle](runtime-production.md)
 - [Maintainer assessment](maintainability.md)
 - [Active maintenance plan](maintenance-plan.md)
+- [Parameter transactions and permissions](parameter-service.md)
 - [Dynamic periodic TX contract](dynamic-periodic-tx.md)
 - [Domain, CANopen and Product services](protocols.md)
 - [External/private Product integration](downstream.md)

@@ -9,6 +9,8 @@
     "runtime/meter_periodic.c",
     "runtime/meter_runtime.c",
     "runtime/meter_requests.c",
+    "runtime/meter_authorization.c",
+    "runtime/meter_parameters.c",
     "runtime/meter_batch_builder.c"
   ],
   "protocol_common": [

@@ -5,6 +5,7 @@
 - [Runtime 所有权与生命周期](runtime-production.zh-CN.md)
 - [维护者评估](maintainability.zh-CN.md)
 - [当前维护计划](maintenance-plan.zh-CN.md)
+- [参数事务与权限](parameter-service.zh-CN.md)
 - [动态周期 TX 契约](dynamic-periodic-tx.zh-CN.md)
 - [Domain、CANopen 与 Product 服务](protocols.zh-CN.md)
 - [External/私有 Product 集成](downstream.zh-CN.md)
