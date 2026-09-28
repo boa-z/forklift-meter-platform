@@ -55,4 +55,4 @@ static void destroy(void *ui)
 {
     lv_obj_delete(((view_t *)ui)->tabs);
 }
-const meter_ui_factory_t product_ui = {create, present, destroy};
+const meter_ui_factory_t product_ui = {.create = create, .present = present, .destroy = destroy};

@@ -10,7 +10,7 @@
   "symbols": "传余关剩动器境实度开感扭据效数无时有期未温源环电知矩能误过速量错驱",
   "modifications": "Renamed subset; ASCII and demo translations; 14/20 px, 4 bpp",
   "files": {
-    "generated/reference_b_cjk_14.c": "794656cc80104e5f8a19cd41a9fac430d8f79f209a8fd667b1fc614c7ebc19d2",
-    "generated/reference_b_cjk_20.c": "8bca207ff2cc7250cdedaf44291d8d4ebdbee2dac583835c17ad197c2a288afa"
+    "generated/reference_b_cjk_14.c": "e299be2e20ea2be3ec63bd030d1776aa10253663019dc0f02ebbf437658c4fa8",
+    "generated/reference_b_cjk_20.c": "9bd7ff86d50f189a0659a3a4b2d2eb0f2ddff7a6c8dcde7988bb819ae1c13ec5"
   }
 }
