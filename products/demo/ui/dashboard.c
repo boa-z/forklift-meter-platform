@@ -40,22 +40,22 @@ void demo_dashboard_create(demo_ui_t *u)
 }
 void demo_dashboard_update(demo_ui_t *u)
 {
-    const meter_snapshot_t *s = &u->snapshot;
+    const demo_presentation_t *s = &u->view;
     meter_gauge_set_language(u->speed, s->language);
     meter_gauge_set_language(u->steering, s->language);
     meter_ring_set_language(u->soc, s->language);
     meter_ring_set_language(u->load_arc, s->language);
     meter_linear_meter_set_language(u->height, s->language);
     meter_value_label_set_language(u->load, s->language);
-    meter_value_t speed = meter_snapshot_read(s, METER_SPEED);
-    meter_value_t steering = meter_snapshot_read(s, METER_STEERING);
-    meter_value_t soc = meter_snapshot_read(s, METER_SOC);
-    meter_value_t height = meter_snapshot_read(s, METER_HEIGHT);
-    meter_value_t load = meter_snapshot_read(s, METER_LOAD);
-    meter_gauge_set_range(u->speed, 0, s->imperial ? 32 : 50);
-    meter_gauge_set_unit(u->speed, s->imperial ? "mph" : "km/h");
+    demo_readout_t speed = s->speed;
+    demo_readout_t steering = s->steering;
+    demo_readout_t soc = s->soc;
+    demo_readout_t height = s->height;
+    demo_readout_t load = s->load;
+    meter_gauge_set_range(u->speed, 0, s->speed_maximum);
+    meter_gauge_set_unit(u->speed, s->speed_unit);
     meter_gauge_set_state(u->speed, speed.state);
-    meter_gauge_set_value_animated(u->speed, speed.value * (s->imperial ? 0.621371f : 1), 180);
+    meter_gauge_set_value_animated(u->speed, speed.value, 180);
     meter_gauge_set_state(u->steering, steering.state);
     meter_gauge_set_value_animated(u->steering, steering.value, 180);
     meter_ring_set_state(u->soc, soc.state);
@@ -66,12 +66,11 @@ void demo_dashboard_update(demo_ui_t *u)
     meter_ring_set_state(u->load_arc, load.state);
     meter_ring_set_range(u->load_arc, 0, 1500);
     meter_ring_set_value(u->load_arc, load.value);
-    const meter_signal_id_t ids[] = {METER_SEAT, METER_BRAKE, METER_NEUTRAL, METER_CHARGING, METER_WARNING};
     const demo_text_id_t names[] = {DEMO_TXT_SEAT, DEMO_TXT_BRAKE, DEMO_TXT_NEUTRAL, DEMO_TXT_CHARGE,
                                     DEMO_TXT_WARNING};
     for (unsigned i = 0; i < 5; ++i)
     {
-        meter_value_t flag = meter_snapshot_read(s, ids[i]);
+        demo_readout_t flag = s->status[i];
         meter_status_set(u->status[i], flag.value > 0, flag.state);
         meter_status_set_name(u->status[i], demo_i18n_text(names[i]));
         meter_status_set_language(u->status[i], s->language);

@@ -9,6 +9,8 @@ parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parent
 ROOT = parser.parse_args().root.resolve()
 RULES = {
     'contracts': ('contracts/',),
+    'products/demo/ui': ('contracts/', 'products/demo/ui/', 'products/demo/application/', 'products/demo/generated/', 'ui/common/'),
+    'products/demo/application': ('contracts/', 'products/demo/application/', 'products/demo/generated/'),
     'core': ('contracts/', 'core/', 'diagnostics/'),
     'diagnostics': ('contracts/', 'diagnostics/'),
     'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/'),
@@ -28,7 +30,7 @@ for area, allowed in RULES.items():
             # Product-local roots are known for the selected Demo protocol scope.
             search_roots = [file.parent] if delimiter == '"' else []
             search_roots.append(ROOT)
-            if area == 'products/demo/protocol':
+            if area in ('products/demo/protocol', 'products/demo/application', 'products/demo/ui'):
                 search_roots.append(ROOT / 'products/demo')
             candidate = next(((base / include).resolve() for base in search_roots
                               if (base / include).is_file()), (ROOT / include).resolve())
@@ -37,7 +39,7 @@ for area, allowed in RULES.items():
                     errors.append(f'{file.relative_to(ROOT).as_posix()} -> {include}')
             if area in ('core','contracts','diagnostics') and re.search(r'lvgl|rtthread|rtdevice|ulog|finsh|uart|ArtInChip|aic_|(^|/)CO_|CANopen',include,re.I): errors.append(f'{area} imports {include}')
             if (area.startswith('protocols') or area.endswith('/protocol')) and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
-            if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
+            if area in ('ui', 'products/demo/ui') and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
 # 诊断数据层不持有输出后端；公共层不能绕过平台直接使用日志或 Shell。
 for area in ('diagnostics', 'contracts', 'core', 'runtime', 'protocols/common', 'ui/common'):
@@ -120,5 +122,15 @@ cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
 for deps in re.findall(r'target_link_libraries\(meter_core\s+([^)]*)\)',cmake,re.S):
     if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts','meter_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')
+# Demo screens render Product values; projection is independently host compilable.
+for file in (ROOT/'products/demo/ui').glob('*.c'):
+    if file.name in ('dashboard.c', 'monitor.c', 'faults.c', 'settings.c', 'demo_ui.c'):
+        if re.search(r'meter_snapshot_(?:read|parameter|fault)|meter_demo_catalog|snapshot->', file.read_text(encoding='utf-8')):
+            errors.append(f'{file.relative_to(ROOT)} interprets Domain in a renderer')
+for file in (ROOT/'products/demo/application').glob('*'):
+    if file.suffix in ('.c', '.h') and re.search(r'lvgl|lv_obj_t|rtthread', file.read_text(encoding='utf-8'), re.I):
+        # Comments may name the prohibited dependency; inspect actual includes/types only.
+        if re.search(r'^\s*#\s*include.*(?:lvgl|rtthread)|\blv_obj_t\b', file.read_text(encoding='utf-8'), re.M):
+            errors.append(f'{file.relative_to(ROOT)} imports rendering or OS types')
 if errors: raise SystemExit('\n'.join(errors))
 print('Architecture and selected source closure PASS')

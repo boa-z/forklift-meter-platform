@@ -1,6 +1,6 @@
 #ifndef DEMO_INTERNAL_H
 #define DEMO_INTERNAL_H
-#include "generated/demo_catalog.h"
+#include "application/presentation.h"
 #include "generated/demo_icons.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
@@ -23,7 +23,7 @@ typedef struct
     meter_update_widget_t update_widget;
     meter_ui_actions_t actions;
     unsigned page;
-    meter_snapshot_t snapshot;
+    demo_presentation_t view;
     meter_gauge_t *speed, *steering;
     meter_ring_t *soc, *load_arc;
     meter_linear_meter_t *height;

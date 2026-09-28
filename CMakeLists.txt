@@ -123,6 +123,16 @@ meter_library(meter_ui_math ui_math platform)
 meter_library(meter_protocol_product protocol product)
 meter_library(meter_catalog catalog product)
 meter_library(meter_product_data product product)
+# Optional Product Application layer is compiled independently of LVGL.
+string(JSON application_count ERROR_VARIABLE application_error LENGTH "${product_manifest}" application)
+if(NOT application_error AND application_count GREATER 0)
+    meter_library(meter_product_application application product)
+    target_link_libraries(meter_product_application PUBLIC meter_catalog)
+else()
+    add_library(meter_product_application INTERFACE)
+endif()
+target_link_libraries(meter_product_data PUBLIC meter_product_application)
+
 add_library(meter_storage STATIC
     storage/meter_record.c
     storage/meter_slots.c
@@ -164,7 +174,8 @@ if(METER_BUILD_UI)
     endif()
     target_link_libraries(meter_ui_common PUBLIC meter_ui_math lvgl)
     target_link_libraries(meter_ui_product PUBLIC meter_ui_common meter_catalog)
-    target_link_libraries(meter_product PUBLIC meter_protocol_product meter_ui_product meter_catalog)
+    target_link_libraries(meter_product PUBLIC meter_protocol_product meter_ui_product meter_catalog meter_product_application)
+    target_link_libraries(meter_ui_product PUBLIC meter_product_application)
     meter_sources(firmware_sources "${product_manifest}" "${METER_PRODUCT_ROOT}" firmware)
     if(BUILD_TESTING AND firmware_sources)
         add_executable(test-firmware-composition tests/test_firmware_composition.c ${firmware_sources})

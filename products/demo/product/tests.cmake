@@ -1,3 +1,6 @@
+add_executable(test-presentation "${METER_PRODUCT_ROOT}/tests/test_presentation.c")
+target_link_libraries(test-presentation PRIVATE meter_product_data meter_core)
+add_test(NAME product-presentation COMMAND test-presentation)
 add_library(meter_synthetic STATIC "${METER_PRODUCT_ROOT}/sim/synthetic.c")
 target_link_libraries(meter_synthetic PUBLIC meter_runtime)
 target_include_directories(meter_synthetic PUBLIC "${METER_PRODUCT_ROOT}")

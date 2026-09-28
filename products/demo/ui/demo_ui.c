@@ -61,27 +61,18 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
 {
     demo_ui_t *u = context;
     (void)elapsed;
-    u->snapshot = *snapshot;
-    if (!u->language_presented || u->presented_language != snapshot->language)
+    demo_presentation_build(snapshot, &u->view);
+    if (!u->language_presented || u->presented_language != u->view.language)
     {
-        lv_translation_set_language(meter_i18n_language_code(snapshot->language));
+        lv_translation_set_language(meter_i18n_language_code(u->view.language));
         u->language_presented = true;
-        u->presented_language = snapshot->language;
+        u->presented_language = u->view.language;
     }
-    bool stale = false;
-    for (size_t i = 0; i < snapshot->catalog->signal_count; ++i)
-        if (snapshot->signals[i].state == METER_VALUE_STALE)
-            stale = true;
-    demo_text_id_t state = DEMO_TXT_CONNECTED;
-    if (!snapshot->connected)
-        state = DEMO_TXT_OFFLINE;
-    else if (stale)
-        state = DEMO_TXT_STALE;
-    else if (meter_snapshot_read(snapshot, METER_SPEED).state == METER_VALUE_UNKNOWN)
-        state = DEMO_TXT_WAITING;
+    const demo_text_id_t states[] = {DEMO_TXT_CONNECTED, DEMO_TXT_OFFLINE, DEMO_TXT_STALE, DEMO_TXT_WAITING};
+    demo_text_id_t state = states[u->view.link];
     strcpy(u->connection_text, demo_i18n_text(state));
     lv_label_set_text_static(u->connection, u->connection_text);
-    meter_i18n_apply_font(u->connection, snapshot->language, METER_FONT_LABEL);
+    meter_i18n_apply_font(u->connection, u->view.language, METER_FONT_LABEL);
     uint32_t sec = lv_tick_get() / 1000;
     lv_snprintf(u->clock_text, sizeof(u->clock_text), "%02u:%02u", (unsigned)(sec / 60 % 60),
                 (unsigned)(sec % 60));
@@ -90,7 +81,7 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
     demo_monitor_update(u);
     demo_faults_update(u);
     demo_settings_update(u);
-    lv_obj_set_style_opa(u->pages[u->page], (lv_opa_t)(80 + snapshot->brightness * 175 / 100), 0);
+    lv_obj_set_style_opa(u->pages[u->page], (lv_opa_t)(80 + u->view.brightness * 175 / 100), 0);
 }
 void demo_ui_destroy(void *context)
 {

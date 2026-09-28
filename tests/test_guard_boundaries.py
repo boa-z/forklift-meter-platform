@@ -62,6 +62,18 @@ class GuardBoundaries(unittest.TestCase):
         self.write('products/demo/protocol/bad.c', '#include "../ui/private.h"')
         self.run_guard('check_architecture.py', 'products/demo/protocol/bad.c ->')
 
+    def test_product_projection_boundary(self):
+        self.write('products/demo/ui/dashboard.c', 'meter_snapshot_read(snapshot, 1);')
+        self.run_guard('check_architecture.py', 'interprets Domain in a renderer')
+        self.write('products/demo/ui/dashboard.c', '')
+        self.write('products/demo/application/view.h', '#include "lvgl.h"')
+        self.run_guard('check_architecture.py', 'imports rendering or OS types')
+
+    def test_product_renderer_cannot_import_runtime(self):
+        self.write('runtime/engine.h', '')
+        self.write('products/demo/ui/bad.h', '#include "runtime/engine.h"')
+        self.run_guard('check_architecture.py', 'products/demo/ui/bad.h ->')
+
     def test_owner_valid_and_forbidden_call(self):
         self.run_guard('check_runtime_ownership.py')
         self.write('platform/rtthread/meter_execution_port.c',

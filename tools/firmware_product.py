@@ -3,7 +3,7 @@ import argparse
 import json
 from pathlib import Path
 
-GROUPS = ('catalog', 'protocol', 'product', 'ui', 'ui_binding', 'firmware')
+GROUPS = ('catalog', 'protocol', 'product', 'application', 'ui', 'ui_binding', 'firmware')
 
 
 def select(app_root, selection=None):
