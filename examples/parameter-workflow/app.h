@@ -1,5 +1,6 @@
 #ifndef REFERENCE_PARAMETER_APP_H
 #define REFERENCE_PARAMETER_APP_H
+#include "contracts/meter_profile.h"
 #include "examples/parameter-workflow/ui/presentation.h"
 #include "runtime/meter_parameters.h"
 /* Nonblocking copied-message endpoints, called by App. A production port posts
@@ -20,6 +21,7 @@ typedef struct
     reference_parameter_view_t view;
     uint32_t generation;
     bool active;
+    bool profile_ready;
 } reference_parameter_app_t;
 /* Serialized App-only API. Pass initialized, nonnull objects and valid port callbacks.
  * Inputs/outputs must not alias App state. Do not copy a live instance. No new worker/locks.
@@ -38,4 +40,8 @@ bool reference_parameter_app_acknowledge(reference_parameter_app_t *app, uint64_
                                          meter_request_id_t id);
 /* App copies into publication IPC; UI receives its own value, never an alias. */
 void reference_parameter_app_present(const reference_parameter_app_t *app, reference_parameter_view_t *out);
+/* Reference policy only: profile replacement loses caller interest and revokes its grant.
+ * Keeps original token/generation/result until acknowledged; backend still owns drain.
+ * No production safety policy is selected by this example. Reject rollback/reused epochs. */
+bool reference_parameter_app_profile(reference_parameter_app_t *app, const meter_profile_t *profile);
 #endif

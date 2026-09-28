@@ -1,7 +1,7 @@
 #ifndef METER_CORE_H
 #define METER_CORE_H
-#include "contracts/meter_domain.h"
 #include "contracts/meter_batch.h"
+#include "contracts/meter_domain.h"
 #include "diagnostics/meter_diagnostics.h"
 /**
  * @brief 域内核：只读快照加上它所绑定的产品存储。
@@ -36,7 +36,8 @@ bool meter_core_apply_batch(meter_core_t *core, const meter_update_batch_t *batc
 void meter_core_tick(meter_core_t *core, uint32_t now_ms);
 /** @brief 更新连接状态与代数；断开时立即把所有 VALID 降级为 STALE，并保留最后可读值。 */
 void meter_core_connection(meter_core_t *core, bool connected, uint32_t generation);
-/** @brief 应用 UI 设置动作；越界或未知类别返回 false 且不改变状态。原生路径在 App 线程执行；宿主与 UI 串行。 */
+/** @brief 应用 UI 设置动作；越界或未知类别返回 false 且不改变状态。原生路径在 App 线程执行；宿主与 UI 串行。
+ */
 bool meter_core_action(meter_core_t *core, const meter_action_t *action);
 /** @brief 只校验不写入：按身份检查参数值域，单位与范围由产品目录定义。 */
 bool meter_core_parameter_valid(const meter_core_t *core, uint16_t id, float value);
@@ -46,4 +47,11 @@ bool meter_core_parameter(meter_core_t *core, uint16_t id, float value);
 const meter_snapshot_t *meter_core_snapshot(const meter_core_t *core);
 /** @brief 绑定诊断及公共 Domain 视图；目录/存储/诊断实例须覆盖绑定期，owner 线程调用。 */
 void meter_core_bind_diagnostics(meter_core_t *core, meter_diagnostics_t *diag);
+/** App-only opt-in publication. Unknown requires family/capabilities zero; confirmed
+ * requires nonzero family. A semantic change increments profile generation and snapshot
+ * revision. Reject exhaustion instead of wrapping. Returns false without mutation.
+ * This does not reinterpret/invalidate signals, cancel work or change health. Product App
+ * must invalidate dependent values/catalogs before publishing its next snapshot. No
+ * concurrent reader may borrow live core state; use the existing locked snapshot copy. */
+bool meter_core_profile(meter_core_t *core, bool confirmed, uint16_t family, uint64_t capabilities);
 #endif

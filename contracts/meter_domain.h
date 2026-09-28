@@ -1,5 +1,6 @@
 #ifndef METER_DOMAIN_H
 #define METER_DOMAIN_H
+#include "contracts/meter_profile.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -144,6 +145,7 @@ typedef struct
     bool imperial;
     meter_language_t language;
     uint8_t brightness;
+    meter_profile_t profile; /* Copied with the same publication lock as Domain values. */
 } meter_snapshot_t;
 /** @brief 未声明身份的统一返回值：UNKNOWN 且数值与时间戳为零。 */
 static inline meter_value_t meter_value_unknown(void)
@@ -235,8 +237,8 @@ typedef struct
 /**
  * @brief UI 提交语义意图的动作回调，在 UI 线程执行。
  *
- * 生产端返回 true 仅表示 QUEUED，不代表 APPLIED；最终以 App 结果/快照为准。返回 false 表示未接纳。实现若需持久化，只投递请求，不得在 UI 线程
- * 等待介质写入完成。
+ * 生产端返回 true 仅表示 QUEUED，不代表 APPLIED；最终以 App 结果/快照为准。返回 false
+ * 表示未接纳。实现若需持久化，只投递请求，不得在 UI 线程 等待介质写入完成。
  */
 typedef bool (*meter_action_send_t)(void *context, const meter_action_t *action);
 /** @brief 动作回调与其不透明上下文，由产品 UI 在创建时持有。 */

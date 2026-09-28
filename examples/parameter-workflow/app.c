@@ -18,6 +18,7 @@ bool reference_parameter_app_init(reference_parameter_app_t *app, const meter_pa
     app->policy = policy;
     app->generation = generation;
     app->active = false;
+    app->profile_ready = true; /* init caller supplies a confirmed reference generation */
     return true;
 }
 
@@ -25,7 +26,8 @@ meter_parameter_admission_t reference_parameter_app_submit(reference_parameter_a
                                                            const reference_parameter_intent_t *intent,
                                                            uint32_t now_ms)
 {
-    if (!app || !intent || intent->view_token == 0u || intent->profile_generation != app->generation)
+    if (!app || !app->profile_ready || !intent || intent->view_token == 0u ||
+        intent->profile_generation != app->generation)
         return METER_PARAMETER_INVALID;
     meter_request_id_t id;
     const meter_parameter_admission_t admission =
@@ -90,4 +92,18 @@ bool reference_parameter_app_acknowledge(reference_parameter_app_t *app, uint64_
 void reference_parameter_app_present(const reference_parameter_app_t *app, reference_parameter_view_t *out)
 {
     *out = app->view;
+}
+
+bool reference_parameter_app_profile(reference_parameter_app_t *app, const meter_profile_t *profile)
+{
+    if (!app || !profile || profile->generation <= app->generation ||
+        (profile->confirmed && profile->family == 0u) ||
+        (!profile->confirmed && (profile->family != 0u || profile->capabilities != 0u)))
+        return false;
+    if (app->active)
+        (void)meter_parameters_cancel(&app->parameters, app->view.request);
+    meter_authorization_revoke(&app->authorization);
+    app->generation = profile->generation;
+    app->profile_ready = profile->confirmed;
+    return true;
 }

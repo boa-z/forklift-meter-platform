@@ -225,8 +225,49 @@ static void retry_waits_for_drain_and_total_deadline(void)
     assert(present(&app).result.outcome == METER_PARAMETER_TIMED_OUT && backend.sends == 2u);
     assert(present(&app).result.request.attempt == 0u);
 }
+static void profile_replacement_retains_old_result(void)
+{
+    reference_parameter_app_t app;
+    initialize(&app, 1);
+    assert(meter_authorization_grant(&app.authorization, 1, 0, 100));
+    backend_t backend = {0};
+    reference_parameter_port_t channel = port(&backend);
+    reference_parameter_intent_t input = intent(1, METER_PARAMETER_WRITE);
+    assert(reference_parameter_app_submit(&app, &input, 0) == METER_PARAMETER_ACCEPTED);
+    reference_parameter_app_step(&app, &channel, 0);
+    meter_profile_t profile = {.generation = 6, .family = 13, .capabilities = 8, .confirmed = true};
+    assert(reference_parameter_app_profile(&app, &profile));
+    assert(!reference_parameter_app_profile(&app, &profile));
+    reference_parameter_app_step(&app, &channel, 1);
+    reference_parameter_view_t old = present(&app);
+    assert(old.has_result && old.result.effect_unknown && old.profile_generation == 5);
+    assert(!reference_parameter_view_matches(&old, 6, input.view_token));
+    assert(backend.busy && backend.sends == 1);
+    assert(reference_parameter_app_submit(&app, &input, 1) == METER_PARAMETER_INVALID);
+    acknowledge(&app);
+    input.profile_generation = 6;
+    input.view_token = 42;
+    assert(reference_parameter_app_submit(&app, &input, 1) == METER_PARAMETER_DENIED);
+    assert(meter_authorization_grant(&app.authorization, 1, 1, 100));
+    assert(reference_parameter_app_submit(&app, &input, 1) == METER_PARAMETER_ACCEPTED);
+    reference_parameter_app_step(&app, &channel, 2);
+    assert(backend.sends == 1); /* Old backend still owns its write. */
+    complete(&backend, 8);
+    reference_parameter_app_step(&app, &channel, 3);
+    assert(present(&app).pending && backend.sends == 2);
+    assert(!reference_parameter_app_acknowledge(&app, 41, old.request));
+    profile = (meter_profile_t){.generation = 7};
+    assert(reference_parameter_app_profile(&app, &profile));
+    reference_parameter_app_step(&app, &channel, 4);
+    assert(present(&app).result.effect_unknown);
+    acknowledge(&app);
+    input.profile_generation = 7;
+    assert(reference_parameter_app_submit(&app, &input, 4) == METER_PARAMETER_INVALID);
+}
+
 int main(void)
 {
+    profile_replacement_retains_old_result();
     admission_and_copied_presentation();
     cancelled_write_keeps_backend_ownership();
     authorization_and_queue_failures();
