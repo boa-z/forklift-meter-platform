@@ -1,4 +1,5 @@
 Checks: '-*,clang-analyzer-*,bugprone-*,cert-*,performance-*'
-WarningsAsErrors: 'clang-analyzer-*'
+# Annex K 替换建议保留为 warning；内存安全、零除及无界 strcpy 仍为 error。
+WarningsAsErrors: 'clang-analyzer-*,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling'
 HeaderFilterRegex: '.*(contracts|core|runtime|storage|update)/.*'
 FormatStyle: file

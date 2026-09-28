@@ -8,3 +8,10 @@
 - This is a clean-history public reference product. Do not import customer protocols, UI, assets, captures or private repository history.
 - Validate with CMake/Ninja and CTest, including architecture, public-clean, assets, fonts and bilingual SDL checks. Host results do not establish board acceptance.
 - Documentation is bilingual: every first-party document ships `X.md` (English, canonical) and `X.zh-CN.md` (Simplified Chinese); update both together. CI (`docs_sync`) checks pair coverage and structural sync (headings, code blocks, tables, links). See `docs/bilingual-docs.md`.
+
+## Governance and Dynamic TX
+
+- Read docs/compliance/status.md before first-party changes. Tool Quality Green, Project Governance Conforming and Formal MISRA Compliance are independent statuses.
+- No unauthorized test deletion, weakened HIL thresholds/errors, blanket suppressions, excluded first-party files or misclassification. Fix code first; record exact-scope deviations or Tool Applicability Decisions for human review. Agents cannot approve them.
+- App owns semantic publication; Protocol owns encoding, deadlines and wire state. TX worker returns identified results. Use short-lock deep copy; separate sample time, semantic revision, publish time and generation. No historical periodic backlog. App alone changes global mode.
+- No SDK source or persistent configuration changes. Defer nearest-deadline scheduler optimization until measurements justify it.

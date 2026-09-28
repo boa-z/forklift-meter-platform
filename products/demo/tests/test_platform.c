@@ -240,6 +240,9 @@ static int runtime(void)
     f.id = 0x20000000;
     CHECK(!meter_runtime_push(&r, &f));
     CHECK(r.diagnostics.malformed == 1);
+    CHECK(!meter_runtime_push(&r, NULL));
+    CHECK(r.diagnostics.malformed == 2);
+    CHECK(!r.count);
     meter_product_t bad = product;
     meter_protocol_binding_t dup[2] = {bindings[0], bindings[0]};
     meter_protocol_profile_t pp = {dup, 2};

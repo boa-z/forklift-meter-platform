@@ -33,7 +33,7 @@ LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 def scope():
     """All English-side documents covered by the pair rule."""
     pairs = [ROOT / name for name in ROOT_DOCS]
-    pairs += sorted((ROOT / "docs").glob("*.md"))
+    pairs += sorted((ROOT / "docs").rglob("*.md"))
     pairs += sorted((ROOT / "examples").glob("*/README.md"))
     pairs += sorted((ROOT / "examples").glob("*/assets/README.md"))
     pairs += [ROOT / name for name in EXTRA_DOCS]
@@ -113,7 +113,7 @@ def main():
                               f"(en={a!r} zh={b!r})")
     # Orphan translations without an English counterpart.
     covered = {p for p in pairs}
-    for pattern in ("docs/*.zh-CN.md", "examples/*/README.zh-CN.md",
+    for pattern in ("docs/**/*.zh-CN.md", "examples/*/README.zh-CN.md",
                     "examples/*/assets/README.zh-CN.md"):
         for zh in sorted(ROOT.glob(pattern)):
             if zh.with_name(zh.name.replace(".zh-CN.md", ".md")) not in covered:

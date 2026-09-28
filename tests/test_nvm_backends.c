@@ -100,6 +100,12 @@ int main(void)
     remove("nvm-test.1");
     CHECK(!meter_file_init(&file, "nvm-test", 512, "fatfs", true));
     CHECK(meter_file_init(&file, "nvm-test", 512, "host-file", false));
+    CHECK(file.io.read(NULL, 0, data, 1) == METER_IO_RANGE);
+    CHECK(file.io.write(NULL, 0, data, 1) == METER_IO_RANGE);
+    file.slot_size = 0;
+    CHECK(file.io.read(&file, 0, data, 1) == METER_IO_RANGE);
+    CHECK(file.io.write(&file, 0, data, 1) == METER_IO_RANGE);
+    file.slot_size = 512;
     CHECK(meter_slots_bind(&s, &file.io));
     CHECK(meter_slots_scan(&s, 2, 1) == METER_SLOTS_EMPTY);
     CHECK(meter_slots_commit(&s, &r, SIZE_MAX) == METER_SLOTS_OK);

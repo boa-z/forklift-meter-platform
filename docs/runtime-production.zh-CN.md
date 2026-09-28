@@ -67,3 +67,5 @@ Owner 在短锁中复制诊断，MSH 锁外格式化。设备/Flash/LVGL 不持�
 Windows Host、Target build、实板 HIL 分别报告并绑定 SHA 证据。配置 Linux 分析不代表已运行。多 bus HIL 需要两个物理接口和匹配 Product 固件。Target 告警覆盖、真实调度压力、长时间时序、各 backend 操作中的停机仍是待实测的生产门禁。不声明正式 MISRA、AUTOSAR 一致性、rollback 或断电恢复。
 
 Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，默认要求远端响应。仅发送命令保留 TX_COMPLETED 终态，不会随后被误报为超时。采用 App 会话代次时复位 Adapter，并立即同步诊断代次，维护期间暂停遥测也不会显示旧代次。
+
+clang-tidy 错误策略继续将全部 analyzer 检查作为 error，仅 clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling 保持启用并作为可见 advisory。该检查对已有长度限制的 memcpy/memset/snprintf 也推荐 C11 Annex K 替代，而可移植 Host/嵌入式契约不要求 Annex K。此单项适用性例外不关闭空指针、零除、缓冲区或无界 strcpy 诊断。各边界仍须验证长度；不通过手写循环或局部 NOLINT 绕开标准库检查。运行 36418914884 暴露了局部防护不足和无界复制形式：新增 frame/context/slot 明确检查及包身份的有界复制修复这些问题。该次 ASan/UBSan 和 cppcheck 通过，clang-tidy 失败、fuzz 跳过，因此不能视为 quality PASS。

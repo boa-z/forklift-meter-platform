@@ -41,8 +41,9 @@ bool meter_package_init(meter_package_guard_t *g, const meter_package_policy_t *
     size_t n = strlen(p->os_file);
     if (n < 5u || strcmp(p->os_file + n - 4u, ".itb"))
         return false;
-    strcpy(g->os_file, p->os_file);
-    strcpy(g->version, p->version);
+    /* identifier 已验证容量内存在终止符；复制长度包含终止符。 */
+    memcpy(g->os_file, p->os_file, n + 1u);
+    memcpy(g->version, p->version, strlen(p->version) + 1u);
     g->package_size = p->package_size;
     g->capacity = p->candidate_capacity;
     g->result = METER_PACKAGE_OK;

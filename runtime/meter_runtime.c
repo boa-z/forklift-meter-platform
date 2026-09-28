@@ -149,7 +149,7 @@ bool meter_runtime_push(meter_runtime_t *r, const meter_can_frame_t *f)
         return false;
     if (f)
         meter_diagnostics_can(r->diag, f->bus, METER_CAN_RX, f->timestamp_ms);
-    if (!meter_frame_valid(f))
+    if (!f || !meter_frame_valid(f))
     {
         ++r->diagnostics.malformed;
         if (f)

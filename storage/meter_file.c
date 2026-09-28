@@ -41,16 +41,21 @@ static int open_slot(meter_file_t *f, size_t slot, bool writing, bool *created)
 static meter_io_result_t transfer(meter_file_t *f, size_t offset, uint8_t *dst, const uint8_t *src,
                                   size_t size)
 {
-    if (offset > f->io.capacity || size > f->io.capacity - offset || (!dst && !src && size))
+    if (!f)
+        return METER_IO_RANGE;
+    /* 单次传输固定已验证的槽几何，不跨文件 I/O 重新读取可变上下文。 */
+    const size_t slot_size = f->slot_size;
+    if (!slot_size || offset > f->io.capacity ||
+        size > f->io.capacity - offset || (!dst && !src && size))
         return METER_IO_RANGE;
     while (size)
     {
-        const size_t within = offset % f->slot_size;
-        size_t n = f->slot_size - within;
+        const size_t within = offset % slot_size;
+        size_t n = slot_size - within;
         if (n > size)
             n = size;
         bool created;
-        int fd = open_slot(f, offset / f->slot_size, src != NULL, &created);
+        int fd = open_slot(f, offset / slot_size, src != NULL, &created);
         if (fd < 0)
         {
             if (!src && errno == ENOENT)
@@ -65,7 +70,7 @@ static meter_io_result_t transfer(meter_file_t *f, size_t offset, uint8_t *dst, 
             {
                 uint8_t blank[128];
                 memset(blank, 0xFF, sizeof(blank));
-                size_t remain = f->slot_size;
+                size_t remain = slot_size;
                 while (remain && ok)
                 {
                     const size_t part = remain < sizeof(blank) ? remain : sizeof(blank);
