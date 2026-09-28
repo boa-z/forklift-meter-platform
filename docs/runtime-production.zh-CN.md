@@ -31,7 +31,7 @@ Core 和公共运行时不依赖 OS/LVGL。Protocol 拥有解码和协议状态�
 | App 优先级 20 | 批次/事件/动作唤醒或 5 ms tick；不执行设备/Flash/LVGL | 8192 字节 |
 | CAN TX 优先级 18 | 每总线唯一 writer，队列唤醒，空闲无限等待；阻塞 driver write | 每总线 2048 字节 |
 | UI 配置优先级 + 2 | 普通 16 ms / 维护 50 ms 执行 LVGL | 默认 32768 字节 |
-| NVM 优先级 24 | 现有队列；阻塞 EEPROM I/O | 现有 NVM 预算 |
+| NVM 优先级 21 | 现有队列；阻塞 EEPROM I/O | 现有 NVM 预算 |
 | Update 优先级 25 | 现有队列；Flash 及 durable barrier 等待 | 12288 字节 |
 
 Core 和 Product 工作流仅由 App 执行。Reference-Mixed 启动同步使用语义命令及已解码参数事件，不持有 CANopenNode 通道。不可变 Product getter 不再复位协议状态。Host 测试分步驱动 App/Protocol，不模拟原生调度器。

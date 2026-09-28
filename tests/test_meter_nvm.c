@@ -79,6 +79,26 @@ int main(void)
     CHECK(!meter_nvm_take(&s, 1000, &j));
     CHECK(s.state == METER_NVM_READY && !s.dirty && s.ram_revision == 4);
     CHECK(s.durable_revision == 4);
+    /* 在途写入期间多次修改只保留最新副本；完成旧版本不能误报最新版本 durable。 */
+    CHECK(meter_nvm_init(&s, pending, inflight, sizeof(pending), 1, 2, 1, 100, 500));
+    CHECK(meter_nvm_loaded(&s, 1, METER_SLOTS_EMPTY, NULL));
+    CHECK(meter_nvm_observe(&s, a, sizeof(a), 0));
+    CHECK(meter_nvm_take(&s, 100, &j) && j.revision == 1);
+    for (uint32_t i = 1u; i <= 3u; ++i)
+    {
+        const uint8_t latest[] = {(uint8_t)(i * 16u + 15u), 0u};
+        CHECK(meter_nvm_observe(&s, latest, sizeof(latest), 100u + i * 40u));
+        CHECK(!meter_nvm_take(&s, 1000u, &j));
+        CHECK(!memcmp(j.record.payload, a, sizeof(a)));
+    }
+    CHECK(s.ram_revision == 4u);
+    CHECK(meter_nvm_complete(&s, 1u, 1u, METER_SLOTS_OK));
+    CHECK(!meter_nvm_barrier(&s, 4u));
+    CHECK(meter_nvm_take(&s, 1100u, &j) && j.revision == 4u);
+    CHECK(j.record.payload[0] == 63u);
+    CHECK(!meter_nvm_complete(&s, 1u, 1u, METER_SLOTS_OK));
+    CHECK(meter_nvm_complete(&s, 1u, 4u, METER_SLOTS_OK));
+    CHECK(!s.dirty && meter_nvm_barrier(&s, 4u));
     puts("nvm: PASS");
     return 0;
 }

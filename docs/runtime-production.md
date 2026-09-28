@@ -31,7 +31,7 @@ Implemented and exercised on firmware 368eed1. Host product matrices, eight phys
 | App priority 20 | Batch/event/action wake or 5 ms tick; no device/Flash/LVGL | 8192 bytes |
 | CAN TX priority 18 | One writer per bus, queue wake, idle blocks forever; blocking driver write | 2048 bytes/bus |
 | UI configured priority + 2 | LVGL 16 ms normal / 50 ms maintenance | Default 32768 bytes |
-| NVM priority 24 | Existing queue; blocking EEPROM I/O | Existing NVM budget |
+| NVM priority 21 | Existing queue; blocking EEPROM I/O | Existing NVM budget |
 | Update priority 25 | Existing queue; Flash and durable barrier wait | 12288 bytes |
 
 Core and Product workflow run only in App. Reference-Mixed startup synchronization uses semantic commands and decoded parameter events, never a CANopenNode channel. The immutable Product getter no longer resets protocol state. Host tests drive App and Protocol steps separately; they do not simulate native scheduling.

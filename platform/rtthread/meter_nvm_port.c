@@ -172,7 +172,8 @@ bool meter_board_nvm_start(meter_core_t *core)
         goto fail_commands;
     if (rt_sem_init(&command_credit, "nvm_credit", 1, RT_IPC_FLAG_FIFO) != RT_EOK)
         goto fail_ack;
-    if (rt_thread_init(&port.worker, "meter_nvm", worker, NULL, port.stack, sizeof(port.stack), 24, 10) !=
+    /* 在 App/Protocol 之后、UI 绘制之前调度，避免每次短 I/O 唤醒等待整帧渲染。 */
+    if (rt_thread_init(&port.worker, "meter_nvm", worker, NULL, port.stack, sizeof(port.stack), 21, 10) !=
         RT_EOK)
         goto fail_credit;
     if (rt_thread_startup(&port.worker) != RT_EOK)
