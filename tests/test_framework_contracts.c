@@ -14,8 +14,8 @@
         }                                                                                                    \
     } while (0)
 
-static const meter_signal_def_t signals[] = {{1u, "speed", "km/h", 750u}};
-static const meter_parameter_def_t parameters[] = {{1u, "brightness", "%", 10.0f, 100.0f, 50.0f}};
+static const meter_signal_def_t signals[] = {{.id = 1u, .key = "speed", .unit = "km/h", .stale_ms = 750u}};
+static const meter_parameter_def_t parameters[] = {{.id = 1u, .key = "brightness", .unit = "%", .min = 10.0f, .max = 100.0f, .initial = 50.0f}};
 static const meter_fault_def_t faults[] = {{1u, "fault", "fault"}};
 static const meter_catalog_t catalog = {signals, 1u, parameters, 1u, NULL, 0u, faults, 1u, NULL, NULL};
 

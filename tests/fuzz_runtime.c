@@ -11,8 +11,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (size > 4096u) return 0;
     meter_record_view_t record;
     (void)meter_record_decode(data, size, 1u, 1u, &record);
-    static const meter_signal_def_t signal[] = {{1u, "a", "", 100u}};
-    static const meter_parameter_def_t parameter[] = {{1u, "b", "", 0.0f, 100.0f, 50.0f}};
+    static const meter_signal_def_t signal[] = {{.id = 1u, .key = "a", .unit = "", .stale_ms = 100u}};
+    static const meter_parameter_def_t parameter[] = {{.id = 1u, .key = "b", .unit = "", .min = 0.0f, .max = 100.0f, .initial = 50.0f}};
     static const meter_catalog_t catalog = {.signals = signal, .signal_count = 1u,
         .parameters = parameter, .parameter_count = 1u};
     meter_value_t values[1]; float parameters[1]; meter_core_t core;

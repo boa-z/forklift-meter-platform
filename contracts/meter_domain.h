@@ -51,10 +51,10 @@ typedef struct
 /** @brief 目录中的信号定义。id 是跨版本引用，key 是稳定字符串标识。 */
 typedef struct
 {
-    meter_signal_id_t id;
     const char *key;
     const char *unit;
     uint32_t stale_ms;
+    meter_signal_id_t id;
 } meter_signal_def_t;
 /** @brief 以完整值查看当前与候选来源，返回 true 才接受候选值。 */
 typedef bool (*meter_source_policy_fn_t)(void *context, meter_signal_id_t signal,
@@ -67,10 +67,10 @@ typedef bool (*meter_source_policy_fn_t)(void *context, meter_signal_id_t signal
  */
 typedef struct
 {
-    uint16_t id;
     const char *key;
     const char *unit;
     float min, max, initial;
+    uint16_t id;
 } meter_parameter_def_t;
 /** @brief 监视页的一行呈现映射。signal 必须指向已声明的信号身份，本身不占域存储。 */
 typedef struct

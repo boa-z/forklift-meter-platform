@@ -12,7 +12,7 @@
             return 1;                                                                                        \
         }                                                                                                    \
     } while (0)
-static const meter_signal_def_t signals[] = {{7, "vehicle.speed", "m/s", 10}};
+static const meter_signal_def_t signals[] = {{.id = 7, .key = "vehicle.speed", .unit = "m/s", .stale_ms = 10}};
 static const meter_catalog_t catalog = {.signals = signals, .signal_count = 1};
 static bool decode(const meter_can_frame_t *f, meter_update_sink_t sink, void *ctx)
 {

@@ -10,9 +10,9 @@ Actual main protection inspection returned HTTP 404 (Branch not protected); repo
 
 ## Scope and real analyzer coverage
 
-First-party production scope includes contracts, core, runtime, storage, update, protocols/common, autonomous platform/rtthread and Product C. Generated DBC/catalog C remains production code; retain generator version, inputs and output evidence. Fonts/binary resources are separate assets.
+First-party production scope includes contracts, core, runtime, storage, update, protocols/common, autonomous platform/rtthread and Product C. Generated DBC/catalog C remains production code; retain generator version, inputs and output evidence. tools/analyze_generated.py explicitly checks all three public Products' generated CAN C and the generated Demo catalog with Cppcheck and clang-tidy, using each Product include root and C11. This is portable analysis, not target analysis. Fonts/binary resources are separate assets.
 
-Current Cppcheck and clang-tidy enumerate core, runtime, storage and update only. The header filter additionally includes contracts. Host CMake commands do not establish target coverage. Product, generated, platform and UI translation units are not comprehensively analyzed by these jobs. Compiler, generator, architecture and public-clean checks supply different evidence, not complete MISRA coverage.
+The original Cppcheck and clang-tidy steps enumerate core, runtime, storage and update; the additional generated-production step is listed above. The header filter additionally includes contracts. Host CMake commands do not establish target coverage. Handwritten Product, platform and UI translation units are not comprehensively analyzed by these jobs. Compiler, generator, architecture and public-clean checks supply different evidence, not complete MISRA coverage.
 
 Adopted RT-Thread/ArtInChip SDK, LVGL, CANopenNode and iso14229 retain upstream ownership. Dependency/build evidence must record pinned SHA, license, usage boundary, known findings and validation. Missing evidence stays open; do not modify upstream solely to make first-party tools green.
 

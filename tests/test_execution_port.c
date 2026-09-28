@@ -64,7 +64,7 @@ static meter_command_stage_t completion_for(const meter_command_t *c)
 { return c->id == 2u ? METER_COMMAND_TX_COMPLETED : METER_COMMAND_REMOTE_CONFIRMED; }
 int main(void)
 {
-    static const meter_signal_def_t signal[] = {{1u, "a", "", 0u}};
+    static const meter_signal_def_t signal[] = {{.id = 1u, .key = "a", .unit = "", .stale_ms = 0u}};
     static const meter_catalog_t catalog = {.signals = signal, .signal_count = 1u};
     static const meter_auth_profile_t auth = {.local_settings = true};
     static const meter_capability_profile_t caps = {.language_selection = true};

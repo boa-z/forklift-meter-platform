@@ -3,7 +3,7 @@
 #include "core/meter_core.h"
 #include <assert.h>
 #include <string.h>
-static const meter_signal_def_t definitions[] = {{1u, "a", "", 0u}, {2u, "b", "", 10u}};
+static const meter_signal_def_t definitions[] = {{.id = 1u, .key = "a", .unit = "", .stale_ms = 0u}, {.id = 2u, .key = "b", .unit = "", .stale_ms = 10u}};
 static bool reject_second;
 static bool arbitration(void *ctx, meter_signal_id_t id, const meter_value_t *incoming, const meter_value_t *current)
 {

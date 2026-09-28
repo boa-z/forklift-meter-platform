@@ -10,9 +10,9 @@ Tool Quality Green：基线 GitHub run 36419980592 attempt 2 的 host 和 qualit
 
 ## 范围及实际分析覆盖
 
-第一方生产范围包含 contracts、core、runtime、storage、update、protocols/common、自主 platform/rtthread 和 Product C。DBC/catalog 生成 C 仍属生产代码，保留生成器版本、输入及输出证据。字体/二进制资源独立归类。
+第一方生产范围包含 contracts、core、runtime、storage、update、protocols/common、自主 platform/rtthread 和 Product C。DBC/catalog 生成 C 仍属生产代码，保留生成器版本、输入及输出证据。tools/analyze_generated.py 显式用 Cppcheck 和 clang-tidy 检查三个公开 Product 的生成 CAN C 及 Demo 生成 catalog，采用各 Product include root 和 C11。这是 portable 分析，不是 target 分析。字体/二进制资源独立归类。
 
-当前 Cppcheck、clang-tidy 仅枚举 core、runtime、storage、update；头文件过滤还含 contracts。Host CMake 命令不代表 target 覆盖。这些 job 未全面分析 Product、generated、platform、UI 翻译单元。编译器、生成器、架构、public-clean 提供不同证据，不代表完整 MISRA 覆盖。
+原 Cppcheck、clang-tidy 步骤枚举 core、runtime、storage、update，另增上述生成生产代码步骤；头文件过滤还含 contracts。Host CMake 命令不代表 target 覆盖。这些 job 未全面分析手写 Product、platform、UI 翻译单元。编译器、生成器、架构、public-clean 提供不同证据，不代表完整 MISRA 覆盖。
 
 采用的 RT-Thread/ArtInChip SDK、LVGL、CANopenNode、iso14229 保持 upstream ownership。依赖/构建证据记录固定 SHA、许可、使用边界、已知 finding 和验证；缺失证据保持未闭合，不为第一方工具变绿修改 upstream。
 

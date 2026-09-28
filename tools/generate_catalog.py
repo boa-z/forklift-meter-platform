@@ -49,9 +49,9 @@ def generate():
         lines.extend("    {" + formatter(row) + "}," for row in rows)
         lines.append("};")
     q = lambda s: json.dumps(s, ensure_ascii=True)
-    array("meter_signal_def_t", "signals", lambda r: f"{r[0]}, {q(r[2])}, {q(r[3])}, {r[4]}", data["signals"])
+    array("meter_signal_def_t", "signals", lambda r: f".id = {r[0]}, .key = {q(r[2])}, .unit = {q(r[3])}, .stale_ms = {r[4]}", data["signals"])
     array("meter_parameter_def_t", "parameters",
-          lambda r: f'{r[0]}, {q(r[1])}, {q(r[2])}, {float(r[3])}f, {float(r[4])}f, {float(r[5])}f',
+          lambda r: f'.id = {r[0]}, .key = {q(r[1])}, .unit = {q(r[2])}, .min = {float(r[3])}f, .max = {float(r[4])}f, .initial = {float(r[5])}f',
           data["parameters"])
     array("meter_monitor_def_t", "monitors", lambda r: f'{q(r[0])}, {q(r[1])}, {r[2]}', data["monitors"])
     array("meter_fault_def_t", "faults", lambda r: f'{r[0]}, {q(r[1])}, {q(r[2])}', data["faults"])

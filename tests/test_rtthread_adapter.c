@@ -64,7 +64,7 @@ static void evaluate(meter_snapshot_t *snapshot)
 }
 int main(void)
 {
-    meter_signal_def_t signal = {42, "test.speed", "km/h", 500};
+    meter_signal_def_t signal = {.id = 42, .key = "test.speed", .unit = "km/h", .stale_ms = 500};
     meter_catalog_t catalog = {.signals = &signal, .signal_count = 1};
     meter_value_t value;
     meter_core_storage_t storage = {.signals = &value, .signal_capacity = 1};

@@ -23,8 +23,8 @@
 static meter_value_t signal_slots[DEMO_SIGNAL_SLOTS];
 static float parameter_slots[DEMO_PARAMETER_SLOTS];
 static meter_fault_state_t fault_slots[DEMO_FAULT_SLOTS];
-static const meter_signal_def_t duplicate_signals[] = {{METER_SPEED, "speed"}, {METER_SPEED, "flow"}};
-static const meter_signal_def_t anonymous_signals[] = {{0, "gap"}};
+static const meter_signal_def_t duplicate_signals[] = {{.id = METER_SPEED, .key = "speed"}, {.id = METER_SPEED, .key = "flow"}};
+static const meter_signal_def_t anonymous_signals[] = {{.id = 0, .key = "gap"}};
 static const meter_monitor_def_t dangling_monitor[] = {{"Gap", "gap", METER_WARNING + 100}};
 static const meter_fault_def_t duplicate_faults[] = {{DEMO_FAULT_LOW_CHARGE, "one", "first"},
                                                      {DEMO_FAULT_LOW_CHARGE, "two", "second"}};

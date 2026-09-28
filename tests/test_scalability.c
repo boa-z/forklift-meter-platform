@@ -37,9 +37,9 @@ static uint8_t blob[METER_SETTINGS_OVERHEAD + PARAMETER_COUNT * METER_SETTINGS_E
 static void build(void)
 {
     for (unsigned i = 0; i < SIGNAL_COUNT; ++i)
-        signal_table[i] = (meter_signal_def_t){ID(i), synthetic_key, "u", 750};
+        signal_table[i] = (meter_signal_def_t){.id = ID(i), .key = synthetic_key, .unit = "u", .stale_ms = 750};
     for (unsigned i = 0; i < PARAMETER_COUNT; ++i)
-        parameter_table[i] = (meter_parameter_def_t){ID(i), synthetic_key, "u", 0.0f, 1000.0f, 25.0f};
+        parameter_table[i] = (meter_parameter_def_t){.id = ID(i), .key = synthetic_key, .unit = "u", .min = 0.0f, .max = 1000.0f, .initial = 25.0f};
     for (unsigned i = 0; i < MONITOR_COUNT; ++i)
         monitor_table[i] = (meter_monitor_def_t){synthetic_key, "u", ID(i)};
     for (unsigned i = 0; i < FAULT_COUNT; ++i)
