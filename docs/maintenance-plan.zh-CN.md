@@ -203,3 +203,9 @@ Demo 使用无头 Product 投影；profile generation、标定及诊断分类均
 仅为 Host GNU 16.1.0 / Python 3.13 证据，不隐含当前源码 Linux CI、sanitizer/fuzz、物理时序或 UI 视觉验收。首轮 Python 缺少 can-isotp；隔离环境使用固定依赖重试，在此记录首次缺依赖失败。源码提交后另记实板验证。
 
 Python Host 工具：114 PASS，9 项物理 HIL 跳过；证据 build-maintainer-audit/services-python.xml 与 services-python.log。通过既有 METER_OTA_CPIO/METER_OTA_MKENVIMAGE 环境覆盖使用 SDK 原生 cpio/mkenvimage，打包测试无跳过。
+
+### 服务实板收尾与下一步
+
+提交 1cf7aea（profile）、5342d4b（Product 展示）及 5cfa0bf（标定/分类）分为独立评审批次。已提交候选完成 reference-board 构建、CAN OTA 和源码身份核对重启，物理 HIL 9/9 通过；见[验证记录](validation.zh-CN.md)。板上保留 services-a，两个接口均已释放。默认 runtime/协议/时序/存储策略不变；新服务仍须 Product 显式接入。
+
+后续继续本计划：真实适配器前评审 D-07 Product 映射、测量/profile 失效和认证；修改健康策略或实现持久计数器前决定 D-01/D-05 表；保持 D-03 所有权/恢复语义不变。把既有 iso14229 文档子模块元数据列为依赖清单问题。本地未运行当前 HEAD Linux CI；不新增路线图、私有线端映射或自动依赖修复。

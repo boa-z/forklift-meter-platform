@@ -203,3 +203,9 @@ Demo now uses a headless Product projection; profile generation, calibration and
 Host GNU 16.1.0 / Python 3.13 evidence only. Current-source Linux CI, sanitizer/fuzz, physical timing and UI visual acceptance are not implied. Initial Python run lacked can-isotp; retry uses pinned requirements in an isolated environment, with the initial missing-dependency failure recorded here. Board validation is recorded separately after committing source.
 
 Python host tools: 114 PASS, 9 physical HIL skipped; build-maintainer-audit/services-python.xml and services-python.log. Native SDK cpio/mkenvimage supplied through the documented METER_OTA_CPIO/METER_OTA_MKENVIMAGE environment overrides; no packaging tests skipped.
+
+### Services hardware closure and next work
+
+Commits 1cf7aea (profile), 5342d4b (Product presentation) and 5cfa0bf (calibration/classification) are separate review batches. The committed candidate built for reference-board and passed 9/9 physical HIL after CAN OTA and source-verified reboot; see [validation](validation.md). The board retains services-a and both interfaces are released. Default runtime/protocol/timing/storage policies remain intact; new services still require explicit Product binding.
+
+Next work belongs to this plan: review D-07 Product mapping, measurement/profile invalidation and authentication before real adapters; resolve D-01/D-05 policy tables before health changes or persistent counters; leave D-03 ownership/recovery semantics unchanged. Track inherited iso14229 documentation-submodule metadata as a dependency inventory issue. Current-head Linux CI remains unrun locally; no new roadmap, private wire mapping or automatic dependency repair is introduced.
