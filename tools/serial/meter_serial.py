@@ -19,8 +19,8 @@ def capture(port, output, duration=None, clock=time.monotonic):
     return count
 
 
-def command(port, text, output, timeout=5.0, idle=0.5, clock=time.monotonic):
-    """发送单行命令并收集原始响应；收到字节后等待 idle，最多等待 timeout。"""
+def write_command(port, text):
+    """校验并发送一条 MSH 命令，供同步助手与 HIL 会话复用。"""
     if not text.strip() or any(ord(c) < 32 or ord(c) == 127 for c in text):
         raise ValueError('command must be one nonempty line without control characters')
     payload = text.encode('utf-8') + b'\r\n'
@@ -28,6 +28,11 @@ def command(port, text, output, timeout=5.0, idle=0.5, clock=time.monotonic):
     if sent != len(payload):
         raise OSError('incomplete serial command write')
     port.flush()
+
+
+def command(port, text, output, timeout=5.0, idle=0.5, clock=time.monotonic):
+    """发送单行命令并收集原始响应；收到字节后等待 idle，最多等待 timeout。"""
+    write_command(port, text)
     start = clock()
     last = None
     count = 0

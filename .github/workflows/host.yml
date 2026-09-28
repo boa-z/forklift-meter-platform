@@ -12,7 +12,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++
-          python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt
+          python -m pip install -r tools/hil/requirements.txt
+      - name: Test HIL host utilities without hardware
+        run: python -m pytest -q --junitxml=evidence/host-junit.xml
       - name: Build and test Demo
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
@@ -28,3 +30,9 @@ jobs:
           cmake -S . -B build-mixed -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=examples/reference-mixed
           cmake --build build-mixed
           ctest --test-dir build-mixed --output-on-failure
+      - name: Upload host test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-test-evidence
+          path: evidence/

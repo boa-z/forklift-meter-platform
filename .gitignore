@@ -3,6 +3,8 @@
 /artifacts/
 __pycache__/
 *.pyc
+/evidence/
+.pytest_cache/
 *.o
 .DS_Store
 
