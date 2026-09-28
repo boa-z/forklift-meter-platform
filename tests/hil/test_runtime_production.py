@@ -77,3 +77,73 @@ def test_runtime_nvm_under_load(hil):
     finally:
         hil.dut.command('meter_settings brightness '+str(original))
         settings_result(hil.dut)
+
+
+def test_dynamic_periodic_publication(hil):
+    """真实 App 设置变更关联首个期限，保留 PCAN 原生时间并同时等待 NVM durable。"""
+    import functools
+    import operator
+    import threading
+    from tools.hil.dut import KV, atom
+    samples = []
+    mutex = threading.Lock()
+
+    def receive(message):
+        if message.arbitration_id in (0x3c0, 0x2f0) and not message.is_extended_id:
+            with mutex:
+                samples.append(dict(id=message.arbitration_id, timestamp=message.timestamp, data=list(message.data)))
+
+    def snapshot():
+        with mutex:
+            return list(samples)
+
+    original = diagnostics(hil.dut.command('meter storage'))['storage']['brightness']
+    reports = []
+    hil.bus.notifier.add_listener(receive)
+    try:
+        with transmitting(hil.bus, hil.dbc, hil.scenario, period_ms=10):
+            time.sleep(.8)
+            for value in (31, 47, 63):
+                assert 'QUEUED' in hil.dut.command('meter_settings brightness '+str(value))
+                assert 'APPLIED_OR_QUEUED' in settings_result(hil.dut)
+                time.sleep(.25)
+                raw = hil.dut.command('meter_exec')
+                rows = {}
+                for line in raw.splitlines():
+                    if line.startswith('periodic_first '):
+                        fields = {k: atom(v) for k,v in KV.findall(line)}
+                        rows.setdefault(fields['entry'], {}).update(fields)
+                row = rows[0]
+                assert row['success'] == 1 and (row['data0'] | row['data1'] << 8) == value, raw
+                # 这是首个计划期限的契约，不是新引入的毫秒 jitter 容差。
+                assert 0 <= (row['deadline_ms']-row['acquired_ms']) % (1 << 32) < 50, row
+                candidates = [r for r in snapshot() if r['id'] == 0x3c0 and len(r['data']) == 8 and
+                              r['data'][0] == value and r['data'][1] == 0 and
+                              (r['data'][4] | r['data'][5] << 8) == row['revision'] % 65536]
+                assert candidates and candidates[0]['data'][3] == row['data3'], (row, candidates)
+                reports.append(dict(first=row, first_wire_native_timestamp=candidates[0]['timestamp'], runtime=raw))
+            deadline = time.monotonic() + 12
+            while True:
+                storage = diagnostics(hil.dut.command('meter storage'))['storage']
+                if storage['brightness'] == 63 and not storage['dirty'] and storage['durable_revision'] == storage['ram_revision']:
+                    break
+                assert time.monotonic() < deadline, storage
+                time.sleep(.2)
+            fresh_frames = [r for r in snapshot() if r['id'] == 0x2f0]
+            assert fresh_frames and fresh_frames[-1]['data'][2] == 1
+        # 停止输入后 App 继续 publish；不能因此刷新车速 sample freshness。
+        time.sleep(.9)
+        tail = [r for r in snapshot() if r['id'] == 0x2f0][-3:]
+        assert len(tail) == 3 and all(r['data'][2] == 0 for r in tail), tail
+        with transmitting(hil.bus, hil.dbc, hil.scenario, period_ms=10):
+            time.sleep(.4)
+            assert [r for r in snapshot() if r['id'] == 0x2f0][-1]['data'][2] == 1
+        for frame in snapshot():
+            data = frame['data']
+            assert len(data) == 8 and data[6] == (data[0] ^ 255), frame
+            assert functools.reduce(operator.xor, data) == 0, frame
+    finally:
+        hil.evidence.text('dynamic-periodic.json', json.dumps(dict(changes=reports, frames=snapshot()), indent=2))
+        hil.dut.command('meter_settings brightness '+str(original))
+        settings_result(hil.dut)
+        hil.bus.notifier.remove_listener(receive)

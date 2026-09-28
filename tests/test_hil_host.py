@@ -143,6 +143,8 @@ def test_dut_capture_timeout_and_ownership(tmp_path, monkeypatch):
             if data.startswith(b'meter signal'):
                 self.rx.put(b'signal id=1 key=vehicle.speed value=25 unit=km/h\r\n')
                 self.rx.put(b'state=VALID source=1 timestamp_ms=10 age_ms=0 stale_ms=750\r\n')
+            elif data.startswith(b'meter_update maintenance'):
+                self.rx.put(b'maintenance requested; Product owns admission\r\n\x1b[32mCONNECT arg0=3\r\n\x1b[0m')
             else: self.rx.put(data)
             return len(data)
     port = Port()
@@ -154,6 +156,7 @@ def test_dut_capture_timeout_and_ownership(tmp_path, monkeypatch):
         port.rx.put(b'\xffBOOT\r\n')
         time.sleep(.03)
         assert dut.signal('vehicle.speed')['state'] == 'VALID'
+        assert 'maintenance requested' in dut.command('meter_update maintenance on')
         with pytest.raises(TimeoutError): dut.command('meter info')
         with pytest.raises(ValueError): dut.command('meter info\nreboot')
     finally: dut.close()
@@ -167,7 +170,7 @@ def test_virtual_hil_is_skip_not_physical_pass(tmp_path):
     assert result.returncode == 0, result.stdout+result.stderr
     metadata = json.loads(next(tmp_path.glob('*/metadata.json')).read_text())
     assert metadata['status'] == 'HIL_NOT_RUN'
-    assert len([t for t in metadata['tests'] if t['outcome'] == 'skipped']) == 8
+    assert len([t for t in metadata['tests'] if t['outcome'] == 'skipped']) == 9
     assert not any(metadata['coverage'].values())
     assert next(tmp_path.glob('*/junit.xml')).exists()
 
@@ -230,3 +233,16 @@ def test_runtime_serial_modes():
     assert complete('meter_update maintenance on', 'maintenance requested; Product owns admission\n')
     assert not complete('meter_update info', '{"state":"IDLE"}\n')
     assert complete('meter_update info', '{"state":"IDLE","received":0,"total":0,"maintenance":0}\n')
+
+
+def test_native_rx_timestamps_are_preserved(tmp_path):
+    bus = CanBus('virtual', 'native-time-'+uuid.uuid4().hex, 500000, tmp_path/'native.asc')
+    try:
+        bus._receive(can.Message(arbitration_id=0x123, data=[1], timestamp=1700000000.0))
+        bus._receive(can.Message(arbitration_id=0x123, data=[2], timestamp=1700000000.125))
+    finally:
+        bus.close()
+    with can.ASCReader(str(tmp_path/'native.asc')) as reader:
+        frames = list(reader)
+    assert len(frames) == 2
+    assert frames[1].timestamp - frames[0].timestamp == pytest.approx(.125)

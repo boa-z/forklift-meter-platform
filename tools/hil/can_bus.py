@@ -22,7 +22,8 @@ class CanBus:
 
     def _record(self, message, rx, scheduled=False):
         entry = copy.copy(message)
-        entry.timestamp = time.time()
+        if not rx:
+            entry.timestamp = time.time()
         entry.channel = self.bus_index
         entry.is_rx = rx
         with self.lock:

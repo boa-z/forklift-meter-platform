@@ -138,6 +138,43 @@ int main(void)
     assert(meter_runtime_session(&protocol, 123u));
     assert(protocol.generation == 123u && session_diag.data.runtime.generation == 123u);
     assert(protocol.count == 0u && protocol.connected);
+    /* 使用真实短锁 mailbox 路径：替代、跳过、驱动结果、代次隔离、队列公平性。 */
+    meter_periodic_frame_t definitions[2] = {
+        {.frame = {.id = 0x100u, .bus = METER_BUS_CAN0, .size = 1u, .data = {1u}}, .period_ms = 10u,
+         .critical = true, .backlog = METER_TX_REPLACE_PENDING},
+        {.frame = {.id = 0x101u, .bus = METER_BUS_CAN0, .size = 1u, .data = {2u}}, .period_ms = 20u}
+    };
+    meter_product_t periodic_product = product;
+    periodic_product.periodic = definitions; periodic_product.periodic_count = 2u;
+    config.product = &periodic_product;
+    meter_mode_policy_t normal = meter_execution_policy(METER_MODE_NORMAL);
+    for (size_t i = 0u; i < 2u; ++i) assert(meter_periodic_reset(&periodic_state[i], &definitions[i], shared.generation, 0u));
+    periodic_poll(shared.generation, normal, 10u);
+    assert(periodic_slots[0].ready && periodic_slots[0].message.deadline_ms == 10u);
+    periodic_poll(shared.generation, normal, 20u);
+    assert(periodic_slots[0].replaced == 1u && periodic_slots[0].message.deadline_ms == 20u && periodic_slots[1].ready);
+    meter_periodic_message_t pm;
+    assert(periodic_take(&tx_owner[0], &pm) && pm.entry == 0u);
+    assert(!meter_periodic_sendable(&pm, shared.generation, 30u));
+    periodic_poll(shared.generation, normal, 30u);
+    assert(periodic_slots[0].inflight && !periodic_slots[0].ready);
+    periodic_result(&pm, 30u, 30u, false, true);
+    assert(periodic_state[0].busy);
+    periodic_poll(shared.generation, normal, 31u);
+    assert(!periodic_state[0].busy && periodic_state[0].failed == 2u);
+    assert(periodic_take(&tx_owner[0], &pm) && pm.entry == 1u);
+    uint32_t next_generation = shared.generation + 1u;
+    assert(meter_periodic_reset(&periodic_state[1], &definitions[1], next_generation, 31u));
+    periodic_result(&pm, 32u, 33u, true, false);
+    periodic_poll(next_generation, normal, 34u);
+    assert(periodic_state[1].completed == 0u);
+    /* maintenance 的普通槽不能重新生成，保留 critical；复位后下一整周期开始。 */
+    shared.generation = next_generation;
+    for (size_t i = 0u; i < 2u; ++i) assert(meter_periodic_reset(&periodic_state[i], &definitions[i], next_generation, 40u));
+    meter_mode_policy_t maintenance = {.critical_tx = true};
+    periodic_poll(next_generation, maintenance, 60u);
+    assert(periodic_slots[0].ready && !periodic_slots[1].ready);
+    config.product = &product;
     shared.state = METER_EXEC_STOPPING;
     assert(!meter_execution_ui_shutdown_requested());
     meter_execution_ui_stopped(); assert(!shared.ui_done);

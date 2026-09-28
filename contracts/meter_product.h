@@ -5,6 +5,7 @@
 #include "contracts/meter_protocol.h"
 #include "contracts/meter_update_view.h"
 #include "contracts/meter_execution.h"
+#include "contracts/meter_periodic.h"
 #include <stddef.h>
 typedef bool (*meter_decode_fn_t)(const meter_can_frame_t *frame, meter_update_sink_t sink, void *context);
 typedef struct
@@ -64,13 +65,6 @@ typedef struct
     uint16_t record_type, product_namespace, schema;
     uint32_t debounce_ms, max_delay_ms;
 } meter_storage_profile_t;
-/** @brief Protocol 周期报文；Product 提供完整帧，维护模式仅保留标为 critical 的报文。 */
-typedef struct
-{
-    meter_can_frame_t frame;
-    uint32_t period_ms;
-    bool critical;
-} meter_periodic_frame_t;
 typedef struct
 {
     const char *id;
@@ -97,6 +91,9 @@ typedef struct
     /** @brief 不可变周期配置；配置及数组覆盖整个运行期。 */
     const meter_periodic_frame_t *periodic;
     size_t periodic_count;
+    /** @brief App 采样回调和语义数量；板级预算提供独立存储。 */
+    meter_tx_sample_fn_t tx_sample;
+    size_t tx_value_count;
     /** @brief App 消费协议事件并执行产品 workflow；禁止解码 CAN 或操作设备。 */
     void (*on_event)(const meter_protocol_event_t *event);
     /** @brief App 在 generation 切换时先复位产品工作流，再接收新事件。 */

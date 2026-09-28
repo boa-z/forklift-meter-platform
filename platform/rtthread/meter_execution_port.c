@@ -5,6 +5,8 @@
 #include "platform/rtthread/debug/meter_debug_console.h"
 #include "core/meter_snapshot.h"
 #include "runtime/meter_execution.h"
+#include "runtime/meter_periodic.h"
+#include "platform/rtthread/meter_execution_budget.h"
 #include "contracts/meter_time.h"
 #include "runtime/meter_runtime.h"
 #ifdef METER_ENABLE_CAN_UPDATE
@@ -18,7 +20,6 @@
 /* 容量属于板端预算，不限制公共 Domain 或独立 Product 的目录大小。 */
 #define BATCH_VALUES 32u
 #define BATCH_DEPTH 64u
-#define PERIODIC_LIMIT 8u
 #define POOL_WORDS(type, count) (((RT_ALIGN(sizeof(type), RT_ALIGN_SIZE) + sizeof(void *)) / sizeof(rt_ubase_t)) * (count))
 typedef struct
 {
@@ -41,6 +42,8 @@ typedef struct
     struct rt_thread thread;
     rt_ubase_t stack[2048u / sizeof(rt_ubase_t)];
     unsigned bus;
+    size_t periodic_cursor;
+    bool prefer_periodic;
 } tx_owner_t;
 static meter_execution_config_t config;
 static meter_execution_t execution;
@@ -48,7 +51,22 @@ static meter_mode_policy_t app_policy;
 static meter_runtime_t protocol;
 static meter_batch_builder_t builder;
 static meter_update_t staging[BATCH_VALUES];
-static meter_deadline_t deadlines[PERIODIC_LIMIT];
+static meter_periodic_state_t periodic_state[METER_BOARD_PERIODIC_SLOTS];
+static meter_tx_value_t tx_samples[METER_BOARD_TX_VALUES], tx_published_values[METER_BOARD_TX_VALUES], tx_protocol_values[METER_BOARD_TX_VALUES];
+static meter_tx_publication_t tx_published = {.values = tx_published_values}, tx_protocol = {.values = tx_protocol_values};
+static uint32_t tx_acquired_ms;
+/* 此槽是短锁保护的原生线程间 mailbox，每项最多一个 pending/inflight/result。 */
+typedef struct
+{
+    bool ready, inflight, result_ready;
+    meter_periodic_message_t message;
+    meter_periodic_result_t result;
+    meter_periodic_message_t first_message;
+    meter_periodic_result_t first_result;
+    uint32_t replaced, expired, queue_max_ms, scheduler_max_ms, driver_max_ms;
+} periodic_slot_t;
+static periodic_slot_t periodic_slots[METER_BOARD_PERIODIC_SLOTS];
+static struct rt_mutex tx_publication_lock;
 static meter_diagnostics_t app_diag, protocol_diag;
 static uint32_t app_trace_cursor, protocol_trace_cursor;
 static meter_snapshot_t published_snapshot, debug_snapshot;
@@ -182,6 +200,46 @@ static bool send_protocol(void *context, const meter_can_frame_t *frame)
     (void)context;
     return meter_execution_can_submit(frame, false);
 }
+static bool periodic_take(tx_owner_t *owner, meter_periodic_message_t *message)
+{
+    lock_state();
+    for (size_t k = 0u; k < config.product->periodic_count; ++k)
+    {
+        size_t i = (owner->periodic_cursor + k) % config.product->periodic_count;
+        periodic_slot_t *slot = &periodic_slots[i];
+        if (slot->ready && slot->message.frame.bus == (meter_bus_role_t)owner->bus)
+        {
+            *message = slot->message; slot->ready = false; slot->inflight = true;
+            owner->periodic_cursor = (i + 1u) % config.product->periodic_count;
+            unlock_state(); return true;
+        }
+    }
+    unlock_state(); return false;
+}
+static bool ordinary_take(tx_owner_t *owner, tx_message_t *message, meter_periodic_message_t *periodic, bool *is_periodic)
+{
+    bool got = false;
+    if (owner->prefer_periodic) { *is_periodic = periodic_take(owner, periodic); got = *is_periodic; }
+    if (!got) got = rt_mq_recv(&owner->ordinary, message, sizeof(*message), 0) == RT_EOK;
+    if (!got) { *is_periodic = periodic_take(owner, periodic); got = *is_periodic; }
+    if (got) owner->prefer_periodic = !*is_periodic;
+    return got;
+}
+static void periodic_result(const meter_periodic_message_t *message, uint32_t started, uint32_t finished, bool ok, bool cancelled)
+{
+    lock_state();
+    periodic_slot_t *slot = &periodic_slots[message->entry];
+    slot->result = (meter_periodic_result_t){.generation = message->generation, .ticket = message->ticket,
+        .started_ms = started, .completed_ms = finished, .success = ok};
+    if (slot->first_message.generation == message->generation && slot->first_message.ticket == message->ticket)
+        slot->first_result = slot->result;
+    slot->inflight = false; slot->result_ready = true;
+    uint32_t delay = started - message->queued_ms, driver = finished - started;
+    if (delay > slot->queue_max_ms) slot->queue_max_ms = delay;
+    if (driver > slot->driver_max_ms) slot->driver_max_ms = driver;
+    if (cancelled) ++slot->expired;
+    unlock_state(); (void)rt_sem_release(&rx_event);
+}
 static void tx_entry(void *arg)
 {
     tx_owner_t *owner = arg;
@@ -190,26 +248,34 @@ static void tx_entry(void *arg)
     for (;;)
     {
         (void)rt_sem_control(&owner->wake, RT_IPC_CMD_RESET, RT_NULL);
-        tx_message_t message;
+        tx_message_t message = {0};
+        meter_periodic_message_t periodic_message = {0};
+        bool is_periodic = false;
         bool got = false;
         /* 最多连续四个升级帧，随后给周期/协议帧一次机会。 */
         if (burst >= 4u)
         {
-            got = rt_mq_recv(&owner->ordinary, &message, sizeof(message), 0) == RT_EOK;
+            got = ordinary_take(owner, &message, &periodic_message, &is_periodic);
             burst = 0u;
         }
         if (!got && rt_mq_recv(&owner->urgent, &message, sizeof(message), 0) == RT_EOK)
         { got = true; ++burst; }
-        if (!got) got = rt_mq_recv(&owner->ordinary, &message, sizeof(message), 0) == RT_EOK;
+        if (!got) got = ordinary_take(owner, &message, &periodic_message, &is_periodic);
         lock_state();
         bool stop = shared.state == METER_EXEC_STOPPING;
         uint32_t generation = shared.generation;
         unlock_state();
         if (got)
         {
-            if (stop || message.generation != generation)
-            { lock_state(); meter_diag_increment(&shared.tx_cancelled); unlock_state(); continue; }
-            bool ok = meter_board_can_send(&message.frame);
+            uint32_t started = meter_board_now_ms();
+            bool cancelled = stop || (is_periodic ? !meter_periodic_sendable(&periodic_message, generation, started) : message.generation != generation);
+            if (cancelled)
+            {
+                if (is_periodic) periodic_result(&periodic_message, started, started, false, true);
+                lock_state(); meter_diag_increment(&shared.tx_cancelled); unlock_state(); continue;
+            }
+            bool ok = meter_board_can_send(is_periodic ? &periodic_message.frame : &message.frame);
+            if (is_periodic) periodic_result(&periodic_message, started, meter_board_now_ms(), ok, false);
             lock_state();
             if (ok) { meter_diag_increment(&shared.tx_ok[owner->bus]); shared.last_tx[owner->bus] = meter_board_now_ms(); }
             else meter_diag_increment(&shared.tx_error[owner->bus]);
@@ -271,6 +337,52 @@ static void publish_protocol(void)
     meter_debug_unlock();
     copy_traces(&protocol_diag, &protocol_trace_cursor);
 }
+static void periodic_poll(uint32_t generation, meter_mode_policy_t policy, uint32_t now)
+{
+    uint64_t before = tx_protocol.revision;
+    uint32_t old_generation = tx_protocol.generation;
+    (void)rt_mutex_take(&tx_publication_lock, RT_WAITING_FOREVER);
+    bool copied = meter_tx_copy(&tx_protocol, METER_BOARD_TX_VALUES, &tx_published);
+    (void)rt_mutex_release(&tx_publication_lock);
+    if (copied && (before != tx_protocol.revision || old_generation != tx_protocol.generation)) tx_acquired_ms = now;
+    for (size_t i = 0u; i < config.product->periodic_count; ++i)
+    {
+        meter_periodic_state_t *state = &periodic_state[i];
+        const meter_periodic_frame_t *definition = &config.product->periodic[i];
+        periodic_slot_t *slot = &periodic_slots[i];
+        lock_state();
+        if (slot->result_ready)
+        { (void)meter_periodic_complete(state, definition, &slot->result); slot->result_ready = false; }
+        if (slot->ready && (slot->message.generation != generation ||
+            (definition->backlog == METER_TX_REPLACE_PENDING && meter_time_reached(now, state->deadline.next_ms))))
+        {
+            meter_periodic_result_t cancelled = {.generation = slot->message.generation, .ticket = slot->message.ticket};
+            (void)meter_periodic_complete(state, definition, &cancelled);
+            slot->ready = false; ++slot->replaced;
+        }
+        bool available = !slot->ready && !slot->inflight && !slot->result_ready;
+        unlock_state();
+        meter_periodic_message_t message;
+        bool allowed = available && (definition->critical ? policy.critical_tx : policy.ordinary_tx);
+        if (meter_periodic_prepare(state, definition, copied ? &tx_protocol : NULL, allowed, now, &message))
+        {
+            message.entry = i; message.acquired_ms = tx_acquired_ms;
+            lock_state();
+            if (shared.generation == generation && shared.state == METER_EXEC_RUNNING && !shared.stop_requested &&
+                meter_periodic_admit(state, definition, &message))
+            {
+                if (slot->first_message.generation != message.generation || slot->first_message.revision != message.revision || !slot->first_message.ticket)
+                { slot->first_message = message; slot->first_result = (meter_periodic_result_t){0}; }
+                slot->message = message; slot->ready = true;
+                uint32_t late = now - message.deadline_ms;
+                if (late > slot->scheduler_max_ms) slot->scheduler_max_ms = late;
+            }
+            bool wake = slot->ready;
+            unlock_state();
+            if (wake) (void)rt_sem_release(&tx_owner[message.frame.bus].wake);
+        }
+    }
+}
 static void protocol_entry(void *arg)
 {
     (void)arg;
@@ -305,7 +417,7 @@ static void protocol_entry(void *arg)
             (void)meter_runtime_session(&protocol, generation);
             previous_generation = generation;
             for (size_t i = 0u; i < p->periodic_count; ++i)
-                (void)meter_deadline_arm(&deadlines[i], now, p->periodic[i].period_ms);
+                (void)meter_periodic_reset(&periodic_state[i], &p->periodic[i], generation, now);
         }
         (void)rt_sem_control(&rx_event, RT_IPC_CMD_RESET, RT_NULL);
         meter_can_frame_t frame;
@@ -330,19 +442,14 @@ static void protocol_entry(void *arg)
         now = meter_board_now_ms();
         command_poll(now, generation, policy.commands);
         if (policy.telemetry) (void)meter_runtime_process(&protocol, now);
-        for (size_t i = 0u; i < p->periodic_count; ++i)
-        {
-            if (meter_deadline_take(&deadlines[i], now) &&
-                (p->periodic[i].critical ? policy.critical_tx : policy.ordinary_tx))
-                (void)meter_execution_can_submit(&p->periodic[i].frame, false);
-        }
+        periodic_poll(generation, policy, now);
 #ifdef METER_ENABLE_CAN_UPDATE
         meter_board_update_protocol();
 #endif
         lock_state();
         shared.missed = 0u; shared.max_late_ms = 0u;
         for (size_t i = 0u; i < p->periodic_count; ++i)
-        { shared.missed += deadlines[i].missed; if (deadlines[i].late_ms > shared.max_late_ms) shared.max_late_ms = deadlines[i].late_ms; }
+        { shared.missed += periodic_state[i].deadline.missed; if (periodic_state[i].deadline.late_ms > shared.max_late_ms) shared.max_late_ms = periodic_state[i].deadline.late_ms; }
         for (unsigned bus = 0u; bus < METER_BUS_COUNT; ++bus)
         {
             protocol_diag.data.can[bus].tx = shared.tx_ok[bus];
@@ -407,6 +514,14 @@ static void apply_actions(uint32_t now)
 }
 static void publish_app(uint32_t now)
 {
+    if (config.product->tx_sample && config.product->tx_sample(&config.core->snapshot, now, tx_samples, config.product->tx_value_count))
+    {
+        (void)rt_mutex_take(&tx_publication_lock, RT_WAITING_FOREVER);
+        bool copied_tx = meter_tx_publish(&tx_published, METER_BOARD_TX_VALUES, tx_samples, config.product->tx_value_count,
+                                         execution.generation, now);
+        (void)rt_mutex_release(&tx_publication_lock);
+        if (!copied_tx) { lock_state(); meter_diag_increment(&shared.batch_rejected); unlock_state(); }
+    }
     meter_diag_snapshot_t view;
     (void)meter_diagnostics_snapshot(&app_diag, now, &view);
     meter_debug_lock();
@@ -567,19 +682,21 @@ static void app_entry(void *arg)
 bool meter_execution_start(const meter_execution_config_t *c)
 {
     if (initialized || !c || !c->core || !c->product || !c->public_diagnostics ||
-        c->product->periodic_count > PERIODIC_LIMIT || (c->product->periodic_count && !c->product->periodic)) return false;
+        c->product->periodic_count > METER_BOARD_PERIODIC_SLOTS || c->product->tx_value_count > METER_BOARD_TX_VALUES ||
+        (c->product->tx_value_count && !c->product->tx_sample) || (c->product->periodic_count && !c->product->periodic)) return false;
     config = *c;
     if (meter_snapshot_copy(&published_snapshot, &config.published_storage, &c->core->snapshot) != METER_SNAPSHOT_COPIED ||
         meter_snapshot_copy(&debug_snapshot, &config.diagnostic_storage, &c->core->snapshot) != METER_SNAPSHOT_COPIED) return false;
     /* 两个发布区也必须互相独立，MSH 与 UI 各自持有不同短锁。 */
     if (meter_snapshot_copy(&debug_snapshot, &config.diagnostic_storage, &published_snapshot) != METER_SNAPSHOT_COPIED) return false;
     for (size_t i = 0u; i < c->product->periodic_count; ++i)
-        if ((unsigned)c->product->periodic[i].frame.bus >= METER_BUS_COUNT ||
-            !meter_deadline_arm(&deadlines[i], 0u, c->product->periodic[i].period_ms)) return false;
+        if (!meter_periodic_valid(&c->product->periodic[i], c->product->tx_value_count) ||
+            (c->product->periodic[i].encode && !c->product->tx_sample)) return false;
     meter_execution_init(&execution);
     meter_diagnostics_init(&app_diag); meter_diagnostics_init(&protocol_diag);
     meter_core_bind_diagnostics(c->core, &app_diag);
-    if (rt_mutex_init(&state_lock, "exec_st", RT_IPC_FLAG_PRIO) != RT_EOK ||
+    if (rt_mutex_init(&tx_publication_lock, "exec_pub", RT_IPC_FLAG_PRIO) != RT_EOK ||
+        rt_mutex_init(&state_lock, "exec_st", RT_IPC_FLAG_PRIO) != RT_EOK ||
         rt_mutex_init(&view_lock, "exec_ui", RT_IPC_FLAG_PRIO) != RT_EOK ||
         rt_sem_init(&rx_event, "can_rx", 0, RT_IPC_FLAG_FIFO) != RT_EOK ||
         rt_sem_init(&app_event, "app_rx", 0, RT_IPC_FLAG_FIFO) != RT_EOK ||
@@ -691,6 +808,30 @@ static int meter_exec(int argc, char **argv)
     rt_kprintf("execution state=%u mode=%u generation=%u protocol_runs=%u\n", state, mode, generation, runs);
     rt_kprintf("batch high=%u capacity=%u full=%u stale=%u rejected=%u suppressed=%u\n", high, BATCH_DEPTH, full, stale, rejected, suppressed);
     rt_kprintf("tx high0=%u high1=%u full=%u periodic missed=%u late_max_ms=%u\n", tx0, tx1, tx_full, missed, late);
+    for (size_t i = 0u; i < config.product->periodic_count; ++i)
+    {
+        lock_state(); periodic_slot_t slot = periodic_slots[i]; unlock_state();
+        /* SDK 格式缓冲有限；每行在所有 uint32 最大十进制值下仍小于 120 字节。 */
+        rt_kprintf("periodic entry=%u gen=%u revision=%u ticket=%u\n", (unsigned)i,
+            slot.message.generation, (unsigned)slot.message.revision, (unsigned)slot.message.ticket);
+        rt_kprintf("periodic entry=%u acquired_ms=%u published_ms=%u deadline_ms=%u\n", (unsigned)i,
+            slot.message.acquired_ms, slot.message.published_ms, slot.message.deadline_ms);
+        rt_kprintf("periodic entry=%u queued_ms=%u start_ms=%u complete_ms=%u\n", (unsigned)i,
+            slot.message.queued_ms, slot.result.started_ms, slot.result.completed_ms);
+        rt_kprintf("periodic entry=%u result_gen=%u result_ticket=%u ready=%u inflight=%u\n", (unsigned)i,
+            slot.result.generation, (unsigned)slot.result.ticket, slot.ready, slot.inflight);
+        rt_kprintf("periodic entry=%u replaced=%u expired=%u scheduler_max_ms=%u\n", (unsigned)i,
+            slot.replaced, slot.expired, slot.scheduler_max_ms);
+        rt_kprintf("periodic entry=%u queue_max_ms=%u driver_max_ms=%u\n", (unsigned)i,
+            slot.queue_max_ms, slot.driver_max_ms);
+        rt_kprintf("periodic_first entry=%u gen=%u revision=%u acquired_ms=%u\n", (unsigned)i,
+            slot.first_message.generation, (unsigned)slot.first_message.revision, slot.first_message.acquired_ms);
+        rt_kprintf("periodic_first entry=%u deadline_ms=%u queued_ms=%u start_ms=%u\n", (unsigned)i,
+            slot.first_message.deadline_ms, slot.first_message.queued_ms, slot.first_result.started_ms);
+        rt_kprintf("periodic_first entry=%u complete_ms=%u success=%u data0=%u data1=%u data3=%u\n", (unsigned)i,
+            slot.first_result.completed_ms, slot.first_result.success, slot.first_message.frame.data[0],
+            slot.first_message.frame.data[1], slot.first_message.frame.data[3]);
+    }
     rt_kprintf("shutdown wait_ms=%u overdue=%u; blocked idle workers are healthy\n", stop_wait,
         state == METER_EXEC_STOPPING && stop_wait >= 5000u);
     return RT_EOK;

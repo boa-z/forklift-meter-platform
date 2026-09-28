@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from tools.build_identity import revision
+from tools.capture_target import capture
 
 
 def sha(path):
@@ -55,8 +56,9 @@ def main():
               "hardware_validation": "NOT_RUN", "confirmation": "native_auto", "files": {}}
     try:
         with (output / "build.log").open("wb") as log:
-            result = subprocess.run([str(args.python.resolve()), str(scons), "-j" + str(args.jobs)],
+            result = subprocess.run([str(args.python.resolve()), str(scons), "--verbose", "-j" + str(args.jobs)],
                                     cwd=sdk, env=environment, stdout=log, stderr=subprocess.STDOUT)
+        report["target_command_count"] = capture(output / "build.log", output / "target-commands", sdk)
         (output / "sdk-effective.config").write_bytes(config.read_bytes())
         if result.returncode:
             raise RuntimeError("firmware build failed; inspect archived build.log")

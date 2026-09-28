@@ -210,7 +210,7 @@ class DutSession:
                     while True:
                         if self.error: raise OSError('UART reader failed') from self.error
                         response = self.buffer.decode('utf-8', errors='replace')
-                        if response.endswith(('\n', ' ')) and complete(text, response):
+                        if complete(text, response):
                             return response
                         remaining = deadline - time.monotonic()
                         if remaining <= 0:

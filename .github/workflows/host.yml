@@ -15,6 +15,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang clang-tidy cppcheck ninja-build
           python -m pip install -r tools/hil/requirements.txt -r tools/ota/requirements.txt
+      - name: Capture actual quality toolchain
+        run: python tools/capture_toolchain.py --output evidence/quality-toolchain.json
       - name: Build instrumented portable code
         run: |
           cmake -S . -B build-quality -G Ninja -DMETER_BUILD_UI=OFF -DMETER_ENABLE_UPDATE=ON -DMETER_SANITIZE=ON -DMETER_FUZZ=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
@@ -28,6 +30,14 @@ jobs:
           find core runtime storage update -name '*.c' -print0 | xargs -0 -n 1 clang-tidy -p build-quality
       - name: Bounded fuzz smoke
         run: build-quality/fuzz-runtime -max_total_time=30 -max_len=4096 -seed=1
+      - name: Upload quality provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-provenance
+          path: |
+            evidence/quality-toolchain.json
+            build-quality/compile_commands.json
   host:
     runs-on: ubuntu-latest
     steps:

@@ -74,7 +74,7 @@ def connect(channel, interface, bitrate, evidence, request_id=0x7e0, response_id
                 return None
             with lock:
                 entry = copy.copy(message)
-                entry.timestamp = time.time()
+                # RX 保留 backend 原生时间戳；TX 仅记录本机提交时间。
                 entry.channel = 0
                 writer.on_message_received(entry)
             if message.is_error_frame or message.is_remote_frame or message.is_fd:
