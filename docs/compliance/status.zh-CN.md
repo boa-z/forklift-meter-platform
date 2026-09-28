@@ -40,3 +40,9 @@ TAD-001 属于 Tool Applicability Decision，不是 MISRA deviation。范围为 
 ## 工具链证据
 
 每次构建记录实际 target GCC/Xuantie、Host GCC、Clang、clang-tidy、Cppcheck、Python 版本。ASan、UBSan、libFuzzer 是编译器运行时能力，不是正式 MISRA 检查器。记录实际 SCons target 的 defines、includes、march、mabi、优化及语言模式，Host 编译数据库不足以替代。版本漂移或 target 分析缺口在交付报告中保持可见。
+
+## 维护门禁变更记录
+
+GCR-002（2026-09-28）：仅增强 `tools/check_architecture.py`、`tools/check_runtime_ownership.py` 和 CMake 测试目标。相对双引号 include 先从源码目录解析，再查已知根；Demo 协议 include 使用 Product 根及规范化允许路径。所有权扫描拒绝缺失、重复或倒置锚点。保留原有禁用调用、扫描范围和依赖规则。临时目录反例通过 CTest 和 pytest 运行真实 CLI 入口。这些词法检查不证明传递调用所有权、宏展开 include 或无竞争。
+
+名为 `test-*`/`test_*` 的 C 测试目标及已有 SDO 测试 peer 显式取消 NDEBUG，生产目标保留构建类型标志。编译期检查和故意失败的断言表达式见证在 Debug 与 Release 校验实施。本次增加检查而非豁免，不改变生产契约。负责人：维护者；实现证据见维护计划，人工评审待处理。编译器、测试命名、include 根或扫描函数布局变化时重新评审。不批准 TAD、不增加屏蔽、不降低 HIL 阈值。

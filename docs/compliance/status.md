@@ -40,3 +40,9 @@ TAD-001 is a Tool Applicability Decision, not a MISRA deviation. Scope: the exis
 ## Toolchain evidence
 
 Capture actual target GCC/Xuantie, host GCC, Clang, clang-tidy, Cppcheck and Python versions alongside each build. ASan, UBSan and libFuzzer are compiler runtime capabilities, not licensed MISRA analyzers. Record actual SCons target definitions, includes, march, mabi, optimization and language mode; a host compilation database is insufficient. Version drift or missing target analysis must remain visible in the delivery report.
+
+## Maintenance guard change record
+
+GCR-002 (2026-09-28): strengthen only `tools/check_architecture.py`, `tools/check_runtime_ownership.py` and CMake test targets. Relative quoted includes now resolve from the source directory before known roots; Demo protocol includes resolve against its Product root and canonical allowed paths. Ownership scanning rejects absent, duplicate or reversed anchors. Existing forbidden calls, scanned areas and dependency rules remain. Disposable negative fixtures run the real CLI entry points through CTest and pytest. These lexical checks do not prove transitive call ownership, macro-expanded includes or race freedom.
+
+C test targets named `test-*`/`test_*` and the existing SDO test peer explicitly undefine NDEBUG; production targets retain build-type flags. A compile-time guard plus a failing assertion-expression witness checks enforcement in Debug and Release. This adds checks, not exemptions, and changes no production contract. Owner: maintainer; implementation evidence is in the maintenance plan; human review pending. Review on compiler, test naming, include-root or scanned function layout changes. No TAD approval, suppression or reduced HIL threshold is introduced.

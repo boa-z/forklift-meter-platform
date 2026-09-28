@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """强制校验第一方源码的依赖方向，而不只是记录约定。"""
 from pathlib import Path
+import argparse
 import json
 import re
-ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
+ROOT = parser.parse_args().root.resolve()
 RULES = {
     'contracts': ('contracts/',),
     'core': ('contracts/', 'core/', 'diagnostics/'),
@@ -11,7 +14,7 @@ RULES = {
     'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
     # 产品协议解析的是产品身份，而这些身份现在位于自动生成的目录中，不再放在公共域头文件里。
-    'products/demo/protocol': ('contracts/', 'protocols/common/', 'protocol/', 'generated/'),
+    'products/demo/protocol': ('contracts/', 'protocols/common/', 'products/demo/protocol/', 'products/demo/generated/'),
     'ui': ('contracts/', 'ui/', 'generated/'),
 }
 errors=[]
@@ -19,11 +22,18 @@ for area, allowed in RULES.items():
     for file in (ROOT/area).rglob('*'):
         if file.suffix not in ('.c','.h'): continue
         text=file.read_text(encoding='utf-8')
-        for include in re.findall(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]',text,re.M):
-            candidate=(ROOT/include).resolve()
+        for delimiter, include in re.findall(r'^\s*#\s*include\s*([<"])([^>"]+)[>"]',text,re.M):
+            # Quoted includes search beside the source first, matching C lookup.
+            # Product-local roots are known for the selected Demo protocol scope.
+            search_roots = [file.parent] if delimiter == '"' else []
+            search_roots.append(ROOT)
+            if area == 'products/demo/protocol':
+                search_roots.append(ROOT / 'products/demo')
+            candidate = next(((base / include).resolve() for base in search_roots
+                              if (base / include).is_file()), (ROOT / include).resolve())
             if candidate.is_file():
                 if not candidate.is_relative_to(ROOT) or not candidate.relative_to(ROOT).as_posix().startswith(allowed):
-                    errors.append(f'{file.relative_to(ROOT)} -> {include}')
+                    errors.append(f'{file.relative_to(ROOT).as_posix()} -> {include}')
             if area in ('core','contracts','diagnostics') and re.search(r'lvgl|rtthread|rtdevice|ulog|finsh|uart|ArtInChip|aic_|(^|/)CO_|CANopen',include,re.I): errors.append(f'{area} imports {include}')
             if (area.startswith('protocols') or area.endswith('/protocol')) and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
             if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')

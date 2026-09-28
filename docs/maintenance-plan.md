@@ -10,8 +10,8 @@ Established 2026-09-28 from the [source assessment](maintainability.md), baselin
 |---|---|---|---|
 | H-01 | Record the architecture and discrepancies; link this plan from AGENTS and the docs index. Correct M-03, M-11 and verified owner comments to match current code. | Bilingual gate, source review, no changed policy. | Complete |
 | H-02 | Make `runtime/meter_periodic.c` locally readable: descriptive parameters, expanded branches, explicit phase comments. Add independent tests for publication rejection atomicity, encoder rejection/identity and exhausted identities. | Five new named cases pass on the original implementation; existing lifecycle assertions retained; full Product matrix passes; optimized objects identical. No signature, layout, arithmetic, deadline or policy changes. | Complete |
-| H-03 | Establish negative fixtures for architecture/ownership guards (M-07), then tighten relative-include handling. Keep every previous gate and scope. | Fixtures reject deliberate violations, permit valid includes and fail clearly on missing scan anchors; CTest/CI registers them. Record gate changes under governance rules. | Next |
-| H-04 | Ensure C test setup/checks cannot disappear under NDEBUG (M-08). | Debug and Release both reject a deliberate failing test; test-only enforcement; all Product matrices pass. | Queued |
+| H-03 | Establish negative fixtures for architecture/ownership guards (M-07), then tighten relative-include handling. Keep every previous gate and scope. | Fixtures reject deliberate violations, permit valid includes and fail clearly on missing scan anchors; CTest/CI registers them. Record gate changes under governance rules. | Complete |
+| H-04 | Ensure C test setup/checks cannot disappear under NDEBUG (M-08). | Debug and Release both reject a deliberate failing test; test-only enforcement; all Product matrices pass. | Complete |
 | H-05 | Document native shared-state/lock ownership and add incremental startup/stop fault-injection seams (M-01/M-05). No worker movement or synchronization change. | Tests cover every initialized resource and acknowledgement, queue rejection and blocked durability; distinguish deterministic stubs from target results. | Queued |
 | H-06 | Inventory analyzer coverage and extend handwritten first-party scopes in reviewable groups (M-06); exercise documentation links and generator failure paths (M-09). | Scope artifact reconciles selected sources and compile commands; analyzer findings repaired or explicitly pending human review. | Queued |
 
@@ -65,3 +65,7 @@ python -m pytest -q -ra
 ```
 
 Objects share SHA256 `9bf4e998b6baedb2748863bf7f5eeb668dbf059852ad716d8341c0d09f83cfc9`. This is evidence for this host compiler, not a target timing measurement. Raw build/configure logs and a result manifest remain in the ignored `build-maintainer-audit` directory; the table records the durable repository summary. No current-tree firmware/HIL, Linux analyzer or sanitizer acceptance is implied. Existing [source-bound hardware evidence](validation.md) retains its original identity.
+
+## Guard hardening verification
+
+H-03/H-04 are complete on the continuation branch after audit checkpoint `c3ddb09`. Seven real-CLI fixture methods cover allowed/forbidden includes and ownership scan anchors. Debug and Release assertion witnesses execute their deliberate failure; production targets keep their build-type flags. Governance change GCR-002 is recorded for human review in compliance status. Full framework continuation evidence follows in the next batch.
