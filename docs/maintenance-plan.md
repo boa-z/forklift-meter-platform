@@ -130,3 +130,25 @@ Fresh-process fault injection executes all 21 native resource initialization fai
 D-03 evidence: partial initialization retains already-created native objects while leaving `initialized` false; retry would revisit them. App-thread startup failure leaves the runtime initialized/FAILED with no App owner to drive shutdown. Completed shutdown is one-shot. A durability or worker acknowledgement that never arrives can wait indefinitely; the 5-second diagnostic does not authorize forced teardown. Decide bounded failure/reboot/retry policy with RT-Thread resource semantics before changing these paths. Tests characterize retention, not endorsement of retry. Optional OTA worker lifecycle and actual RT-Thread scheduling remain outside this stubbed fixture.
 
 Release/headless + update now has a CI build and CTest step. Local full-suite results and expanded analyzer provenance are recorded as subsequent batches complete.
+
+### D-02 build-time composition outcome
+
+The authorized build-time direction is implemented without changing the default Demo runtime. `contracts/meter_firmware.h` binds four independent static owner stores and a UI-owner locale initializer. Demo owns the same storage types/capacities and calls the same locale initializer at the same startup point. Reference-B supplies independent signal-only storage and its existing UI translation registration. Generic `main.c` contains no Product implementation includes; a negative ownership fixture protects this boundary. No runtime plugin loader, protocol route, worker, clock, storage schema or public Product struct changes.
+
+SCons selects `METER_PRODUCT_ROOT` (default `products/demo`) through `tools/firmware_product.py`; relative paths resolve from the application root. The selector rejects missing/escaping/duplicate sources and unsupported feature closures. Reference-Mixed is deliberately not firmware-enabled: its SDO closure requires a separate board integration decision. Inspect selection with `python tools/firmware_product.py --product-root examples/reference-b`. This command does not build or flash.
+
+Demo and Reference-B each compile the same generic firmware entry and link/run their selected composition against the real catalog, core and LVGL libraries. Tests verify capacity, independent owner arrays and copied snapshots, plus locale setup. This closes the Demo-specific bootstrap coupling and gives D-02 concrete review evidence. Target linkage, memory budgets, display/CAN board adaptation and physical acceptance remain unverified; host success does not enable a production release.
+
+### Local Settings and remote Parameters
+
+| Existing concept | Authority / meaning | Compatibility boundary |
+|---|---|---|
+| `meter_parameter_def_t`, snapshot parameter arrays | App-owned local authoritative Settings; catalog ID indexes local engineering values | Keep names/layout and MSP2 records; never treat an array write as a remote write |
+| `METER_ACTION_PARAMETER` | UI intention to change a local setting, checked and applied by App | Existing admission/persistence semantics unchanged; no remote transaction dispatch |
+| `meter_auth_profile_t` | Static Product policy for local settings and vehicle control | Not a login, credential or expiring grant |
+| `meter_parameter_definition_t`, `meter_parameters_t` | Owner-qualified remote descriptor and retained transaction result | Confirmed synthetic descriptors do not authorize real wire mappings; no implicit snapshot/NVM mutation |
+| `meter_authorization_t` | App-owned expiring/revocable permission grant for transactions | Product authentication supplies it; never persist credentials or infer them from static booleans |
+
+D-06 compatibility disposition: retain existing public names and serialized representation. Their overlap is semantic vocabulary, not permission to merge storage or authority. New documentation and boundary examples use Settings for local values and Parameters for remote transactions. Any future public rename, migration or remote-to-local cache must first specify caller compatibility, record versioning, freshness and confirmation policy. No such migration is needed for this batch.
+
+Every firmware image selects exactly one Product. The singular `METER_PRODUCT_ROOT` resolves one manifest and one `meter_product_get` / `meter_firmware_compose` implementation. Demo and Reference-B verification uses separate build directories and executables, never a combined firmware or runtime selector. Local composition batch: Demo 77/77 and Reference-B 67/67 CTests passed; evidence is `build-maintainer-audit/demo-composition.log` and `refb-composition.log`.

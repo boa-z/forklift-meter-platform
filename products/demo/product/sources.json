@@ -37,5 +37,5 @@
     "sim/main.c",
     "sim/synthetic.c"
   ],
-  "firmware": []
+  "firmware": ["product/firmware.c"]
 }

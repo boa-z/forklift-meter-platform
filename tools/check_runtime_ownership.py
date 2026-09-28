@@ -8,6 +8,10 @@ parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parent
 ROOT = parser.parse_args().root.resolve()
 errors = []
 main = (ROOT / 'main.c').read_text(encoding='utf-8')
+for include in re.findall(r'^\s*#\s*include\s*"([^"]+)"', main, re.M):
+    if not include.startswith(('contracts/', 'platform/', 'ui/common/')) and include not in (
+            'meter_build_identity.h', 'meter_update_build.h'):
+        errors.append(f'Firmware entry imports Product implementation: {include}')
 for forbidden in ('meter_rtthread_adapter_poll', 'meter_core_action(', 'meter_board_update_poll(', 'meter_board_nvm_poll(', 'meter_debug_lock('):
     if forbidden in main:
         errors.append(f'UI owner calls {forbidden}')

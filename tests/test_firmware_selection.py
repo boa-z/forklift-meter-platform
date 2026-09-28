@@ -1,0 +1,42 @@
+"""The SCons selector must reject incomplete Product source closures."""
+import importlib.util
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location('firmware_product', ROOT / 'tools/firmware_product.py')
+selector = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(selector)
+
+
+class FirmwareSelection(unittest.TestCase):
+    def test_independent_products(self):
+        for selected in ('products/demo', 'examples/reference-b'):
+            product, sources = selector.select(ROOT, selected)
+            self.assertIn(product / 'product/firmware.c', sources)
+            self.assertTrue(all(p.is_relative_to(product) for p in sources))
+        self.assertEqual(selector.select(ROOT)[0], ROOT / 'products/demo')
+
+    def test_unsupported_feature_closure(self):
+        with self.assertRaisesRegex(ValueError, 'feature closure'):
+            selector.select(ROOT, 'examples/reference-mixed')
+
+    def test_reject_invalid_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'product').mkdir()
+            source = root / 'product/firmware.c'
+            source.write_text('/* fixture */', encoding='utf-8')
+            cases = [[], ['missing.c'], ['../escape.c'], [str(source.resolve())],
+                     ['product/firmware.c', 'product/firmware.c'], [None], 'product/firmware.c']
+            for entries in cases:
+                with self.subTest(entries=entries):
+                    (root / 'product/sources.json').write_text(json.dumps({'firmware': entries}), encoding='utf-8')
+                    with self.assertRaises(ValueError):
+                        selector.select(root, '.')
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -130,3 +130,25 @@ H-05 正在执行。D-02 仅在 Demo 行为不变且有独立组合证据时关�
 D-03 证据：部分初始化保留已创建原生对象，但 `initialized` 仍为 false，重试会再次访问它们。App 线程启动失败留下 initialized/FAILED 状态且没有 App 所有者驱动停机。正常停机为一次性生命周期。耐久或工作线程确认永不到达时可无限等待，5 秒诊断不授权强制销毁。改变这些路径前，需结合 RT-Thread 资源语义决定有界失败/重启/重试策略。测试描述现有保留行为，不认可重试。可选 OTA 工作线程生命周期和真实 RT-Thread 调度不在本桩测试范围内。
 
 CI 已增加 Release/无界面加 update 的构建和 CTest 步骤。后续批次完成时记录本地全套结果及扩展分析来源。
+
+### D-02 编译期组合结果
+
+已按授权的编译期方向实现，默认 Demo 运行行为不变。`contracts/meter_firmware.h` 绑定四份独立静态所有者存储及 UI 所有者的本地化初始化函数。Demo 保留相同存储类型/容量，并在相同启动位置调用原本地化初始化。Reference-B 提供独立的纯信号存储及其原 UI 翻译注册。通用 `main.c` 不再包含 Product 实现头文件，由所有权反例保护此边界。未引入运行时插件，也未改变协议路由、线程、时钟、存储格式或公开 Product 结构。
+
+SCons 经 `tools/firmware_product.py` 选择 `METER_PRODUCT_ROOT`（默认 `products/demo`），相对路径以应用根目录解析。选择器拒绝缺失/越界/重复源码及尚不支持的特性闭包。Reference-Mixed 不启用固件组合，其 SDO 闭包需独立板级集成决策。可用 `python tools/firmware_product.py --product-root examples/reference-b` 查看选择，此命令不构建或烧录。
+
+Demo 与 Reference-B 分别编译同一通用固件入口，并对真实目录、core 和 LVGL 链接/执行所选组合。测试验证容量、所有者数组独立、快照复制及本地化初始化。这关闭了 Demo 专属启动耦合，并为 D-02 提供具体审阅证据。目标链接、内存预算、显示/CAN 板级适配及实板验收仍未验证，宿主通过不代表可发布产品。
+
+### 本地 Settings 与远端 Parameters
+
+| 现有概念 | 权威 / 含义 | 兼容边界 |
+|---|---|---|
+| `meter_parameter_def_t`、快照参数数组 | App 所有的本地权威 Settings，目录 ID 定位本地工程值 | 保留名称/布局及 MSP2 记录，数组赋值不等于远端写入 |
+| `METER_ACTION_PARAMETER` | UI 修改本地设置的意图，由 App 校验应用 | 原准入/持久化语义不变，不派发远端事务 |
+| `meter_auth_profile_t` | Product 对本地设置和车辆控制的静态策略 | 不是登录、凭据或有期限授权 |
+| `meter_parameter_definition_t`、`meter_parameters_t` | 所有者限定的远端描述符及保留事务结果 | 确认合成描述符不授权真实线上映射，不隐式修改快照/NVM |
+| `meter_authorization_t` | App 所有的可过期/撤销事务权限 | 由 Product 认证提供，不持久化凭据，也不从静态布尔值推导 |
+
+D-06 兼容性处置：保留现有公开名称及序列化表示。重叠是语义词汇，不授权合并存储或权威。新文档及边界示例用 Settings 表示本地值，Parameters 表示远端事务。未来公开重命名、迁移或远端到本地缓存须先说明调用方兼容、记录版本、新鲜度及确认策略。本批无需此类迁移。
+
+每个实际固件镜像只选择一个 Product。单一 `METER_PRODUCT_ROOT` 解析一份清单及唯一 `meter_product_get` / `meter_firmware_compose` 实现。Demo 与 Reference-B 用独立构建目录和可执行文件验证，绝不组合进同一固件或使用运行时选择器。本地组合批次：Demo 77/77、Reference-B 67/67 CTest 通过，证据为 `build-maintainer-audit/demo-composition.log` 及 `refb-composition.log`。

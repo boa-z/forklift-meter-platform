@@ -69,6 +69,10 @@ class GuardBoundaries(unittest.TestCase):
                    'static void set_mode(void) {}')
         self.run_guard('check_runtime_ownership.py', 'Protocol owner calls meter_core_')
 
+    def test_firmware_entry_must_use_composition_contract(self):
+        self.write('main.c', '#include "product/demo_storage.h"')
+        self.run_guard('check_runtime_ownership.py', 'Firmware entry imports Product implementation')
+
     def test_scan_fails_closed_on_missing_duplicate_or_reversed_anchor(self):
         for source in ('', 'static void protocol_entry(void) {}',
                        'static void set_mode(void) {} static void protocol_entry(void) {}',
