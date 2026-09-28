@@ -1,18 +1,13 @@
-# D133ECS / Luban-Lite 集成边界
+# Luban-Lite 板级集成
 
-> [English](d133-integration.md)
+## 选择与边界
 
-下文板级目标与 defconfig 变量由私有 SDK 集成提供。公开板型名为别名；使用本地实际配置，不公开内部映射。
+使用隔离 SDK checkout 及其现有 d13x 板级 defconfig。实际板名、pinmux、显示/触摸、分区和 bootloader 由私有集成提供；公开身份采用 reference-board，不公开内部映射。Framework 开发不得修改 SDK 源码、持久配置或父仓库 gitlink。
 
-本仓库不包含厂商 SDK，也不声明固件验收。请在干净、隔离的 Luban-Lite 检出上为 `d13x/<board>` 构建。
+SConscript 选择 Product manifest 和显式源文件，External Product 使用 METER_PRODUCT_ROOT。在唯一 UI owner 中初始化一次 LVGL，使用固定版本 lvgl-aic，并在 UI 创建前注册 common/Product 翻译与字体。Protocol、App/Core、TX、UI、NVM、Update 遵循[生产运行时](runtime-production.zh-CN.md)。板端设置采用所选 [NVM backend](nvm.zh-CN.md)，不由 UI 操作介质。
 
-1. 将 SDK 和公共 LVGL 子模块锁定到 `NOTICE` 和 `assets/manifest.json` 中的 SHA。
-2. 将 `third_party/lvgl-aic` 作为经评审的组件子模块添加；仅在新的 LVGL 实现选项下引入其 Kconfig。
-3. 选择现有的 `${METER_DISPLAY_DEFCONFIG}` 作为单板/显示基线，然后为本产品添加应用分组。将 `packages/artinchip/lvgl-ui` 排除在链接之外。
-4. 启用 `LV_USE_TRANSLATION=1` 以及在 `sim/lv_conf.h` 中选择的部件/字体。在 `lv_init()` 之后调用一次 `meter_i18n_init()`，然后在创建 Demo UI 之前调用 `demo_i18n_init()`；公共运行时仅持有通用有效性/状态标记，产品注册自身的翻译包和字体提供者。编译来自 `cmake/sources.json` 的显式源码清单；不得使用会静默包含私有或未选产品的全树 Glob。
-5. 应用创建一个 LVGL 属主线程。`lv_aic_init()` 在 `lv_init()` 之后安装 RT-Thread 单调时钟回调以及显示/触摸端口。应用非阻塞轮询原生 CAN 接收队列，然后在该线程中运行协议处理、域老化/求值和呈现。UI 使用域动作，永不调用 CAN 或 RT-Thread API。当前单板测试镜像将偏好保留在 RAM 中；未实现持久化工作线程。
-6. 在独立检出中运行 SDK 现有的 `packages/custom/lvgl-aic/tools/sdk/build.ps1 -Phase gate1`。记录引导加载程序来源、镜像 SHA256、配置、完整构建日志和单板证据。MPP/GE2D 阶段仍为可选，本公共主机演示不需要。
+## 构建与验证
 
-公共主机构建和 SDL 冒烟测试为 contracts、core、运行时和 UI 组合提供证据。它们不能替代 SDK 构建、触摸/显示测试、烧录操作或单板验收。2026-09-27 的首次隔离 SDK 尝试为 `BLOCKED`：工作树无法初始化私有应用子模块（仓库不可用），LVGL 获取也遇到瞬时 TLS EOF。未更改任何 SDK `.config`、镜像、串口会话或单板。
+从 Framework 根目录运行 tools/ota/build_board.py，提供 --sdk-root、--version、--output，必要时用 --python 指定 SDK 解释器。封装保存镜像、ELF/map、源码身份、配置及实际 verbose 编译命令，并恢复原配置。打包与激活见 [CAN 升级](can-update.zh-CN.md)。增量命令记录不等同完整 target compilation database。
 
-2026-09-27 稍后，现有的 SDK 检出使用专用的 `${METER_APP_DEFCONFIG}` 构建了完整的 Demo 测试镜像。单板引导加载程序和应用均编译链接成功。构建方法、镜像内容和明确验证范围见 [SDK 单板测试镜像](sdk-board-test.zh-CN.md)。此前的隔离检出失败不描述此次后续构建。
+测试前预约开发板并释放其他 UART/PCAN owner。保存镜像 SHA256、包 hash、SDK/Framework 身份、升级前后 meter info、原始 UART/CAN 和测试结果。构建或 Host 通过不能代表显示、触摸、物理 CAN、持久化或升级验收。已测结果与限制统一见[验证记录](validation.zh-CN.md)；源码变化后需重新构建才能声明新的固件身份。

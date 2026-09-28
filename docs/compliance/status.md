@@ -4,7 +4,7 @@
 
 Baseline ac3dc01, inspected 2026-09-28. Three independent levels: Tool Quality Green, Project Governance Conforming, Formal MISRA Compliance. The first two are the target. This is a MISRA C:2025-ready first-party engineering process, not formal compliance. No licensed rule text or formal analyzer is available; do not reproduce proprietary rules.
 
-Tool Quality Green: baseline GitHub run 36419980592 attempt 2 passed host and quality; subsequent code needs a new run. Project Governance Conforming: pending human applicability review and required-check enforcement. Formal MISRA Compliance: not assessed.
+Tool Quality Green: baseline GitHub run 36419980592 attempt 2 passed host and quality. Dynamic TX firmware source 3c141ff passed run 36430288416; Host-tool source 4793bb4 passed run 36430815503. Subsequent code needs a new run. Project Governance Conforming: pending human applicability review and required-check enforcement. Formal MISRA Compliance: not assessed.
 
 Actual main protection inspection returned HTTP 404 (Branch not protected); repository rulesets returned an empty list. These CI jobs are not currently protected required checks. An administrator must configure enforcement before claiming it exists.
 

@@ -6,19 +6,19 @@ Log is for important human-readable events, Diagnostics for current state/counte
 
 The portable diagnostics library depends only on public contracts. The application statically owns its diagnostics object and binds Core and Runtime; protocol services pass the optional pointer to PDO/SDO adapters. All mutations and snapshot copies must be serialized by the caller. Unbound instrumentation is a no-op. Host programs can bind and query the same API without RT-Thread, LVGL or the SDK.
 
-The board image is still a **Demo smoke** with one LVGL/Protocol/Core owner thread. A native RT-Thread priority mutex covers mutations and MSH snapshot copies. MSH formats and writes UART only after releasing this mutex; a separate native command mutex protects static output buffers. No driver sampling or CAN transmission occurs during a query. Cached Touch counters are copied by the LVGL owner after its timer handler.
+The production port publishes owner snapshots under short RT-Thread priority-mutex locks. MSH formats and writes UART after copying, outside publication locks; a separate command mutex protects query buffers. Queries do not sample devices or transmit CAN. Touch counters are copied by the LVGL owner after its timer handler.
 
-For production, Protocol thread, App/Core single-writer thread, LVGL UI thread and NVM worker retain their native RT-Thread IPC responsibilities. They must publish counter deltas or snapshots through native IPC to the diagnostics owner, or obey the same lock contract; sharing this object without synchronization is unsupported. A diagnostic mutex does not itself implement that production thread architecture.
+Protocol, App/Core, LVGL UI, CAN TX, NVM and Update are separate owners connected through native IPC. The portable diagnostics object still requires caller serialization; board queries use published copies rather than concurrent access to live Core/Protocol state. See runtime-production.md for lifecycle and owner details.
 
 ## Counters and snapshot semantics
 
-Runtime preserves its existing counter source and adds resets. CAN is indexed by physical bus; board open/bitrate is independent of transport activity. Receive is observed at the runtime boundary, including malformed/dropped input; TX is counted only when the port accepts a frame. TX busy means refusal for now, not a hardware fault. These are software-boundary error counters, not a replacement for controller error-register telemetry.
+Runtime and board-driver counters describe different boundaries. Runtime tracks accepted/dispatched frames and resets; board CAN diagnostics report physical-bus RX, driver TX success/failure and native drops. Queue admission is separate from driver completion and does not prove remote acceptance. TX busy is admission refusal, not itself a controller fault. Compare deltas over explicitly bounded observation windows.
 
 Domain counts accepted updates, including unchanged values; revision changes only for actual Domain changes. Source and validity transitions are counted separately. Reading diagnostics or counters never increments revision. Parameters/settings/fault metadata is read from the public Domain snapshot, not private core fields. Signal lookup uses canonical keys and copies the value; key/unit strings borrow the immutable Product catalog lifetime. Age is unsigned millisecond subtraction, valid within one uint32 clock cycle. UNKNOWN is reported explicitly; its numeric age is not evidence of received data.
 
 PDO reports configured bindings, valid-data freshness and aggregate traffic/errors. SDO counters count queued logical requests and started/completed/aborted/timed-out **attempts**; retries are additional attempts. A successful retry does not erase earlier timeouts. Queue depth counts requests waiting to start (excluding the active transfer and retained terminal results); active_request=0 means no current transfer. Last nonzero abort code survives later success. The current diagnostic snapshot describes one SDO channel and one PDO aggregate; Products with multiple SDO channels must extend this schema before claiming per-channel visibility.
 
-UI present_count is observed at presentation; flush_count comes from lvgl-aic. Touch exposes the driver public cached counters and range/position. The Demo stores settings in RAM, so Storage reports unavailable rather than pretending NVM persistence. slow_frame is not implemented. New counters saturate at UINT32_MAX; legacy Runtime counters retain existing arithmetic. Unavailable backends are printed explicitly.
+UI present_count is observed at presentation; flush_count comes from lvgl-aic. Touch exposes cached counters and coordinates. Storage reports the selected backend and RAM/in-flight/durable revisions; only absent backends report unavailable. slow_frame is not implemented. New counters saturate at UINT32_MAX; legacy Runtime counters retain their existing arithmetic.
 
 ## Trace and logging policy
 
@@ -36,6 +36,8 @@ The backend drains trace once per owner iteration. Ring overwrite or explicit cl
 meter info
 meter diag
 meter runtime
+meter_exec
+meter storage
 meter can
 meter can 1
 meter pdo
@@ -77,4 +79,4 @@ HOST_PASS requires Demo, Reference-B, Reference-Mixed, public headers, architect
 
 IMAGE_READY requires the selected SDK firmware build plus artifact hash. BOARD_PASS additionally requires physical boot/MSH/fixture evidence tied to that image. Current work reports BOARD_NOT_RUN when no board port is available. Demo firmware has no CANopen adapter, so pdo/sdo unavailable is correct; Mixed host tests prove its SDO/PDO diagnostics, not the Demo image's hardware behavior. This task does not add Mixed firmware selection, persistent trace, coredump, network logging, custom UART parser or extra Demo pages.
 
-See the [RT-Thread adapter](../platform/rtthread/README.md) and [CANopenNode integration](v0.3-phase4-canopen-validation.md) for adjacent architecture.
+See the [RT-Thread adapter](../platform/rtthread/README.md) and [CANopenNode integration](protocols.md) for adjacent architecture.

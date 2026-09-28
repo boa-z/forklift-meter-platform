@@ -8,4 +8,4 @@ cmake --build build-mixed
 ctest --test-dir build-mixed --output-on-failure
 ~~~
 
-The manifest enables the client. See [module design](../../docs/v0.3-phase4-canopen-validation.md) for resource limits, tests and late-response limitations. Host tests do not establish board acceptance.
+The manifest enables the client. See [module design](../../docs/protocols.md) for resource limits, tests and late-response limitations. Host tests do not establish board acceptance.

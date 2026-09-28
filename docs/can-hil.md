@@ -14,7 +14,7 @@ Normal frames use cantools encode_message(strict=True) exclusively. Tests descri
 
 DutSession reuses pySerial and the existing serial command writer. One reader continuously saves exact received bytes, including asynchronous logs and invalid UTF-8. Commands require complete stable fields within a deadline; echo, ANSI and prompts do not count as success. Per-port filelock and native exclusivity limit ownership. Release external terminals first. No flashing or reboot is performed.
 
-CanBus delegates transport, notification and periodic scheduling to python-can. Multiple instances support CAN0/CAN1 with separate logs; Host tests verify isolation and TX/RX. ASC uses host observation time. RX records receipt; direct TX records backend acceptance; periodic callbacks record TX attempts before backend completion. DUT counters establish reception: TX logs alone prove neither reception nor ACK. Sender-thread/listener errors fail tests.
+CanBus delegates I/O, notification and scheduling to python-can. RX ASC preserves native backend timestamps; Host TX records acceptance or periodic attempt time and may have another clock origin. Neither TX log nor queue admission proves DUT delivery. Use native RX intervals and identified records, not subtraction across clock origins. Multiple instances support isolated buses; sender/listener failures fail tests.
 
 ## Commands
 
@@ -29,7 +29,7 @@ python -m pytest -m hil --hil --can-interface pcan --can-channel PCAN_USBBUS1 --
 python -m pytest -m hil --hil --can-interface socketcan --can-channel can0 --can-bitrate 500000 --dut-port /dev/ttyUSB0
 ~~~
 
-Connect only the intended test board. Stop PCAN-View transmit lists and release UART terminals. PCAN-View remains manual inspection/capture only. Reserve the shared board under SDK policy. Before CAN stimulus, the harness checks reference-demo, reference-board and CAN0 bitrate. Tests clear recent Trace, inject synthetic signals and stop all tasks afterward; they do not change settings. The final board may become STALE when traffic stops.
+Connect only the intended test board; stop PCAN-View transmit lists and release UART terminals. Reserve the shared board. The harness verifies Product, board and bitrate, clears Trace and injects synthetic traffic. NVM/dynamic TX cases temporarily change brightness and queue restoration in finally; confirm durable restoration before handover. Traffic stopping can leave signals STALE. These tests do not flash or reboot.
 
 --hil-evidence selects the evidence root; --hil-image records the flashed image SHA256 (otherwise NOT_PROVIDED). Firmware-reported identity is always captured when reachable. --dut-baud defaults to 115200. --dut-board selects the exact expected board identity (default reference-board); the identity check is never skipped. Do not run physical HIL with pytest-xdist: UART ownership is exclusive.
 
@@ -43,10 +43,13 @@ Connect only the intended test board. Stop PCAN-View transmit lists and release 
 | HIL-04 | Unknown ID increments unrouted once; normal decoding continues |
 | HIL-05 | Known-ID DLC7 increments decode_failed once, not malformed; INVALID_FRAME Trace |
 | HIL-06 | Five frames every 10ms for 2s; at least 500 RX; no new overflow/drop/error/reset |
+| Runtime periodic | Native RX spacing, jitter and long gaps under 500 fps load |
+| Runtime NVM | Durable setting update while UI/CAN continue |
+| Dynamic publication | First allowed deadline uses new semantic revision; wire integrity and stale recovery |
 
 The reference-board burst gate also saves native RT-Thread canstat before/after and asserts zero native receive drops. This exposes losses before the meter Runtime boundary. burst-summary.json separates Host scheduled TX, native driver RX/drop and Domain-path RX/dispatched. The native canstat extension is specific to RT-Thread; other DUT frontends must supply their own equivalent before reusing this gate.
 
-Counters use deltas rather than lifetime totals. A physically valid short frame is a decoder error; this gate does not inject impossible DLC>8, bad CRC or bus-off. The first boundary gate covers required speed/SOC. The known generated-float height=6m error is not hidden or claimed fixed by this gate. Settings/SDO/PDO and camera assertions are out of scope.
+Counters use deltas, not lifetime totals. A valid short CAN frame is a decode error; these tests do not inject physical bad CRC or bus-off. Dynamic TX and NVM extend the normal speed/SOC gates; SDO/PDO dual-bus and camera acceptance remain outside this single-bus suite.
 
 ## Evidence
 
@@ -60,4 +63,4 @@ python-can ASCReader reads generated evidence and LogReader supports later PCAN 
 
 Linux CI runs pytest and existing Demo/Reference-B/Reference-Mixed CMake/CTest. Host tests cover malformed scenario rejection, full Demo vector representability, enums, UART completeness/deadline, raw bytes, ownership, bidirectional virtual CAN, two-channel isolation and failure evidence. These are separate from board results.
 
-The initial YAML format contains only name, period_ms and message/signals entries. Timing, loops and complex assertions use pytest Python rather than a DSL. CAN1 can use another CanBus instance, without claiming Mixed firmware availability. ASC TX attempt timestamps are scheduling observations, not hardware timestamps. Burst is bounded traffic, not a saturation guarantee. The height boundary error requires a separate generator fix and firmware rebuild.
+YAML defines name, period_ms and message/signals; timing and assertions use pytest Python instead of a DSL. CAN1 requires a separate fixture and matching Product firmware. TX attempt time is not hardware completion time; bounded burst traffic is not saturation qualification. See [validation](validation.md) for exact tested identities and results.

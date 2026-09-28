@@ -1,19 +1,8 @@
 # 生产运行时
 
-## 决策与基线
+## 当前架构
 
-基线：`3b8943a`。UI 循环每 16 ms 加渲染耗时最多消费八帧普通 CAN。OTA 增加独立原始 RX owner 和 64 帧转发队列，但普通解码仍等待 UI。这限制持续排空能力，单纯扩大原生 FIFO 无法关闭 burst 门禁。本任务不修改 HIL 门槛。
-
-已有 batch builder、深复制快照、request ledger 和单调时钟助手属于可移植契约，固件尚未使用。NVM 已将 App 所有的 revision/barrier 与阻塞 EEPROM I/O 分离。OTA 已分离升级 job 与 Flash，但另有 Protocol/TX 实现。当前诊断大锁覆盖 Core、LVGL 与驱动调用。
-
-## 实施顺序
-
-1. 使用 designated initializer 修复 Reference 产品可选字段回归。
-2. 增加可测试生命周期、Product 模式策略和计划周期期限；将完整语义批次接入运行时解码。
-3. 统一固件 Protocol runnable、App 单写者、UI 快照消费者和 CAN TX worker；复用原生 RT-Thread IPC 与 NVM/Update worker。
-4. owner 发布诊断，复制锁内禁止格式化和设备 I/O；实现协作停止与旧会话拒绝。
-5. 执行 Host 产品/OTA 门禁并添加静态分析、sanitizer 和 fuzz 基线；构建候选镜像，不修改 SDK 源码或配置。
-6. 对具体镜像实测 CAN 时序、burst、NVM 与 OTA。固件编译不能关闭这些门禁。
+固件采用 Protocol、App/Core、CAN TX、LVGL UI、NVM 和 Update 独立 owner，使用 RT-Thread 原生有界 IPC。旧单线程 CAN/UI smoke 及 OTA 独立 RX/TX 分支已被统一执行端口替代。现行实现不会在 UI 链路中排空 CAN，也不在发布锁内执行驱动或 LVGL。
 
 ## 边界
 
@@ -21,7 +10,7 @@ Core 和公共运行时不依赖 OS/LVGL。Protocol 拥有解码和协议状态�
 
 ## 验收状态
 
-已实现，并在固件 368eed1 上执行验证。Host 产品矩阵、八项实板 HIL、CAN OTA 激活、NVM 共存与协作停机通过所记录的检查。具体哈希、测量及剩余门禁见 [Runtime 重构报告](runtime-refactor-report.zh-CN.md)。多总线实板与 Linux 插桩分析仍未验证；不宣称正式 MISRA 合规、rollback 或掉电恢复通过。
+当前 Host、Linux 分析与单总线实板验证见[验证记录](validation.zh-CN.md)。记录绑定原始 firmware SHA 和镜像 hash，历史整理不改变板上固件身份。双总线实板仍未验证；不宣称正式 MISRA 合规、rollback 或掉电恢复通过。
 
 ## 执行与所有权
 
@@ -52,6 +41,8 @@ App 独占 STARTUP、NORMAL、DEGRADED、UPDATE_MAINTENANCE、SHUTDOWN，Product
 
 Reference-Demo 在 CAN0 每 50 ms 发送合成 0x3C0，每 100 ms 发送 0x2F0。维护模式仅保留关键 0x3C0。它们是公开台架数据，不是车辆控制。期限从上次计划值推进；迟到时跳过错过周期，不补发突发。模式切换显式重置相位。Mixed TPDO 也使用该 helper。线上间隔仍受队列和驱动延迟影响，必须 PCAN 实测。
 
+动态值、sample/publish time、semantic revision、generation、pending 替换和到期丢弃见[Dynamic TX 契约](dynamic-periodic-tx.zh-CN.md)。这些周期消息使用独立有界 mailbox，不在普通 TX 队列积累历史值。
+
 ## 生命周期与诊断
 
 INIT 初始化静态 IPC 和快照。App 启动 NVM/Update 及 TX 后，Protocol 才打开 CAN。全部配置总线打开后 READY 转 RUNNING。设置等待 NVM restore 完成。启动失败进入 FAILED 后协作式 STOPPING。
@@ -68,4 +59,4 @@ Windows Host、Target build、实板 HIL 分别报告并绑定 SHA 证据。配�
 
 Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，默认要求远端响应。仅发送命令保留 TX_COMPLETED 终态，不会随后被误报为超时。采用 App 会话代次时复位 Adapter，并立即同步诊断代次，维护期间暂停遥测也不会显示旧代次。
 
-clang-tidy 错误策略继续将全部 analyzer 检查作为 error，仅 clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling 保持启用并作为可见 advisory。该检查对已有长度限制的 memcpy/memset/snprintf 也推荐 C11 Annex K 替代，而可移植 Host/嵌入式契约不要求 Annex K。此单项适用性例外不关闭空指针、零除、缓冲区或无界 strcpy 诊断。各边界仍须验证长度；不通过手写循环或局部 NOLINT 绕开标准库检查。运行 36418914884 暴露了局部防护不足和无界复制形式：新增 frame/context/slot 明确检查及包身份的有界复制修复这些问题。该次 ASan/UBSan 和 cppcheck 通过，clang-tidy 失败、fuzz 跳过，因此不能视为 quality PASS。
+分析器的真实覆盖范围、Annex K TAD-001 待人工批准状态及 required checks 缺口统一维护在[治理状态](compliance/status.zh-CN.md)，不将 advisory 例外视作已批准的 MISRA deviation。

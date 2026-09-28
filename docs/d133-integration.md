@@ -1,18 +1,13 @@
-# D133ECS / Luban-Lite integration boundary
+# Luban-Lite board integration
 
-> [中文版](d133-integration.zh-CN.md)
+## Selection and boundaries
 
-The board target and defconfig variables below are supplied by private SDK integration. Public board names are aliases; use the actual local configuration without publishing the internal mapping.
+Use an isolated SDK checkout and its existing d13x board defconfig. Private integration supplies the actual board name, pinmux, display/touch configuration, partition map and bootloader. Public identities use reference-board; do not publish the internal mapping. Do not modify SDK sources, persistent configuration or parent gitlinks for Framework development.
 
-This repository does not contain the vendor SDK or claim firmware acceptance. Build it on a clean, isolated Luban-Lite checkout for `d13x/<board>`.
+SConscript selects the Product manifest and explicit sources; external Products use METER_PRODUCT_ROOT. Initialize LVGL once in its UI owner, use the pinned lvgl-aic port and register common/Product translations and fonts before creating UI. Protocol, App/Core, TX, UI, NVM and Update follow the [production runtime](runtime-production.md). Board preferences use the selected [NVM backend](nvm.md), not a UI-owned media operation.
 
-1. Pin SDK and the public LVGL submodule to the SHAs in `NOTICE` and `assets/manifest.json`.
-2. Add `third_party/lvgl-aic` as the reviewed component submodule; source its Kconfig only under the new LVGL implementation choice.
-3. Select the existing `${METER_DISPLAY_DEFCONFIG}` as the board/display baseline, then add an application group for this product. Keep `packages/artinchip/lvgl-ui` out of the link.
-4. Enable `LV_USE_TRANSLATION=1` along with the widgets/fonts selected in `sim/lv_conf.h`. Call `meter_i18n_init()` once after `lv_init()`, then `demo_i18n_init()` before creating the Demo UI; the common runtime holds only the generic validity/state tags and the product registers its own translation pack plus font provider. Compile the explicit source manifest from `cmake/sources.json`; do not use a full-tree Glob that silently includes private or unselected products.
-5. The application creates one LVGL owner thread. `lv_aic_init()` installs the RT-Thread monotonic tick callback and display/touch ports after `lv_init()`. The application polls the native CAN receive queue without blocking, then runs protocol processing, domain aging/evaluation and presentation in that thread. The UI uses domain actions and never calls CAN or RT-Thread APIs. The current board test image keeps preferences in RAM; a persistence worker is not implemented.
-6. Run the SDK's existing `packages/custom/lvgl-aic/tools/sdk/build.ps1 -Phase gate1` in a separate checkout. Record the bootloader source, image SHA256, configuration, complete build log and board evidence. MPP/GE2D phases remain optional and are not required by this public host demo.
+## Build and validation
 
-The public host build and SDL smoke are evidence for contracts, core, runtime and UI composition. They do not substitute for an SDK build, touch/display test, flash operation or board acceptance. The first isolated SDK attempt on 2026-09-27 was `BLOCKED`: the worktree could not initialize the private application submodule (repository unavailable) and the LVGL fetch also hit a transient TLS EOF. No SDK `.config`, image, serial session or board was changed.
+Run tools/ota/build_board.py from the Framework root with --sdk-root, --version, --output and the SDK --python interpreter when required. The wrapper archives the image, ELF/map, source identity, configuration and actual verbose compilation commands, and restores the original configuration. See [CAN update](can-update.md) for packaging and activation. An incremental command capture is not a complete target compilation database.
 
-Later on 2026-09-27, the existing SDK checkout built a complete Demo test image with the dedicated `${METER_APP_DEFCONFIG}`. Both the board bootloader and application compiled and linked. See [SDK board test image](sdk-board-test.md) for the build recipe, image contents and explicit validation limits. The earlier isolated-checkout failure does not describe this later build.
+Reserve the board and release competing UART/PCAN owners before testing. Record image SHA256, package hash, SDK/Framework identities, before/after meter info, raw UART/CAN and test outcome. A successful build or Host test does not establish display, touch, physical CAN, durable storage or upgrade acceptance. Existing measured results and limitations are retained in [validation](validation.md); rebuild after source changes before claiming a new firmware identity.

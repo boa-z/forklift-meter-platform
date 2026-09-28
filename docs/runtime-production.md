@@ -1,19 +1,8 @@
 # Production runtime
 
-## Decision and baseline
+## Current architecture
 
-Baseline: `3b8943a`. The UI loop consumes at most eight ordinary CAN frames per 16 ms plus rendering time. OTA adds a separate raw RX owner and a 64-frame forwarding queue, but ordinary decoding still waits for UI. This limits sustained drain and explains why increasing the native FIFO alone cannot close the burst gate. No HIL threshold is changed.
-
-The existing batch builder, deep snapshot copy, request ledger and monotonic time helper are portable contracts; the firmware has not used them. NVM already separates App-owned revision/barrier state from blocking EEPROM I/O. OTA separates update jobs from Flash work, but owns a second protocol/TX implementation. The broad diagnostics mutex currently covers Core, LVGL and driver work.
-
-## Implementation sequence
-
-1. Repair Reference product optional-field regressions with designated initializers.
-2. Add tested lifecycle, Product mode policy and planned periodic deadlines; connect semantic batches to runtime decoding.
-3. Introduce one firmware Protocol runnable, App writer, UI snapshot consumer and CAN TX worker; reuse native RT-Thread IPC and existing NVM/Update workers.
-4. Publish owner diagnostics without formatting or device I/O under the copy lock; implement cooperative stopping and stale-session rejection.
-5. Run Host product/OTA gates and add static analysis, sanitizer and fuzz baselines; build a candidate image without changing SDK source/configuration.
-6. Validate physical CAN timing, burst, NVM and OTA against a specific image. Firmware compilation does not close these gates.
+Firmware uses separate Protocol, App/Core, CAN TX, LVGL UI, NVM and Update owners with bounded native RT-Thread IPC. The old single-thread CAN/UI smoke and separate OTA RX/TX path have been replaced by the shared execution port. CAN draining does not run in the UI chain, and publication locks do not cover driver or LVGL execution.
 
 ## Boundaries
 
@@ -21,7 +10,7 @@ Core and common runtime remain OS/LVGL independent. Protocol owns decoding and p
 
 ## Acceptance status
 
-Implemented and exercised on firmware 368eed1. Host product matrices, eight physical HIL tests, CAN OTA activation, NVM coexistence and cooperative shutdown passed the documented checks. See [Runtime Refactor Report](runtime-refactor-report.md) for exact hashes, measurements and remaining gates. Multi-bus hardware and Linux instrumented analysis remain unverified; no formal MISRA compliance, rollback or power-loss recovery claim is made.
+Current Host, Linux analysis and single-bus hardware evidence is recorded in [validation](validation.md). Records retain original firmware SHA and image hashes; history consolidation does not change the installed firmware identity. Dual-bus hardware remains unverified; no formal MISRA, rollback or power-loss recovery claim is made.
 
 ## Execution and ownership
 
@@ -52,6 +41,8 @@ App owns STARTUP, NORMAL, DEGRADED, UPDATE_MAINTENANCE and SHUTDOWN. Product sup
 
 Reference-Demo sends synthetic CAN0 0x3C0 every 50 ms and 0x2F0 every 100 ms. Only 0x3C0 is critical in maintenance. These public bench frames are not vehicle control. Deadlines advance from their previous planned value. Late runnables skip missed periods without catch-up bursts. Mode changes explicitly rearm phase. Mixed TPDO uses the same helper. Wire spacing still depends on queue and driver latency and requires PCAN measurement.
 
+Dynamic values, sample/publish time, semantic revision, generation, pending replacement and expiry are specified in the [Dynamic TX contract](dynamic-periodic-tx.md). Periodic messages use separate bounded mailboxes and do not accumulate historical values in ordinary TX queues.
+
 ## Lifecycle and diagnostics
 
 INIT prepares static IPC and snapshots. App starts NVM/Update and TX before Protocol opens CAN. READY becomes RUNNING only after all configured buses open. Settings wait for NVM restore. Startup failure enters FAILED then cooperative STOPPING.
@@ -68,4 +59,4 @@ Windows Host, target build and physical HIL are reported separately with SHA-bou
 
 Product may declare command completion at APPLIED, TX_COMPLETED or REMOTE_CONFIRMED; the default requires the remote response. A transmit-only command retains TX_COMPLETED as its final result and does not later become a false timeout. Session adoption resets adapters and publishes the same generation as App even while telemetry is suppressed.
 
-The clang-tidy error policy retains all analyzer checks as errors except clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling, which remains enabled and visible as an advisory. That checker recommends C11 Annex K replacements for even size-bounded memcpy/memset/snprintf calls; the portable Host/embedded contract does not require Annex K. This single applicability exception does not disable null-dereference, divide-by-zero, buffer, or unbounded strcpy diagnostics. Size validation remains required at each boundary; replacing standard calls with handwritten loops or local NOLINT annotations is not the policy. Run 36418914884 exposed missing local guards and unbounded-copy syntax: explicit frame/context/slot guards and length-bounded package identity copies address those findings. ASan/UBSan and cppcheck passed that run; clang-tidy failed and fuzz was skipped, so it was not a quality PASS.
+Actual analyzer coverage, pending human approval of Annex K TAD-001 and required-check gaps are maintained in [governance status](compliance/status.md). The advisory exception is not an approved MISRA deviation.

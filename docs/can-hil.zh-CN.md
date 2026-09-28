@@ -14,7 +14,7 @@ tools/hil/requirements.txt 复用 cantools 40.7.1（MIT）、python-can 4.6.1（
 
 DutSession 复用 pySerial 和现有串口命令发送函数。唯一读取线程持续保存原始字节，包括异步日志和非法 UTF-8。命令必须在超时内返回完整稳定字段，回显、ANSI 和提示符不算成功。每端口 filelock 和系统独占约束所有权，外部终端需先释放。不执行烧录或重启。
 
-CanBus 将传输、接收通知和周期调度交给 python-can。多个实例支持 CAN0/CAN1 独立日志，Host 验证隔离及 TX/RX。ASC 使用 Host 观测时间：RX 表示已收到，直接 TX 表示 backend 接受，周期回调表示 backend 完成前的 TX 尝试。DUT 计数证明接收，TX 日志本身不能证明接收或 ACK。发送线程/监听器错误会使测试失败。
+CanBus 将 I/O、通知与调度交给 python-can。RX ASC 保留 backend 原生时间戳，Host TX 记录接受或周期尝试时间，可能属于另一时钟原点；TX 日志或队列准入不证明 DUT 收到。使用原生 RX 间隔及带身份记录，不跨时钟原点相减。多个实例支持独立 bus，发送/监听失败会使测试失败。
 
 ## 命令
 
@@ -29,7 +29,7 @@ python -m pytest -m hil --hil --can-interface pcan --can-channel PCAN_USBBUS1 --
 python -m pytest -m hil --hil --can-interface socketcan --can-channel can0 --can-bitrate 500000 --dut-port /dev/ttyUSB0
 ~~~
 
-只连接目标测试板。停止 PCAN-View 发送列表并释放 UART 终端。PCAN-View 仅保留人工查看/抓包。按 SDK 规则预约共享实板。CAN 激励前检查 reference-demo、reference-board 和 CAN0 波特率。测试清除近期 Trace、注入合成信号并在结束时停发，不改设置。停止流量后板端可能进入 STALE。
+仅连接目标测试板，停止 PCAN-View 发送并释放串口终端，按规则预约开发板。框架检查 Product、board、bitrate，清理 Trace 并注入合成流量。NVM/动态 TX 用例会临时改变亮度，在 finally 排队恢复；交接前确认恢复值已 durable。停止流量后信号可能 STALE，测试不烧录或重启。
 
 --hil-evidence 指定证据根目录，--hil-image 记录已烧录镜像 SHA256，否则写 NOT_PROVIDED。可连接时始终记录固件报告身份。--dut-baud 默认 115200。--dut-board 指定必须精确匹配的板型身份（默认 reference-board），不会跳过身份校验。物理 HIL 不使用 pytest-xdist，UART 必须独占。
 
@@ -43,10 +43,13 @@ python -m pytest -m hil --hil --can-interface socketcan --can-channel can0 --can
 | HIL-04 | 未知 ID 使 unrouted 增加一次，正常解码继续 |
 | HIL-05 | 已知 ID 的 DLC7 使 decode_failed 增加一次而非 malformed；INVALID_FRAME Trace |
 | HIL-06 | 五帧各 10ms、持续 2s；至少 500 RX；无新增 overflow/drop/error/reset |
+| Runtime periodic | 500 fps 负载下的原生 RX 间隔、抖动和长间隔 |
+| Runtime NVM | UI/CAN 持续运行时设置达到 durable |
+| Dynamic publication | 首允许 deadline 使用新语义版本，wire 完整性与 stale 恢复 |
 
 reference-board 的 Burst Gate 额外保存 RT-Thread 原生 canstat 前后结果，并断言原生接收丢帧为零，从而发现 meter Runtime 边界之前的损失。burst-summary.json 分别记录 Host 周期发送尝试、原生驱动 RX/drop 和进入 Domain 路径的 RX/dispatched。canstat 扩展属于 RT-Thread，其他 DUT 前端复用本 Gate 前须提供等价查询。
 
-计数使用增量，不使用生命周期总数。物理合法短帧属于解码错误，本 Gate 不注入不可能的 DLC>8、错误 CRC 或 bus-off。首批边界覆盖要求的速度/SOC，已知高度 6m 的生成浮点误差未被掩盖，也未宣称修复。Settings/SDO/PDO 和摄像头断言不在范围内。
+计数使用增量而非整个运行期总值。合法短 CAN 帧属于解码错误；测试不注入物理坏 CRC 或 bus-off。动态 TX 与 NVM 补充原 speed/SOC 门禁，SDO/PDO 双总线和摄像头验收仍不在单总线套件内。
 
 ## 证据
 
@@ -60,4 +63,4 @@ python-can ASCReader 可读取生成证据，LogReader 支持后续 PCAN TRC fix
 
 Linux CI 执行 pytest 和现有 Demo/Reference-B/Reference-Mixed CMake/CTest。Host 覆盖非法场景拒绝、全部 Demo 向量可表示性、枚举、UART 完整性/超时、原始字节、独占、双向虚拟 CAN、双通道隔离及失败证据，与实板结果分开。
 
-首批 YAML 仅有 name、period_ms 和 message/signals。时序、循环和复杂断言用 pytest Python，不实现 DSL。CAN1 可增加 CanBus 实例，但不宣称 Mixed 固件可用。ASC TX 尝试时间属于调度观测，不是硬件时间戳。Burst 是有界负载，不保证饱和。高度边界错误需要另行修复生成器并重新构建固件。
+YAML 定义 name、period_ms 和 message/signals；时序与断言采用 pytest Python，不新增 DSL。CAN1 需独立夹具和匹配的 Product 固件。TX 尝试时间不是硬件完成时间，有界 burst 不代表饱和资格验证。精确测试身份和结果见[验证记录](validation.zh-CN.md)。

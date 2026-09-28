@@ -4,7 +4,7 @@
 
 基线 ac3dc01，检查日期 2026-09-28。独立区分 Tool Quality Green、Project Governance Conforming、Formal MISRA Compliance，目标为前两层。本项目采用 MISRA C:2025-ready 第一方工程流程，不宣称正式合规。没有授权规则原文或正式检查器，不复制专有规则。
 
-Tool Quality Green：基线 GitHub run 36419980592 attempt 2 的 host 和 quality 通过，后续修改重新验证。Project Governance Conforming：人工适用性评审及 required checks 强制执行待闭合。Formal MISRA Compliance：未评估。
+Tool Quality Green：基线 GitHub run 36419980592 attempt 2 的 host 和 quality 通过。Dynamic TX firmware 源码 3c141ff 的 run 36430288416、Host 工具源码 4793bb4 的 run 36430815503 通过；后续修改重新验证。Project Governance Conforming：人工适用性评审及 required checks 强制执行待闭合。Formal MISRA Compliance：未评估。
 
 实际 main 保护查询返回 HTTP 404（Branch not protected），仓库 rulesets 为空。这些 CI job 当前不是受保护的 required checks，管理员配置后才能宣称存在强制执行。
 

@@ -6,19 +6,19 @@ Log 用于立即阅读的重要事件，Diagnostics 用于当前状态与计数�
 
 平台无关 diagnostics 库只依赖公共 contracts。应用静态持有 diagnostics 并绑定 Core 和 Runtime；Protocol services 将可选指针传入 PDO/SDO Adapter。调用者必须串行化全部修改与快照复制，未绑定时观测为空操作。Host 可在没有 RT-Thread、LVGL、SDK 的环境中复用接口。
 
-板端仍为单 LVGL/Protocol/Core owner 线程的 **Demo smoke**。原生 RT-Thread 优先级互斥锁保护修改和 MSH 快照复制，释放 owner 锁后才格式化并输出 UART；另一个原生命令锁保护静态查询缓冲。查询不触发驱动采样或 CAN 发送。Touch 缓存由 LVGL owner 在 timer handler 后复制。
+生产端口用 RT-Thread 优先级互斥锁短时复制 owner 快照，MSH 复制后在发布锁外格式化并输出 UART，独立命令锁保护查询缓冲。查询不采样设备、不发送 CAN；LVGL owner 在 timer handler 后复制 Touch 缓存。
 
-生产架构继续按 Protocol thread、App/Core single-writer thread、LVGL UI thread、NVM worker 分工，使用原生 RT-Thread IPC 将计数增量或快照送给 diagnostics owner，或遵循同一锁协议；不支持无同步共享实例。诊断互斥锁本身不等于已经实现生产多线程架构。
+Protocol、App/Core、LVGL UI、CAN TX、NVM、Update 为独立 owner，通过原生 IPC 连接。可移植 diagnostics 对象仍要求调用者串行访问；板端查询使用已发布副本，不并发读取活动 Core/Protocol 状态。生命周期与 owner 细节见 runtime-production.zh-CN.md。
 
 ## 计数与快照语义
 
-Runtime 保留既有计数真源并增加 resets。CAN 按物理 bus 统计，板端 open/bitrate 与传输活动独立。RX 在 Runtime 边界观测，包含畸形与丢弃输入；TX 仅在端口接受帧时递增。TX busy 表示暂时拒绝，不等于硬件错误。这些是软件边界错误计数，不能替代控制器错误寄存器遥测。
+Runtime 与板级 driver 计数描述不同边界。Runtime 记录 accepted/dispatched 和 reset；板级 CAN 诊断记录物理 bus RX、driver TX 成功/失败和原生 drop。队列准入与 driver completion 独立，均不证明远端应用接受。TX busy 是准入拒绝，本身不等同控制器错误；按明确观察窗口比较增量。
 
 Domain 统计接受的 update，含数值未变化的 update；revision 只随真实 Domain 变化。来源与有效性转移独立计数，读取诊断或累计计数不改变 revision。参数、设置、故障元数据来自公共 Domain snapshot，不读取 Core 私有字段。signal 用 canonical key 查找并复制值，key/unit 借用不可变 Product catalog 的生命周期。age 用无符号毫秒差，适用范围为一个 uint32 时钟周期；UNKNOWN 明确显示，其数值 age 不能当作已收到数据的证明。
 
 PDO 展示配置绑定数、有效数据 freshness 与聚合流量/错误。SDO queued 计逻辑请求，started/completed/aborted/timeout 计**尝试次数**，retry 是额外尝试；重试成功不抹掉先前 timeout。depth 是等待启动的请求数，不含当前活动传输与保留的终态；active_request=0 表示无当前传输。last_abort 保留最近非零 abort，即使之后成功。当前快照仅覆盖一个 SDO channel 与一个 PDO aggregate；多通道 Product 必须先扩展结构才能宣称逐通道可见。
 
-UI present_count 在展示入口统计，flush_count 来自 lvgl-aic。Touch 复用驱动公开缓存计数与范围/坐标。Demo 设置仅存 RAM，Storage 显示 unavailable，不冒充 NVM 持久化；尚未实现 slow_frame。新增计数在 UINT32_MAX 饱和，原 Runtime 计数保持既有算术规则。没有后端时明确输出 unavailable。
+UI present_count 在展示入口统计，flush_count 来自 lvgl-aic；Touch 提供缓存计数和坐标。Storage 显示所选 backend 及 RAM/in-flight/durable revision，仅无后端时输出 unavailable。尚未实现 slow_frame；新增计数在 UINT32_MAX 饱和，原 Runtime 计数保持既有算术规则。
 
 ## Trace 与日志策略
 
@@ -36,6 +36,8 @@ UI present_count 在展示入口统计，flush_count 来自 lvgl-aic。Touch 复
 meter info
 meter diag
 meter runtime
+meter_exec
+meter storage
 meter can
 meter can 1
 meter pdo
@@ -77,4 +79,4 @@ HOST_PASS 要求 Demo、Reference-B、Reference-Mixed、公共头、架构、dia
 
 IMAGE_READY 要求当前 SDK 固件构建与产物哈希；BOARD_PASS 还须与该镜像绑定的物理 boot/MSH/fixture 证据。没有可用板端串口时报告 BOARD_NOT_RUN。Demo 固件不含 CANopen Adapter，pdo/sdo unavailable 正确；Mixed Host 证明其 SDO/PDO 诊断，不代表 Demo 镜像的硬件行为。本任务不增加 Mixed 固件选择、持久化 trace、coredump、网络日志、自研 UART parser 或无关 Demo 页面。
 
-相邻架构见 [RT-Thread adapter](../platform/rtthread/README.zh-CN.md) 与 [CANopenNode 接入](v0.3-phase4-canopen-validation.zh-CN.md)。
+相邻架构见 [RT-Thread adapter](../platform/rtthread/README.zh-CN.md) 与 [CANopenNode 接入](protocols.zh-CN.md)。
