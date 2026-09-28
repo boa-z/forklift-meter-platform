@@ -545,6 +545,51 @@ static meter_request_admission_t app_command(void *context, const meter_command_
 static bool app_result(void *context, meter_request_id_t id, meter_command_stage_t *stage, bool acknowledge)
 { (void)context; return meter_execution_command_result(id, stage, acknowledge); }
 static const meter_command_port_t app_commands = {.submit = app_command, .result = app_result};
+/* App owns shutdown progress. Never release UI before durability and all worker acknowledgements.
+ * A timeout records wait duration only; it does not cancel I/O, reclaim stacks or permit restart. */
+static bool app_shutdown_progress(uint32_t now, uint32_t stop_at, uint64_t *durable)
+{
+    lock_state();
+    shared.stop_wait_ms = now - stop_at;
+    unlock_state();
+    if (!*durable && meter_board_nvm_ready())
+        *durable = meter_board_nvm_flush();
+    bool nvm_done = meter_board_nvm_stopped() || !config.product->storage ||
+                    !config.product->storage->enabled || (*durable && meter_board_nvm_barrier(*durable));
+    if (nvm_done)
+        meter_board_nvm_stop();
+    lock_state();
+    bool done = shared.protocol_done;
+    for (unsigned i = 0u; i < METER_BUS_COUNT; ++i)
+        done = done && shared.tx_done[i];
+    unlock_state();
+#ifdef METER_ENABLE_CAN_UPDATE
+    done = done && meter_board_update_stopped();
+#endif
+    if (done && nvm_done && meter_board_nvm_stopped())
+    {
+        lock_state();
+        bool releasing = shared.ui_release, ui_done = shared.ui_done;
+        unlock_state();
+        if (!releasing)
+        {
+            meter_board_can_close(&protocol_diag);
+            publish_protocol();
+            lock_state();
+            shared.ui_release = true;
+            unlock_state();
+        }
+        if (ui_done)
+        {
+            (void)meter_execution_transition(&execution, METER_EXEC_STOPPED);
+            lock_state();
+            shared.state = execution.state;
+            unlock_state();
+            return true;
+        }
+    }
+    return false;
+}
 static void app_entry(void *arg)
 {
     (void)arg;
@@ -645,36 +690,9 @@ static void app_entry(void *arg)
         meter_core_tick(config.core, now);
         if (config.product->evaluate) config.product->evaluate(&config.core->snapshot);
         publish_app(now);
-        if (stopping)
+        if (stopping && app_shutdown_progress(now, stop_at, &durable))
         {
-            lock_state(); shared.stop_wait_ms = now - stop_at; unlock_state();
-            if (!durable && meter_board_nvm_ready()) durable = meter_board_nvm_flush();
-            bool nvm_done = meter_board_nvm_stopped() || !config.product->storage || !config.product->storage->enabled ||
-                (durable && meter_board_nvm_barrier(durable));
-            if (nvm_done) meter_board_nvm_stop();
-            lock_state();
-            bool done = shared.protocol_done;
-            for (unsigned i = 0u; i < METER_BUS_COUNT; ++i) done = done && shared.tx_done[i];
-            unlock_state();
-#ifdef METER_ENABLE_CAN_UPDATE
-            done = done && meter_board_update_stopped();
-#endif
-            if (done && nvm_done && meter_board_nvm_stopped())
-            {
-                lock_state(); bool releasing = shared.ui_release, ui_done = shared.ui_done; unlock_state();
-                if (!releasing)
-                {
-                    meter_board_can_close(&protocol_diag);
-                    publish_protocol();
-                    lock_state(); shared.ui_release = true; unlock_state();
-                }
-                if (ui_done)
-                {
-                    (void)meter_execution_transition(&execution, METER_EXEC_STOPPED);
-                    lock_state(); shared.state = execution.state; unlock_state();
-                    return;
-                }
-            }
+            return;
         }
         (void)rt_sem_take(&app_event, rt_tick_from_millisecond(5));
     }

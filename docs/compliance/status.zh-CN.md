@@ -46,3 +46,5 @@ TAD-001 属于 Tool Applicability Decision，不是 MISRA deviation。范围为 
 GCR-002（2026-09-28）：仅增强 `tools/check_architecture.py`、`tools/check_runtime_ownership.py` 和 CMake 测试目标。相对双引号 include 先从源码目录解析，再查已知根；Demo 协议 include 使用 Product 根及规范化允许路径。所有权扫描拒绝缺失、重复或倒置锚点。保留原有禁用调用、扫描范围和依赖规则。临时目录反例通过 CTest 和 pytest 运行真实 CLI 入口。这些词法检查不证明传递调用所有权、宏展开 include 或无竞争。
 
 名为 `test-*`/`test_*` 的 C 测试目标及已有 SDO 测试 peer 显式取消 NDEBUG，生产目标保留构建类型标志。编译期检查和故意失败的断言表达式见证在 Debug 与 Release 校验实施。本次增加检查而非豁免，不改变生产契约。负责人：维护者；实现证据见维护计划，人工评审待处理。编译器、测试命名、include 根或扫描函数布局变化时重新评审。不批准 TAD、不增加屏蔽、不降低 HIL 阈值。
+
+GCR-003（2026-09-29）：在 host 工作流增加 Release/无界面加 update 的 CTest 及原生生命周期故障注入测试。保留现有 Debug、消毒器、模糊、生成源码与硬件门禁。明确的手写源码分析扩展将保留原范围，并在证据中注明原生桩假设。所有者：维护者；待人工审阅。所有者布局、资源初始化顺序、工具链或目标包含配置变化时复审。不授予抑制或安全策略批准。

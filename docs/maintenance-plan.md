@@ -116,3 +116,17 @@ Release reproduction uses the headless configuration above with `-B build-mainta
 Next safe batches are H-05 owner/lifecycle characterization and F-07 calibration workflow specification over F-02; F-05 counters, F-06 profile/capability publication and F-08 identity provider remain designed work, not implemented features. D-01/D-02/D-03/D-05 and all unresolved requirement entries stay open. Real-product adaptation requires confirmed descriptors plus backend correlation/drain tests before any production parameter writes.
 
 The two new runtime sources additionally pass host GCC `-fanalyzer -Wall -Wextra -Werror`; this does not replace CI Clang/Cppcheck or target analysis. `build-maintainer-audit/framework-evidence.json` records tool version and source SHA256; final matrix XML is `final-framework-results.xml` in each build.
+
+## App integration continuation
+
+Accepted baseline: `7ed094f` on `codex/product-framework-hardening`; host/quality green reported by the maintainer. Continue this plan, not a new audit. Current order follows dependencies: characterize native startup/shutdown and failure ownership first; prove build-time firmware composition with independent Products; then exercise opt-in parameter Application integration and copied presentation values with synthetic backends. Add Release/headless CI and extend explicit handwritten analyzer coverage without reducing existing scopes.
+
+H-05 is in progress. D-02 may close only through unchanged Demo behavior and independent composition evidence. D-03 retains cleanup/restart/durability policy decisions. Existing local Settings and remote Parameters remain separate; document compatibility before any public rename. No private wire encoding, credentials, physical timing or persistent format changes are part of this batch.
+
+### H-05 lifecycle evidence
+
+Fresh-process fault injection executes all 21 native resource initialization failures, App startup failure, TX0/TX1/Protocol startup failures, NVM startup failure and staged shutdown durability/worker/UI acknowledgements. Existing IPC tests retain queue saturation and copied publication coverage. The same 28 lifecycle/IPC tests passed before and after extracting the App-owned shutdown handshake into one named operation. No worker, lock, queue, delay or timeout policy moved. Host object hashes differ; no binary identity or target timing claim is made.
+
+D-03 evidence: partial initialization retains already-created native objects while leaving `initialized` false; retry would revisit them. App-thread startup failure leaves the runtime initialized/FAILED with no App owner to drive shutdown. Completed shutdown is one-shot. A durability or worker acknowledgement that never arrives can wait indefinitely; the 5-second diagnostic does not authorize forced teardown. Decide bounded failure/reboot/retry policy with RT-Thread resource semantics before changing these paths. Tests characterize retention, not endorsement of retry. Optional OTA worker lifecycle and actual RT-Thread scheduling remain outside this stubbed fixture.
+
+Release/headless + update now has a CI build and CTest step. Local full-suite results and expanded analyzer provenance are recorded as subsequent batches complete.

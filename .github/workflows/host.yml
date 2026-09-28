@@ -77,6 +77,11 @@ jobs:
           cmake -S . -B build-update -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_BUILD_UI=OFF -DMETER_ENABLE_UPDATE=ON
           cmake --build build-update
           ctest --test-dir build-update --output-on-failure
+      - name: Build and test Release headless assertion contract
+        run: |
+          cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DMETER_BUILD_UI=OFF -DMETER_ENABLE_UPDATE=ON
+          cmake --build build-release
+          ctest --test-dir build-release --output-on-failure --output-junit ../evidence/release-junit.xml
       - name: Build and test Reference-B
         run: |
           cmake -S . -B build-reference -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=examples/reference-b
