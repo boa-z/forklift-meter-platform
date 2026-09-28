@@ -11,7 +11,8 @@
     "runtime/meter_requests.c",
     "runtime/meter_authorization.c",
     "runtime/meter_parameters.c",
-    "runtime/meter_batch_builder.c"
+    "runtime/meter_batch_builder.c",
+    "runtime/meter_calibration.c"
   ],
   "protocol_common": [
     "protocols/common/meter_frame_router.c"
@@ -32,7 +33,8 @@
   ],
   "diagnostics": [
     "diagnostics/meter_diagnostics.c",
-    "diagnostics/meter_trace.c"
+    "diagnostics/meter_trace.c",
+    "diagnostics/meter_classification.c"
   ],
   "storage": [
     "storage/meter_record.c",

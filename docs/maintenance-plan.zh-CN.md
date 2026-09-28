@@ -179,3 +179,27 @@ H-06 增加七份明确手写源码：诊断、trace、通用路由、诊断命�
 沿用前述 CMake 配置，分别构建并运行 CTest；Release 为启用 update 的无界面配置，各 SDL 目录只选择一个 Product。`python tools/analyze_handwritten.py --tool cppcheck --output build-maintainer-audit/handwritten-cppcheck.json` 复现本地 Cppcheck。CI 不传 `--tool`，要求 Cppcheck 和 clang-tidy 全部运行。本地结果来自 Windows GNU 16.1.0 / Python 3.13.15。GCC 暴露 Shell 桩缺少导出引用后修正桩，并重建重跑原生生命周期测试，未放宽警告策略。
 
 提交 `f30ff95` 和 `e07f899` 分离生命周期特征验证与单 Product 组合。当前树 Linux Clang/消毒器/模糊 CI、目标固件链接、真实控制器互操作、物理时序、UI 视觉验收及 HIL 仍为 NOT_RUN。维护者报告的绿色 CI 属于基线 `7ed094f`，不是本批。下一步按 D-03/D-07 决策或独立 H-06 工具工作继续，不授权线上编码、凭据、存储迁移或健康策略变更。
+
+## Application services continuation
+
+当前里程碑：基于既有快照的 Product 自有、可无界面测试的呈现模型；规范化运行时 profile 代际；基于既有参数服务的有界应用标定流程；与健康策略分离的事件分类。均为增量可选服务，不建立第二套运行时或快照引擎。
+
+按依赖推进：先迁移 Demo 投影；定义并验证代际失效；使用合成传输证明标定及结果保留；明确 D-01/D-05 和身份提供者决策。每个固件仅一个构建期 Product，保留全部矩阵。不重构原生 worker、不引入私有协议映射或凭据、不实现持久计数器、不变更安全策略。
+
+私有需求仅作证据。新鲜度、功能可见性、随 profile 变化的故障及版本选择、采样写参数的标定需求驱动这些边界；源文件中未决冲突保持未决。以下逐批记录不变行为、确定性验证和实板限制。
+
+### 服务批次结果
+
+Demo 使用无头 Product 投影；profile generation、标定及诊断分类均为可选契约。[Application 服务](application-services.zh-CN.md) 记录所有权、重编译兼容性、D-01/D-05 决策表及身份评估。D-03 不变；D-07 生产映射/认证/缓存失效仍待决策。未实现持久计数器和客户适配器。
+
+| 检查 | 结果 | 证据 |
+|---|---|---|
+| Debug 无头 + update / Demo SDL | 79/79 与 82/82 PASS | build-maintainer-audit/build-maintainer-audit-services-test.log 和 build-maintainer-demo-services-test.log |
+| Reference-B / Reference-Mixed SDL | 71/71 与 69/69 PASS | build-maintainer-audit/build-maintainer-refb-services-test.log 和 build-maintainer-mixed-services-test.log |
+| Release 无头 + update | 79/79 PASS | build-maintainer-audit/build-maintainer-release-services-test.log |
+| 十个显式手写源文件 | Cppcheck 与 GCC analyzer PASS | build-maintainer-audit/services-cppcheck.json 和 services-gcc.json |
+| 仓库检查 | 28 组双语文档；架构、所有权、公开头文件/纯净性及负向夹具 PASS | 各构建 services-results.xml |
+
+仅为 Host GNU 16.1.0 / Python 3.13 证据，不隐含当前源码 Linux CI、sanitizer/fuzz、物理时序或 UI 视觉验收。首轮 Python 缺少 can-isotp；隔离环境使用固定依赖重试，在此记录首次缺依赖失败。源码提交后另记实板验证。
+
+Python Host 工具：114 PASS，9 项物理 HIL 跳过；证据 build-maintainer-audit/services-python.xml 与 services-python.log。通过既有 METER_OTA_CPIO/METER_OTA_MKENVIMAGE 环境覆盖使用 SDK 原生 cpio/mkenvimage，打包测试无跳过。

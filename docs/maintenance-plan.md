@@ -179,3 +179,27 @@ Remaining lifecycle boundary: partial init retention, failed App startup and one
 Use the earlier CMake configurations, build each directory and run CTest; Release is headless with update enabled, while each SDL directory selects exactly one Product. `python tools/analyze_handwritten.py --tool cppcheck --output build-maintainer-audit/handwritten-cppcheck.json` reproduces local Cppcheck. CI omits `--tool` to require both Cppcheck and clang-tidy. GNU 16.1.0 / Python 3.13.15 on Windows produced the local results. The Shell stub's missing export reference was repaired after GCC exposed it; native lifecycle tests were rebuilt and rerun. No warning policy was relaxed.
 
 Commits `f30ff95` and `e07f899` separate lifecycle characterization and single-Product composition. Current-tree Linux Clang/sanitizer/fuzz CI, target firmware linking, real controller interoperability, physical timing, UI visual acceptance and HIL remain NOT_RUN. The maintainer-reported green CI belongs to baseline `7ed094f`, not this batch. Next implementation should follow D-03/D-07 decisions or independent H-06 tooling work; this is not approval for wire encoding, credentials, storage migration or health-policy changes.
+
+## Application services continuation
+
+Active milestone: Product-owned, headless-testable presentation over the existing snapshot; normalized runtime profile generations; a bounded calibration Application workflow over the existing parameter service; classification without health-policy changes. These are additive opt-in services, not a second runtime or snapshot engine.
+
+Order follows dependencies: migrate Demo projection first; specify/profile-test generation invalidation; prove calibration and retained outcomes with synthetic transport; make D-01/D-05 and identity-provider decisions concrete. Keep one build-time Product per firmware and all existing matrices. No native worker restructuring, private wire mapping, credentials, persistent counter implementation or product safety-policy changes.
+
+Private requirements are evidence only. Source freshness, feature visibility, profile-dependent fault/version selection and capture-to-parameter calibration motivate the boundaries; unresolved source conflicts remain unresolved. Each batch records unchanged behavior, deterministic evidence and physical limitations below.
+
+### Services batch outcome
+
+Demo now uses a headless Product projection; profile generation, calibration and diagnostic classification are opt-in contracts. See [Application services](application-services.md) for ownership, rebuild compatibility, D-01/D-05 decision tables and identity assessment. D-03 remains unchanged; D-07 production mapping/authentication/cache invalidation remain open. Persistent counters and customer adapters are not implemented.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Debug headless + update / Demo SDL | 79/79 and 82/82 PASS | build-maintainer-audit/build-maintainer-audit-services-test.log and build-maintainer-demo-services-test.log |
+| Reference-B / Reference-Mixed SDL | 71/71 and 69/69 PASS | build-maintainer-audit/build-maintainer-refb-services-test.log and build-maintainer-mixed-services-test.log |
+| Release headless + update | 79/79 PASS | build-maintainer-audit/build-maintainer-release-services-test.log |
+| Ten explicit handwritten sources | Cppcheck and GCC analyzer PASS | build-maintainer-audit/services-cppcheck.json and services-gcc.json |
+| Repository checks | 28 bilingual pairs; architecture, ownership, public headers/clean and negative fixtures PASS | services-results.xml in each build |
+
+Host GNU 16.1.0 / Python 3.13 evidence only. Current-source Linux CI, sanitizer/fuzz, physical timing and UI visual acceptance are not implied. Initial Python run lacked can-isotp; retry uses pinned requirements in an isolated environment, with the initial missing-dependency failure recorded here. Board validation is recorded separately after committing source.
+
+Python host tools: 114 PASS, 9 physical HIL skipped; build-maintainer-audit/services-python.xml and services-python.log. Native SDK cpio/mkenvimage supplied through the documented METER_OTA_CPIO/METER_OTA_MKENVIMAGE environment overrides; no packaging tests skipped.

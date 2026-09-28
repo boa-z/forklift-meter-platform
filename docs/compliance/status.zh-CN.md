@@ -50,3 +50,6 @@ GCR-002（2026-09-28）：仅增强 `tools/check_architecture.py`、`tools/check
 GCR-003（2026-09-28）：在 host 工作流增加 Release/无界面加 update 的 CTest 及原生生命周期故障注入测试。保留现有 Debug、消毒器、模糊、生成源码与硬件门禁。明确的手写源码分析扩展将保留原范围，并在证据中注明原生桩假设。所有者：维护者；待人工审阅。所有者布局、资源初始化顺序、工具链或目标包含配置变化时复审。不授予抑制或安全策略批准。
 
 本次扩展加入 `tools/analyze_handwritten.py`，并在保留原范围的前提下把 Clang 头文件报告扩至 diagnostics/platform/protocols。CI 中七份明确源码由两个分析器检查；原生执行采用可追溯且关闭 OTA 的宿主桩，不冒充目标来源。范围证据包含源码/配置散列和工具命令/版本。通用固件的 Product 实现 include 及参考 UI 导入运行时内部均有架构/所有权反例。Shell 桩保留导出函数引用，使宿主分析看到相同使用关系，未通过抑制第一方警告绕过 unused-function 发现。
+
+
+GCR-004（2026-09-29）：显式手写分析加入无头 Demo 展示、运行时标定及诊断分类，保留原范围。Product 渲染器 include 排除 runtime/传输内部，负向夹具拒绝 Demo 屏幕解释 Domain 及投影依赖渲染/OS 类型。词法检查补充评审。不增加抑制、不改 HIL 阈值、不批准健康策略。负责人：维护者；待人工评审；Product include 布局或分析上下文变化时复审。

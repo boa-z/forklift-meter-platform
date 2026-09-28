@@ -20,3 +20,5 @@
 - [依赖与工具来源](compliance/provenance.zh-CN.md)
 - [绑定源码身份的验证记录](validation.zh-CN.md)
 - [双语维护规则](bilingual-docs.zh-CN.md)
+
+- [Application 服务与 Product 展示](application-services.zh-CN.md)

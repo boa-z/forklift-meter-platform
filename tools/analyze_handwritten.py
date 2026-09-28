@@ -15,6 +15,9 @@ SOURCES = (
     'platform/rtthread/meter_rtthread_adapter.c',
     'platform/rtthread/meter_execution_port.c',
     'examples/parameter-workflow/app.c',
+    'products/demo/application/presentation.c',
+    'runtime/meter_calibration.c',
+    'diagnostics/meter_classification.c',
 )
 
 
@@ -32,6 +35,8 @@ def main():
         for relative in SOURCES:
             source = ROOT / relative
             includes = ['-I', str(ROOT)]
+            if relative.startswith('products/demo/'):
+                includes += ['-I', str(ROOT / 'products/demo')]
             native = relative == 'platform/rtthread/meter_execution_port.c'
             if native:
                 includes += ['-I', str(ROOT / 'tests/stubs/execution'), '-UMETER_ENABLE_CAN_UPDATE']
