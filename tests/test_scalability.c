@@ -25,16 +25,15 @@ static meter_signal_def_t signal_table[SIGNAL_COUNT];
 static meter_parameter_def_t parameter_table[PARAMETER_COUNT];
 static meter_monitor_def_t monitor_table[MONITOR_COUNT];
 static meter_fault_def_t fault_table[FAULT_COUNT];
-static const meter_catalog_t catalog = {
-    signal_table, SIGNAL_COUNT, parameter_table, PARAMETER_COUNT, monitor_table, MONITOR_COUNT, fault_table,
-    FAULT_COUNT};
+static const meter_catalog_t catalog = {signal_table,  SIGNAL_COUNT,  parameter_table, PARAMETER_COUNT,
+                                        monitor_table, MONITOR_COUNT, fault_table,     FAULT_COUNT};
 static meter_value_t signal_slots[SIGNAL_COUNT];
 static float parameter_slots[PARAMETER_COUNT];
 static meter_fault_state_t fault_slots[FAULT_COUNT];
 static meter_value_t other_signals[SIGNAL_COUNT];
 static float other_parameters[PARAMETER_COUNT];
 static meter_fault_state_t other_faults[FAULT_COUNT];
-static uint8_t blob[METER_SETTINGS_OVERHEAD + PARAMETER_COUNT * 4u];
+static uint8_t blob[METER_SETTINGS_OVERHEAD + PARAMETER_COUNT * METER_SETTINGS_ENTRY_SIZE];
 static void build(void)
 {
     for (unsigned i = 0; i < SIGNAL_COUNT; ++i)
@@ -47,7 +46,7 @@ static void build(void)
         fault_table[i] = (meter_fault_def_t){ID(i), synthetic_key, synthetic_key};
 }
 static meter_core_storage_t storage_for(meter_value_t *signals, float *parameters,
-                                                meter_fault_state_t *faults)
+                                        meter_fault_state_t *faults)
 {
     return (meter_core_storage_t){signals, SIGNAL_COUNT, parameters, PARAMETER_COUNT, faults, FAULT_COUNT};
 }

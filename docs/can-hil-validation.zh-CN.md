@@ -2,7 +2,9 @@
 
 ## 基线与证据
 
-日期：2026-09-28。测试框架：98b56a9。板端固件 Platform：5aa2a20534c96975bfaaf31e8e42df6d6246ab50。SDK identity：2bc652c45fa8a0aa352538666c98ea1f86a85ec3-dirty-0164123894516e10。lvgl-aic：dfdd4c0c07b6d09a438ca8a0627b3deeb3b0e918。板卡：d50t-2-lite，LVGL 9.6.0，构建 Sep 28 2026 00:34:39。
+以下板型名称为公开别名；原始串口证据在本地保留真实私有标识。
+
+日期：2026-09-28。测试框架：98b56a9。板端固件 Platform：5aa2a20534c96975bfaaf31e8e42df6d6246ab50。SDK identity：2bc652c45fa8a0aa352538666c98ea1f86a85ec3-dirty-0164123894516e10。lvgl-aic：dfdd4c0c07b6d09a438ca8a0627b3deeb3b0e918。板卡：reference-board，LVGL 9.6.0，构建 Sep 28 2026 00:34:39。
 
 操作者确认 PCAN_USBBUS1、COM11 连接正确并释放已有发送器/终端。Runner 使用 python-can PCAN 500000 bit/s 和 pySerial 115200 波特率。没有烧录、重启、参数修改、PCAN-View GUI 自动化或客户数据。结束后释放 UART/CAN，保留原板端固件。
 

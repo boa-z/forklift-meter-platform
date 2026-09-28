@@ -5,4 +5,18 @@ config AIC_FORKLIFT_METER_PLATFORM_APP
     depends on LPKG_USING_LVGL
     help
       Build the selected public Product package with the SDK LVGL 9.6 port.
+config AIC_FORKLIFT_NVM_FILE_BACKEND
+    bool "Use mounted filesystem instead of reference-board EEPROM for settings"
+    default n
+    depends on AIC_FORKLIFT_METER_PLATFORM_APP
+    help
+      Explicit weaker durability backend. No fallback and no formatting.
+config AIC_FORKLIFT_NVM_FILE_PREFIX
+    string "Settings file prefix on mounted storage"
+    default "/data/meter-settings"
+    depends on AIC_FORKLIFT_NVM_FILE_BACKEND
+config AIC_FORKLIFT_NVM_FILE_KIND
+    string "Filesystem backend diagnostic name"
+    default "nand-fatfs"
+    depends on AIC_FORKLIFT_NVM_FILE_BACKEND
 endmenu

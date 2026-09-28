@@ -2,15 +2,17 @@
 
 > [中文版](d133-integration.zh-CN.md)
 
-This repository does not contain the vendor SDK or claim firmware acceptance. Build it on a clean, isolated Luban-Lite checkout for `d13x/d50t-2-lite`.
+The board target and defconfig variables below are supplied by private SDK integration. Public board names are aliases; use the actual local configuration without publishing the internal mapping.
+
+This repository does not contain the vendor SDK or claim firmware acceptance. Build it on a clean, isolated Luban-Lite checkout for `d13x/<board>`.
 
 1. Pin SDK and the public LVGL submodule to the SHAs in `NOTICE` and `assets/manifest.json`.
 2. Add `third_party/lvgl-aic` as the reviewed component submodule; source its Kconfig only under the new LVGL implementation choice.
-3. Select the existing `d13x_d50t-2-lite_rt-thread_lvgl-aic-smoke_defconfig` as the board/display baseline, then add an application group for this product. Keep `packages/artinchip/lvgl-ui` out of the link.
+3. Select the existing `${METER_DISPLAY_DEFCONFIG}` as the board/display baseline, then add an application group for this product. Keep `packages/artinchip/lvgl-ui` out of the link.
 4. Enable `LV_USE_TRANSLATION=1` along with the widgets/fonts selected in `sim/lv_conf.h`. Call `meter_i18n_init()` once after `lv_init()`, then `demo_i18n_init()` before creating the Demo UI; the common runtime holds only the generic validity/state tags and the product registers its own translation pack plus font provider. Compile the explicit source manifest from `cmake/sources.json`; do not use a full-tree Glob that silently includes private or unselected products.
 5. The application creates one LVGL owner thread. `lv_aic_init()` installs the RT-Thread monotonic tick callback and display/touch ports after `lv_init()`. The application polls the native CAN receive queue without blocking, then runs protocol processing, domain aging/evaluation and presentation in that thread. The UI uses domain actions and never calls CAN or RT-Thread APIs. The current board test image keeps preferences in RAM; a persistence worker is not implemented.
 6. Run the SDK's existing `packages/custom/lvgl-aic/tools/sdk/build.ps1 -Phase gate1` in a separate checkout. Record the bootloader source, image SHA256, configuration, complete build log and board evidence. MPP/GE2D phases remain optional and are not required by this public host demo.
 
 The public host build and SDL smoke are evidence for contracts, core, runtime and UI composition. They do not substitute for an SDK build, touch/display test, flash operation or board acceptance. The first isolated SDK attempt on 2026-09-27 was `BLOCKED`: the worktree could not initialize the private application submodule (repository unavailable) and the LVGL fetch also hit a transient TLS EOF. No SDK `.config`, image, serial session or board was changed.
 
-Later on 2026-09-27, the existing SDK checkout built a complete Demo test image with the dedicated `d13x_d50t-2-lite_rt-thread_forklift-meter-platform_defconfig`. Both the board bootloader and application compiled and linked. See [SDK board test image](sdk-board-test.md) for the build recipe, image contents and explicit validation limits. The earlier isolated-checkout failure does not describe this later build.
+Later on 2026-09-27, the existing SDK checkout built a complete Demo test image with the dedicated `${METER_APP_DEFCONFIG}`. Both the board bootloader and application compiled and linked. See [SDK board test image](sdk-board-test.md) for the build recipe, image contents and explicit validation limits. The earlier isolated-checkout failure does not describe this later build.

@@ -2,7 +2,7 @@
 
 ## 范围与状态
 
-首批目标是 D50T-2-Lite 上的公开合成 reference-demo：CAN PHY、驱动、Runtime、解码器和 Domain。UI/触摸仍为独立人工验收。固件 Product 选择、RT-Thread CAN TX 和 Mixed 镜像完成验证前，Reference-Mixed HIL 保持 NOT_RUN。
+首批目标是 reference-board 上的公开合成 reference-demo：CAN PHY、驱动、Runtime、解码器和 Domain。UI/触摸仍为独立人工验收。固件 Product 选择、RT-Thread CAN TX 和 Mixed 镜像完成验证前，Reference-Mixed HIL 保持 NOT_RUN。
 
 HOST_PASS 表示解析器/向量/虚拟总线通过。HIL_NOT_RUN 表示硬件未执行或选定测试跳过/不完整。HIL_PASS 表示选定物理测试通过，完整 Gate 仍须查看用例名称。HIL_FAIL 保留失败结果。pytest 退出码为零但硬件跳过，不等于 HIL_PASS。
 
@@ -29,9 +29,9 @@ python -m pytest -m hil --hil --can-interface pcan --can-channel PCAN_USBBUS1 --
 python -m pytest -m hil --hil --can-interface socketcan --can-channel can0 --can-bitrate 500000 --dut-port /dev/ttyUSB0
 ~~~
 
-只连接目标测试板。停止 PCAN-View 发送列表并释放 UART 终端。PCAN-View 仅保留人工查看/抓包。按 SDK 规则预约共享实板。CAN 激励前检查 reference-demo、d50t-2-lite 和 CAN0 波特率。测试清除近期 Trace、注入合成信号并在结束时停发，不改设置。停止流量后板端可能进入 STALE。
+只连接目标测试板。停止 PCAN-View 发送列表并释放 UART 终端。PCAN-View 仅保留人工查看/抓包。按 SDK 规则预约共享实板。CAN 激励前检查 reference-demo、reference-board 和 CAN0 波特率。测试清除近期 Trace、注入合成信号并在结束时停发，不改设置。停止流量后板端可能进入 STALE。
 
---hil-evidence 指定证据根目录，--hil-image 记录已烧录镜像 SHA256，否则写 NOT_PROVIDED。可连接时始终记录固件报告身份。--dut-baud 默认 115200。物理 HIL 不使用 pytest-xdist，UART 必须独占。
+--hil-evidence 指定证据根目录，--hil-image 记录已烧录镜像 SHA256，否则写 NOT_PROVIDED。可连接时始终记录固件报告身份。--dut-baud 默认 115200。--dut-board 指定必须精确匹配的板型身份（默认 reference-board），不会跳过身份校验。物理 HIL 不使用 pytest-xdist，UART 必须独占。
 
 ## Gate
 
@@ -44,7 +44,7 @@ python -m pytest -m hil --hil --can-interface socketcan --can-channel can0 --can
 | HIL-05 | 已知 ID 的 DLC7 使 decode_failed 增加一次而非 malformed；INVALID_FRAME Trace |
 | HIL-06 | 五帧各 10ms、持续 2s；至少 500 RX；无新增 overflow/drop/error/reset |
 
-D50T 的 Burst Gate 额外保存 RT-Thread 原生 canstat 前后结果，并断言原生接收丢帧为零，从而发现 meter Runtime 边界之前的损失。burst-summary.json 分别记录 Host 周期发送尝试、原生驱动 RX/drop 和进入 Domain 路径的 RX/dispatched。canstat 扩展属于 RT-Thread，其他 DUT 前端复用本 Gate 前须提供等价查询。
+reference-board 的 Burst Gate 额外保存 RT-Thread 原生 canstat 前后结果，并断言原生接收丢帧为零，从而发现 meter Runtime 边界之前的损失。burst-summary.json 分别记录 Host 周期发送尝试、原生驱动 RX/drop 和进入 Domain 路径的 RX/dispatched。canstat 扩展属于 RT-Thread，其他 DUT 前端复用本 Gate 前须提供等价查询。
 
 计数使用增量，不使用生命周期总数。物理合法短帧属于解码错误，本 Gate 不注入不可能的 DLC>8、错误 CRC 或 bus-off。首批边界覆盖要求的速度/SOC，已知高度 6m 的生成浮点误差未被掩盖，也未宣称修复。Settings/SDO/PDO 和摄像头断言不在范围内。
 

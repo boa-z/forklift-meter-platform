@@ -2,7 +2,7 @@
 
 > [English](README.md)
 
-面向 D133/D50T-2-Lite 的公开仪表平台参考实现。Demo 至少支持 English 与简体中文，字体由 `lv_font_conv` 生成，协议的唯一事实来源（Source of Truth）是 DBC。
+面向 D133/reference-board 的公开仪表平台参考实现。Demo 至少支持 English 与简体中文，字体由 `lv_font_conv` 生成，协议的唯一事实来源（Source of Truth）是 DBC。
 
 ## 主机仿真（Host）
 

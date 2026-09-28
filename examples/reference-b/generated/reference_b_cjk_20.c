@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 20 px
  * Bpp: 4
- * Opts: --font C:\Users\JCSH\Documents\Project\D50T-2-Lite\luban-lite-jc-d50t-rev\application\rt-thread\forklift-meter-platform\third_party\lvgl\scripts\generators\built_in_font\SourceHanSansSC-Normal.otf --size 20 --bpp 4 --format lvgl --no-compress --no-prefilter --range 0x20-0x7e --symbols 传余关剩动器境实度开感扭据效数无时有期未温源环电知矩能误过速量错驱 --output generated/reference_b_cjk_20.c
+ * Opts: --font third_party/lvgl/scripts/generators/built_in_font/SourceHanSansSC-Normal.otf --size 20 --bpp 4 --format lvgl --no-compress --no-prefilter --range 0x20-0x7e --symbols 传余关剩动器境实度开感扭据效数无时有期未温源环电知矩能误过速量错驱 --output generated/reference_b_cjk_20.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE

@@ -1,4 +1,4 @@
-# D50T-2-Lite SDK 单板测试镜像
+# reference-board SDK 单板测试镜像
 
 > [English](sdk-board-test.md)
 
@@ -6,13 +6,15 @@
 前一镜像已在用户单板上启动，但报告了触摸失效和类似旧 UI 的背景。该镜像未通过单板验收。
 后续：用户现报告在前述修复后触摸工作正常。该报告未提供镜像哈希或完整的显示/CAN 验收记录。
 
+本文公开板型名均为别名。METER_BOOT_DEFCONFIG、METER_APP_DEFCONFIG 和 METER_DISPLAY_DEFCONFIG 由私有 SDK 集成指定，引用实际已有配置，并非本 Framework 提供的配置。映射与原始硬件证据保留在公开仓库之外。固件诊断默认使用公开别名 reference-board，构建时可通过 METER_BOARD_ID 指定集成所选的硬件标识。本地测试镜像及私有原始证据可以保留内部板型名，Framework 入库代码与公开文档不得包含内部名称。别名只是诊断元数据，不能证明硬件兼容性。
+
 ## boardfix2 矩形全屏画布
 
 Demo 根节点错误复用了面板主题的 14 像素圆角，在边角露出不同的屏幕背景。其根节点现起始于 (0, 0)，占据父节点 100% 宽/高并使用圆角 0；页面容器同样使用圆角 0。单板的 800x480 内容布局以及内部卡片/按钮圆角保持不变。这是与此前硬件层假设无关的 UI 样式缺陷。本修订号中触摸处理未变更。
 
 新的启动标记为 `boardfix2 built ...`。构建、主机测试、全屏边角捕获和完整固件归档于 `output/forklift-evidence-boardfix2/`；保留早期镜像归档。仅新的矩形背景需要新的显示观察；用户成功的触摸报告已记录在上文。
 
-本镜像使用 SDK 的 LVGL 9.6.0 / lvgl-aic 端口在 RT-Thread 上启动公共 Demo 产品。目标为 `d13x/d50t-2-lite`、16 MiB PSRAM、配置的 800 x 480 RGB 显示屏、GT911 触摸和 128 MiB SPI NAND（2 KiB 页 / 128 KiB 块）。单板测试前确认实际单板与这些设置一致。
+本镜像使用 SDK 的 LVGL 9.6.0 / lvgl-aic 端口在 RT-Thread 上启动公共 Demo 产品。目标为 `d13x/<board>`、16 MiB PSRAM、配置的 800 x 480 RGB 显示屏、GT911 触摸和 128 MiB SPI NAND（2 KiB 页 / 128 KiB 块）。单板测试前确认实际单板与这些设置一致。
 
 ## 运行时覆盖
 
@@ -31,10 +33,10 @@ Demo 根节点错误复用了面板主题的 14 像素圆角，在边角露出�
 在 SDK 根目录下，保持 SDK 构建环境激活（Linux CI 仍为默认主机测试平台）：
 
 ```sh
-scons --apply-def=d13x_d50t-2-lite_baremetal_bootloader_defconfig
+scons --apply-def=${METER_BOOT_DEFCONFIG}
 scons -c
 scons -j8
-scons --apply-def=d13x_d50t-2-lite_rt-thread_forklift-meter-platform_defconfig
+scons --apply-def=${METER_APP_DEFCONFIG}
 scons -j8
 ```
 
@@ -49,10 +51,10 @@ $env:PYTHONIOENCODING = 'UTF-8'
 $env:PATH = "$sdk/tools/env/tools/Python38;$sdk/tools/env/tools/bin;$sdk/toolchain/bin;$env:PATH"
 $py = "$sdk/tools/env/tools/Python38/python3.exe"
 $scons = "$sdk/tools/env/tools/Python27/Scripts/scons"
-& $py $scons --apply-def=d13x_d50t-2-lite_baremetal_bootloader_defconfig
+& $py $scons "--apply-def=$env:METER_BOOT_DEFCONFIG"
 & $py $scons -c
 & $py $scons -j8
-& $py $scons --apply-def=d13x_d50t-2-lite_rt-thread_forklift-meter-platform_defconfig
+& $py $scons "--apply-def=$env:METER_APP_DEFCONFIG"
 & $py $scons -j8
 ```
 
@@ -60,11 +62,11 @@ $scons = "$sdk/tools/env/tools/Python27/Scripts/scons"
 
 ## 镜像与证据
 
-SDK 写入 `output/d13x_d50t-2-lite_rt-thread_forklift-meter-platform/images/d13x_D50T-2-Lite_page_2k_block_128k_v1.0.0.img`。`v1.0.0` 后缀为现有单板包格式的版本字段，而非平台发布标签。
+SDK 写入 `output/d13x/<board>_rt-thread_forklift-meter-platform/images/d13x/<board>_page_2k_block_128k_v1.0.0.img`。`v1.0.0` 后缀为现有单板包格式的版本字段，而非平台发布标签。
 
 完整镜像包含 USB PSRAM 更新器、单板引导加载程序、env/env_r、RT-Thread 应用 ITB 以及最小 rodata/data FAT 卷。Demo 资源已编译进 C；缺失源 `rodata/` 和 `data/` 目录将导致最小的空 SDK 生成卷。这些卷包含在完整镜像中，烧录时可能替换相应数据。
 
-本次运行的 `output/forklift-evidence/` 目录记录配置快照、完整构建/测试日志、源码来源与补丁、组件验证、SHA256 哈希、应用 ELF/MAP 和引导加载程序 ELF/MAP。应用包中的引导加载程序二进制必须与当前的 `output/d13x_d50t-2-lite_baremetal_bootloader/images/d13x.bin` 一致。
+本次运行的 `output/forklift-evidence/` 目录记录配置快照、完整构建/测试日志、源码来源与补丁、组件验证、SHA256 哈希、应用 ELF/MAP 和引导加载程序 ELF/MAP。应用包中的引导加载程序二进制必须与当前的 `output/<bootloader-build>/images/d13x.bin` 一致。
 
 ## 单板验证记录
 
@@ -97,7 +99,7 @@ SDK 构建目前在 Windows 上输出上游 LVGL RT-Thread 日志格式警告和
 
 后续镜像及其源码补丁、构建日志和测试单独归档于 `output/forklift-evidence-boardfix1/`。保持 `output/forklift-evidence/` 不变以供对比。除应用变更外，还需要父 SDK GT911 补丁和 lvgl-aic 端口补丁。
 
-在 D50T-2-Lite 上使用记录的新镜像哈希重新测试：
+在 reference-board 上使用记录的新镜像哈希重新测试：
 
 1. 确认串口 `boardfix1 built ...` 标记、`display exclusive: ...`、`controller range: ...` 以及首个 `TOUCH range=...` 行。
 2. 按住每个底部导航选项卡约半秒后释放。捕获按下/释放坐标和至少两次五秒计数器报告。验证 Settings 语言双向切换。

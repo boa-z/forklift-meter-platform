@@ -26,11 +26,11 @@ class IdentityTests(unittest.TestCase):
             sha = git('rev-parse', 'HEAD')
             self.assertEqual(identity.revision(root), sha)
             header = root / 'build/info.h'
-            first = identity.generate(root, None, '"d50t-2-lite"', header)
-            self.assertEqual(first['BOARD'], 'd50t-2-lite')
+            first = identity.generate(root, None, '"reference-board"', header)
+            self.assertEqual(first['BOARD'], 'reference-board')
             self.assertEqual(first['PLATFORM'], sha)
             stamp = header.stat().st_mtime_ns
-            identity.generate(root, None, '"d50t-2-lite"', header)
+            identity.generate(root, None, '"reference-board"', header)
             self.assertEqual(header.stat().st_mtime_ns, stamp)
             (root / 'source.c').write_text('int y;')
             modified = identity.revision(root)

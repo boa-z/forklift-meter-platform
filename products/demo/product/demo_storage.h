@@ -12,7 +12,7 @@ typedef struct
     meter_value_t signals[DEMO_SIGNAL_SLOTS];
     float parameters[DEMO_PARAMETER_SLOTS];
     meter_fault_state_t faults[DEMO_FAULT_SLOTS];
-    uint8_t settings[METER_SETTINGS_OVERHEAD + DEMO_PARAMETER_SLOTS * 4u];
+    uint8_t settings[METER_SETTINGS_OVERHEAD + DEMO_PARAMETER_SLOTS * METER_SETTINGS_ENTRY_SIZE];
 } demo_domain_store_t;
 /** @brief 把产品存储绑定为 core 需要的形式。
  *

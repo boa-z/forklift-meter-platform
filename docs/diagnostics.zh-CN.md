@@ -69,7 +69,7 @@ Windows 将 /dev/ttyUSB0 替换为明确的 COM 口。安装依赖与运行工�
 
 同一板端串口只能由一个进程持有：先停止 capture，再逐个执行 command，或使用能记录整个会话的外部终端。不要并发运行示例的 capture 与 command。采集 boot 时先启动 capture，再由操作者复位开发板，保存完整 boot 和每条命令响应。工具不会隐式烧录或重启。
 
-烧录前按 SDK 项目管理规则预约共享 D50T 并记录恢复镜像。将精确的生成镜像复制到 evidence，保存 SHA256（PowerShell Get-FileHash 或 Linux sha256sum）、生成身份头、.config、image/map/ELF 与 SDK/platform revision。之后从实板获得 boot log、info.txt、diag.txt、runtime.txt、can.txt、sdo.txt、trace.txt；还需查 domain、已知 signal、touch，在相应 Mixed 镜像运行 CAN fixture、PDO stale/recover、SDO timeout/retry/abort。禁止从 Host fixture 伪造板端日志。
+烧录前按 SDK 项目管理规则预约共享 reference-board 并记录恢复镜像。将精确的生成镜像复制到 evidence，保存 SHA256（PowerShell Get-FileHash 或 Linux sha256sum）、生成身份头、.config、image/map/ELF 与 SDK/platform revision。之后从实板获得 boot log、info.txt、diag.txt、runtime.txt、can.txt、sdo.txt、trace.txt；还需查 domain、已知 signal、touch，在相应 Mixed 镜像运行 CAN fixture、PDO stale/recover、SDO timeout/retry/abort。禁止从 Host fixture 伪造板端日志。
 
 ## 验证与限制
 

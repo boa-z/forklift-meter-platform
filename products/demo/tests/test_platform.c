@@ -1,8 +1,8 @@
 #include "core/meter_core.h"
 #include "core/meter_settings.h"
 #include "generated/demo_catalog.h"
-#include "protocols/common/meter_frame_router.h"
 #include "protocol/demo_protocol.h"
+#include "protocols/common/meter_frame_router.h"
 #include "runtime/meter_runtime.h"
 #include "sim/synthetic.h"
 #include "ui/common/formatter/meter_format.h"
@@ -37,8 +37,8 @@ static bool keep_first_source(void *context, meter_signal_id_t signal, const met
 }
 static meter_core_storage_t storage(void)
 {
-    return (meter_core_storage_t){signal_slots, SLOTS(signal_slots), parameter_slots, SLOTS(parameter_slots),
-                                  fault_slots, SLOTS(fault_slots)};
+    return (meter_core_storage_t){signal_slots,           SLOTS(signal_slots), parameter_slots,
+                                  SLOTS(parameter_slots), fault_slots,         SLOTS(fault_slots)};
 }
 /* 设置块是公开文档化的格式，所以测试可以直接伪造一个合法文件，
  * 而不是只破坏字节直到校验和报错。 */
@@ -319,10 +319,10 @@ static int settings(void)
     u.value = METER_LANGUAGE_ZH;
     CHECK(meter_core_action(&a, &u));
     CHECK(meter_core_parameter(&a, DEMO_PARAMETER_MAX_SPEED, 33));
-    uint8_t bytes[64];
+    uint8_t bytes[128];
     /* 块长度随产品目录增长，而不是随平台容量上限增长。 */
     size_t size = meter_settings_size(&a);
-    CHECK(size == METER_SETTINGS_OVERHEAD + meter_demo_catalog.parameter_count * 4u);
+    CHECK(size == METER_SETTINGS_OVERHEAD + meter_demo_catalog.parameter_count * METER_SETTINGS_ENTRY_SIZE);
     CHECK(!meter_settings_encode(&a, bytes, size - 1));
     CHECK(meter_settings_encode(&a, bytes, sizeof(bytes)));
     CHECK(meter_settings_decode(&b, bytes, size));
@@ -338,16 +338,16 @@ static int settings(void)
     bytes[8] ^= 1;
     CHECK(!meter_settings_decode(&b, bytes, 4));
     CHECK(!meter_settings_decode(&b, bytes, size - 4));
-    uint8_t foreign[64];
+    uint8_t foreign[128];
     memcpy(foreign, bytes, sizeof(foreign));
     foreign[6] = (uint8_t)(meter_demo_catalog.parameter_count - 1);
     CHECK(!meter_settings_decode(&b, foreign, METER_SETTINGS_OVERHEAD + foreign[6] * 4u));
     /* 格式完整但含一个越界参数的文件必须整体拒绝。第一项故意留在合法区间内，
      * 任何边校验边写入的解码器都会把它落进 core。 */
-    uint8_t poisoned[64];
+    uint8_t poisoned[128];
     memcpy(poisoned, bytes, sizeof(poisoned));
-    store_float(poisoned + 8, 44.0f);
-    store_float(poisoned + 12, 1000.0f);
+    store_float(poisoned + 16, 44.0f);
+    store_float(poisoned + 24, 1000.0f);
     seal(poisoned, size);
     CHECK(!meter_settings_decode(&b, poisoned, size));
     CHECK(meter_snapshot_parameter(&b.snapshot, DEMO_PARAMETER_MAX_SPEED, &stored) && stored == 33);

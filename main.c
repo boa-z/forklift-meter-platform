@@ -5,6 +5,7 @@
 #include "meter_build_identity.h"
 #include "platform/rtthread/debug/meter_debug_console.h"
 #include "platform/rtthread/meter_board_port.h"
+#include "platform/rtthread/meter_nvm_port.h"
 #include "product/demo_storage.h"
 #include "product/product.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
@@ -31,8 +32,11 @@ static bool board_action(void *ctx, const meter_action_t *action)
     if (!product->auth->local_settings ||
         (action->kind == METER_ACTION_PARAMETER && !product->capabilities->parameter_write))
         return false;
-    /* 此测试镜像偏好保存在 RAM，重启恢复默认值。 */
-    return meter_core_action(ctx, action);
+    if (!meter_board_nvm_ready() || !meter_core_action(ctx, action))
+        return false;
+    /* RAM 应用和 durable 分开发布，保存失败不伪造回滚。 */
+    (void)meter_board_nvm_changed(rt_tick_get_millisecond());
+    return true;
 }
 static void meter_thread(void *parameter)
 {
@@ -71,6 +75,9 @@ static void meter_thread(void *parameter)
         LOG_E("board/runtime initialization failed");
         goto failed;
     }
+    bool nvm_started = product->storage && product->storage->enabled && meter_board_nvm_start(&core);
+    if (product->storage && product->storage->enabled && !nvm_started)
+        LOG_E("NVM worker initialization failed; settings remain RAM-only");
     lv_obj_t *screen = lv_screen_active();
     lv_obj_set_style_bg_color(screen, lv_color_hex(0x101820), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
@@ -81,7 +88,8 @@ static void meter_thread(void *parameter)
         LOG_E("UI allocation failed");
         goto failed;
     }
-    LOG_I("product=%s; English/Chinese enabled; settings=RAM", product->id);
+    LOG_I("product=%s; English/Chinese enabled; settings=%s", product->id,
+          nvm_started ? "async-nvm" : "RAM-only");
     uint32_t previous = board.now_ms(board.context);
     diagnostics.data.ui.available = true;
     meter_debug_unlock();
@@ -92,6 +100,7 @@ static void meter_thread(void *parameter)
         uint32_t now = board.now_ms(board.context);
         meter_diagnostics_time(&diagnostics, now);
         meter_rtthread_adapter_poll(&adapter, 8);
+        meter_board_nvm_poll(now, &diagnostics.data.storage);
         product->ui->present(ui, &core.snapshot, (uint32_t)(now - previous));
         meter_diag_increment(&diagnostics.data.ui.present_count);
         previous = now;

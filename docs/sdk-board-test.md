@@ -1,4 +1,4 @@
-# D50T-2-Lite SDK board test image
+# reference-board SDK board test image
 
 > [中文版](sdk-board-test.zh-CN.md)
 
@@ -6,13 +6,15 @@ Date: 2026-09-27. Build status: `IMAGE_READY`. Revision `boardfix2` full-screen 
 The preceding image booted on the user's board, but touch failure and a background resembling the previous UI were reported. That image did not pass board acceptance.
 Follow-up: the user now reports touch working normally after the preceding fixes. The report does not provide an image hash or a complete display/CAN acceptance record.
 
+Board names in this public document are aliases. Set METER_BOOT_DEFCONFIG, METER_APP_DEFCONFIG and METER_DISPLAY_DEFCONFIG from your private SDK integration; they name existing configurations, not configurations shipped by this Framework. Keep that mapping and raw hardware evidence outside the public repository. Firmware diagnostics default to the public alias reference-board; set METER_BOARD_ID to the integration-selected identifier when building. Local test images and private raw evidence may retain internal board labels; checked-in Framework code and public documentation must not include them. The alias is diagnostic metadata and does not establish hardware compatibility.
+
 ## boardfix2 rectangular full-screen canvas
 
 The Demo root incorrectly reused the panel theme's 14-pixel radius, exposing a different screen background at the corners. Its root now starts at (0, 0), occupies 100% of the parent width/height and uses radius 0; page containers also use radius 0. The board's 800x480 content layout and internal card/button rounding are retained. This is a UI styling defect separate from the earlier hardware-layer hypothesis. Touch handling is unchanged in this revision.
 
 The new boot marker is `boardfix2 built ...`. Build, host tests, full-screen corner captures and the complete firmware are archived in `output/forklift-evidence-boardfix2/`; earlier image archives are retained. Only the new rectangular background requires a new display observation; the user's successful touch report is recorded above.
 
-This image boots the public Demo Product on RT-Thread using the SDK's LVGL 9.6.0 / lvgl-aic port. It targets `d13x/d50t-2-lite`, 16 MiB PSRAM, the configured 800 x 480 RGB display, GT911 touch and 128 MiB SPI NAND with 2 KiB pages / 128 KiB blocks. Confirm the actual board matches these settings before a board test.
+This image boots the public Demo Product on RT-Thread using the SDK's LVGL 9.6.0 / lvgl-aic port. It targets `d13x/<board>`, 16 MiB PSRAM, the configured 800 x 480 RGB display, GT911 touch and 128 MiB SPI NAND with 2 KiB pages / 128 KiB blocks. Confirm the actual board matches these settings before a board test.
 
 ## Runtime coverage
 
@@ -31,10 +33,10 @@ Use a checkout owned by this task. Save any active configuration before switchin
 From the SDK root, with the SDK build environment active (Linux CI remains the default host-test platform):
 
 ```sh
-scons --apply-def=d13x_d50t-2-lite_baremetal_bootloader_defconfig
+scons --apply-def=${METER_BOOT_DEFCONFIG}
 scons -c
 scons -j8
-scons --apply-def=d13x_d50t-2-lite_rt-thread_forklift-meter-platform_defconfig
+scons --apply-def=${METER_APP_DEFCONFIG}
 scons -j8
 ```
 
@@ -49,10 +51,10 @@ $env:PYTHONIOENCODING = 'UTF-8'
 $env:PATH = "$sdk/tools/env/tools/Python38;$sdk/tools/env/tools/bin;$sdk/toolchain/bin;$env:PATH"
 $py = "$sdk/tools/env/tools/Python38/python3.exe"
 $scons = "$sdk/tools/env/tools/Python27/Scripts/scons"
-& $py $scons --apply-def=d13x_d50t-2-lite_baremetal_bootloader_defconfig
+& $py $scons "--apply-def=$env:METER_BOOT_DEFCONFIG"
 & $py $scons -c
 & $py $scons -j8
-& $py $scons --apply-def=d13x_d50t-2-lite_rt-thread_forklift-meter-platform_defconfig
+& $py $scons "--apply-def=$env:METER_APP_DEFCONFIG"
 & $py $scons -j8
 ```
 
@@ -60,11 +62,11 @@ Stop on any nonzero exit status. Do not accept a previous image left in the outp
 
 ## Image and evidence
 
-The SDK writes `output/d13x_d50t-2-lite_rt-thread_forklift-meter-platform/images/d13x_D50T-2-Lite_page_2k_block_128k_v1.0.0.img`. The `v1.0.0` suffix is the existing board pack format's version field, not a Platform release tag.
+The SDK writes `output/d13x/<board>_rt-thread_forklift-meter-platform/images/d13x/<board>_page_2k_block_128k_v1.0.0.img`. The `v1.0.0` suffix is the existing board pack format's version field, not a Platform release tag.
 
 The full image contains the USB PSRAM updater, board bootloader, env/env_r, RT-Thread application ITB, and minimal rodata/data FAT volumes. Demo resources are compiled into C; absent source `rodata/` and `data/` directories result in minimal empty SDK-generated volumes. Those volumes are included in the full image and may replace corresponding data during flashing.
 
-This run's `output/forklift-evidence/` directory records configuration snapshots, complete build/test logs, source provenance and patches, component validation, SHA256 hashes, application ELF/MAP and bootloader ELF/MAP. The bootloader binary in the application package must match the current `output/d13x_d50t-2-lite_baremetal_bootloader/images/d13x.bin`.
+This run's `output/forklift-evidence/` directory records configuration snapshots, complete build/test logs, source provenance and patches, component validation, SHA256 hashes, application ELF/MAP and bootloader ELF/MAP. The bootloader binary in the application package must match the current `output/<bootloader-build>/images/d13x.bin`.
 
 ## Board validation record
 
@@ -97,7 +99,7 @@ The supplied boot log identifies the public Demo, a registered GT911, an 800x480
 
 The follow-up image and its source patches, build logs and tests are archived separately under `output/forklift-evidence-boardfix1/`. Keep `output/forklift-evidence/` unchanged for comparison. The parent SDK GT911 patch and lvgl-aic port patch are required in addition to the application changes.
 
-Retest on the D50T-2-Lite with the new image hash recorded:
+Retest on the reference-board with the new image hash recorded:
 
 1. Confirm the serial `boardfix1 built ...` marker, `display exclusive: ...`, `controller range: ...`, and first `TOUCH range=...` lines.
 2. Hold each bottom navigation tab for about half a second, then release. Capture press/release coordinates and at least two five-second counter reports. Verify Settings language switching in both directions.

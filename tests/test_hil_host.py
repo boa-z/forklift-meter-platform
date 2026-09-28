@@ -196,7 +196,7 @@ def test_native_canstat_parser():
 
 
 def test_uart_fragmented_last_field_requires_newline():
-    prefix = 'product : reference-demo\nplatform : abc\nsdk : def\nlvgl-aic : 123\nboard : d50t-2-lite\n'
+    prefix = 'product : reference-demo\nplatform : abc\nsdk : def\nlvgl-aic : 123\nboard : reference-board\n'
     for ending in ['uptime_ms : ', 'uptime_ms : 1', 'uptime_ms : 1234 ', 'uptime_ms : \n']:
         assert not complete('meter info', prefix+ending)
     assert complete('meter info', prefix+'uptime_ms : 1234\n')

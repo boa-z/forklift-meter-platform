@@ -30,4 +30,4 @@ Signal, parameter and fault identities are 16-bit handles resolved through your 
 
 The settings blob is sized by your own table: `meter_settings_size()` returns `METER_SETTINGS_OVERHEAD` plus four bytes per parameter, so a caller passes a buffer it computed rather than a platform constant. A catalog with more than 255 parameters needs a reviewed versioned format; the platform reports that by returning zero size, and no write is attempted.
 
-For each downstream build record the public platform commit, all submodule SHAs, SDK commit, selected product, image SHA256 and test logs. Public platform changes flow upstream to private products after review; customer code never flows upstream automatically. Private board validation remains a separate D50T-2-Lite reservation with original serial evidence.
+For each downstream build record the public platform commit, all submodule SHAs, SDK commit, selected product, image SHA256 and test logs. Public platform changes flow upstream to private products after review; customer code never flows upstream automatically. Private board validation remains a separate reference-board reservation with original serial evidence.

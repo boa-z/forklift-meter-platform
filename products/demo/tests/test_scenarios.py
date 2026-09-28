@@ -38,7 +38,10 @@ with tempfile.TemporaryDirectory() as temp:
     assert run("--settings", settings)["language"] == "zh-CN"
     assert run("--settings", settings, "--set-language", "english")["language"] == "en"
     assert run("--settings", settings)["language"] == "en"
-    Path(settings).write_bytes(b"corrupt")
-    r = run("--settings",settings)
-    assert not r["imperial"] and r["language"] == "en"
+    Path(settings + ".0").write_bytes(b"corrupt")
+    Path(settings + ".1").write_bytes(b"corrupt")
+    failed = subprocess.run([str(exe), "--hidden", "--frames", "2", "--settings", settings], env=env, capture_output=True, timeout=25)
+    assert failed.returncode == 7
+    assert Path(settings + ".0").read_bytes() == b"corrupt"
+    assert Path(settings + ".1").read_bytes() == b"corrupt"
 print("Demo scenarios, touch navigation and settings restart PASS")

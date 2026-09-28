@@ -17,6 +17,7 @@ def pytest_addoption(parser):
     group.addoption('--can-bitrate', type=int, default=500000)
     group.addoption('--dut-port', default=None)
     group.addoption('--dut-baud', type=int, default=115200)
+    group.addoption('--dut-board', default='reference-board', help='expected public board identity')
     group.addoption('--hil-evidence', default='evidence/hil')
     group.addoption('--hil-image', default=None, help='optional flashed image, record SHA256 only')
 
@@ -106,7 +107,7 @@ def hil(request):
         evidence.metadata.update(platform_sha=identity.get('platform'), sdk_identity=identity.get('sdk'), lvgl_aic_revision=identity.get('lvgl-aic'), board=identity.get('board'), dut_identity=identity)
         evidence.save()
         assert identity['product'] == 'reference-demo', 'wrong DUT product'
-        assert identity['board'] == 'd50t-2-lite', 'wrong DUT board'
+        assert identity['board'] == config.getoption('--dut-board'), 'wrong DUT board'
         before = dut.command('meter diag')
         evidence.text('diag-before.txt', before)
         state = diagnostics(before)

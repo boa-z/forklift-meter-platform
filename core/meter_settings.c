@@ -1,5 +1,4 @@
 #include "core/meter_settings.h"
-#include <math.h>
 #include <string.h>
 static uint32_t checksum(const uint8_t *p, size_t n)
 {
@@ -20,60 +19,74 @@ static uint32_t get32(const uint8_t *p)
 static float param32(const uint8_t *p)
 {
     uint32_t bits = get32(p);
-    float v;
-    memcpy(&v, &bits, 4);
-    return v;
-}
-static size_t body(const meter_catalog_t *catalog)
-{
-    return catalog->parameter_count * 4u;
+    float value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
 }
 size_t meter_settings_size(const meter_core_t *core)
 {
-    if (!core || core->snapshot.catalog->parameter_count > 255u)
+    if (!core || !core->snapshot.catalog || sizeof(float) != 4 ||
+        core->snapshot.catalog->parameter_count > UINT16_MAX)
         return 0;
-    return METER_SETTINGS_OVERHEAD + body(core->snapshot.catalog);
+    return METER_SETTINGS_OVERHEAD + core->snapshot.catalog->parameter_count * METER_SETTINGS_ENTRY_SIZE;
 }
 bool meter_settings_encode(const meter_core_t *core, uint8_t *out, size_t size)
 {
-    size_t length = meter_settings_size(core);
-    if (sizeof(float) != 4 || !length || !out || size < length)
+    const size_t length = meter_settings_size(core);
+    if (!length || !out || size < length)
         return false;
     const meter_catalog_t *catalog = core->snapshot.catalog;
-    memset(out, 0, size);
-    memcpy(out, "FMP1", 4);
+    memset(out, 0, length);
+    memcpy(out, "MSP2", 4);
     out[4] = core->snapshot.imperial;
     out[5] = core->snapshot.brightness;
-    out[6] = (uint8_t)catalog->parameter_count;
-    out[7] = (uint8_t)core->snapshot.language;
+    out[6] = (uint8_t)core->snapshot.language;
+    put32(out + 8, (uint32_t)catalog->parameter_count);
     for (size_t i = 0; i < catalog->parameter_count; ++i)
     {
         uint32_t bits;
         memcpy(&bits, &core->snapshot.parameters[i], 4);
-        put32(out + 8 + i * 4, bits);
+        put32(out + 12 + i * METER_SETTINGS_ENTRY_SIZE, catalog->parameters[i].id);
+        put32(out + 16 + i * METER_SETTINGS_ENTRY_SIZE, bits);
     }
+    /* 内层校验只检测缓冲损坏；介质完整性由 FMP2 的 CRC 与 seal 负责。 */
     put32(out + length - 4, checksum(out, length - 4));
     return true;
 }
 bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
 {
-    if (!core || !data || size < METER_SETTINGS_OVERHEAD || memcmp(data, "FMP1", 4))
-        return false;
-    /* 文件内记录的参数个数决定合法长度，因此更大的目录读更大的文件，平台不知道任何容量。 */
-    if (size != METER_SETTINGS_OVERHEAD + (size_t)data[6] * 4u)
+    if (!core || !data || size != meter_settings_size(core) || size < METER_SETTINGS_OVERHEAD ||
+        memcmp(data, "MSP2", 4) || data[7] != 0 || data[4] > 1 || data[5] < 10 || data[5] > 100 ||
+        data[6] > METER_LANGUAGE_ZH || get32(data + size - 4) != checksum(data, size - 4))
         return false;
     const meter_catalog_t *catalog = core->snapshot.catalog;
-    if (data[6] != catalog->parameter_count || data[4] > 1 || data[5] < 10 || data[5] > 100 ||
-        data[7] > METER_LANGUAGE_ZH || get32(data + size - 4) != checksum(data, size - 4))
+    if (get32(data + 8) != catalog->parameter_count)
         return false;
     for (size_t i = 0; i < catalog->parameter_count; ++i)
-        if (!meter_core_parameter_valid(core, catalog->parameters[i].id, param32(data + 8 + i * 4)))
+    {
+        const uint8_t *entry = data + 12 + i * METER_SETTINGS_ENTRY_SIZE;
+        const uint32_t id = get32(entry);
+        if (id > UINT16_MAX || !meter_core_parameter_valid(core, (uint16_t)id, param32(entry + 4)))
             return false;
-    /* 以上只校验不写入，因此被拒绝的文件不会让 core 停留在半应用状态。 */
+        for (size_t j = 0; j < i; ++j)
+            if (get32(data + 12 + j * METER_SETTINGS_ENTRY_SIZE) == id)
+                return false;
+    }
+    bool changed = core->snapshot.imperial != (data[4] != 0) || core->snapshot.brightness != data[5] ||
+                   core->snapshot.language != (meter_language_t)data[6];
+    /* 全部校验成功后才按稳定 ID 应用，目录调整顺序不改变参数身份。 */
     for (size_t i = 0; i < catalog->parameter_count; ++i)
-        core->snapshot.parameters[i] = param32(data + 8 + i * 4);
+    {
+        const uint8_t *entry = data + 12 + i * METER_SETTINGS_ENTRY_SIZE;
+        const size_t index = meter_catalog_parameter_index(catalog, (uint16_t)get32(entry));
+        const float value = param32(entry + 4);
+        changed = changed || core->snapshot.parameters[index] != value;
+        core->snapshot.parameters[index] = value;
+    }
     core->snapshot.imperial = data[4] != 0;
-    core->snapshot.language = (meter_language_t)data[7];
     core->snapshot.brightness = data[5];
+    core->snapshot.language = (meter_language_t)data[6];
+    if (changed)
+        ++core->snapshot.revision;
     return true;
 }

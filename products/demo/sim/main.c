@@ -1,23 +1,24 @@
-#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "platform/host/host_platform.h"
 #include "product/demo_storage.h"
 #include "product/product.h"
 #include "runtime/meter_runtime.h"
-#include "sim/synthetic.h"
 #include "sim/domain_fixture.h"
+#include "sim/synthetic.h"
+#include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/demo_i18n.h"
 #include "ui/demo_ui.h"
 #include <stdio.h>
+#define SDL_MAIN_HANDLED
+#include "platform/host/host_settings.h"
+#include <SDL.h>
 #include <stdlib.h>
 #include <string.h>
 typedef struct
 {
     meter_core_t *core;
-    const char *path;
     const meter_product_t *product;
-    uint8_t *settings;
-    size_t capacity;
+    meter_host_nvm_t *nvm;
 } action_context_t;
 static bool action(void *context, const meter_action_t *a)
 {
@@ -25,31 +26,11 @@ static bool action(void *context, const meter_action_t *a)
     if (!c->product->auth->local_settings ||
         (a->kind == METER_ACTION_PARAMETER && !c->product->capabilities->parameter_write))
         return false;
-    /* core 通过指针写产品存储，所以保存失败不能靠丢弃 core 副本来回退，
-     * 只能把本次动作可能改到的字段逐项还原。 */
-    size_t index = 0;
-    float previous = 0;
-    bool tracked = false;
-    if (a->kind == METER_ACTION_PARAMETER)
-    {
-        index = meter_catalog_parameter_index(c->core->snapshot.catalog, a->id);
-        tracked = index < c->core->snapshot.catalog->parameter_count;
-        if (tracked)
-            previous = c->core->snapshot.parameters[index];
-    }
-    bool imperial = c->core->snapshot.imperial;
-    meter_language_t language = c->core->snapshot.language;
-    uint8_t brightness = c->core->snapshot.brightness;
     if (!meter_core_action(c->core, a))
         return false;
-    if (meter_host_save(c->core, c->path, c->settings, c->capacity))
-        return true;
-    c->core->snapshot.imperial = imperial;
-    c->core->snapshot.language = language;
-    c->core->snapshot.brightness = brightness;
-    if (tracked)
-        c->core->snapshot.parameters[index] = previous;
-    return false;
+    /* 保存请求不回滚已应用的 RAM；失败由 NVM 状态单独报告。 */
+    (void)meter_host_nvm_changed(c->nvm, SDL_GetTicks());
+    return true;
 }
 int main(int argc, char **argv)
 {
@@ -122,8 +103,19 @@ int main(int argc, char **argv)
     if (!meter_core_init(&core, product->catalog, &storage) ||
         !meter_runtime_init(&runtime, product, meter_core_apply, &core))
         return 3;
-    meter_host_load(&core, settings, store.settings, sizeof(store.settings));
-    action_context_t act = {&core, settings, product, store.settings, sizeof(store.settings)};
+    meter_host_nvm_t *nvm =
+        meter_host_nvm_open(&core, settings, product->storage->product_namespace, product->storage->schema);
+    if (settings && !nvm)
+        return 7;
+    uint32_t load_start = SDL_GetTicks();
+    while (nvm && meter_host_nvm_status(nvm)->state == METER_NVM_LOADING)
+    {
+        meter_host_nvm_poll(nvm, SDL_GetTicks());
+        if ((uint32_t)(SDL_GetTicks() - load_start) > 3000u)
+            return 7;
+        SDL_Delay(1);
+    }
+    action_context_t act = {&core, product, nvm};
     meter_ui_actions_t actions = {action, &act};
     if (set_units)
     {
@@ -156,7 +148,8 @@ int main(int argc, char **argv)
     bool navigation_ok = true;
     double max_us = 0, sum_us = 0;
     meter_runtime_connection(&runtime, true);
-    if (fixture && !meter_fixture_load(&core, fixture)) return 8;
+    if (fixture && !meter_fixture_load(&core, fixture))
+        return 8;
     if (scenario == DEMO_STALE || scenario == DEMO_OFFLINE)
     {
         meter_synthetic_values(&runtime, 0, 25, 50, -15);
@@ -188,7 +181,9 @@ int main(int argc, char **argv)
         }
         if (!meter_host_events())
             break;
-        if (fixture) { }
+        if (fixture)
+        {
+        }
         else if (visual)
         {
             float f = !strcmp(visual, "min") ? 0 : !strcmp(visual, "mid") ? 0.5f : 1;
@@ -204,6 +199,7 @@ int main(int argc, char **argv)
         lv_tick_inc(16);
         uint64_t start = meter_host_counter();
         product->ui->present(ui, &core.snapshot, 16);
+        meter_host_nvm_poll(nvm, SDL_GetTicks());
         lv_timer_handler();
         double us = meter_host_us(start, meter_host_counter());
         sum_us += us;
@@ -244,12 +240,12 @@ int main(int argc, char **argv)
            pass ? "PASS" : "FAIL", completed, (unsigned)objects,
            (unsigned)meter_ui_object_count(lv_screen_active()), (unsigned)heap_peak,
            completed ? sum_us / completed : 0, max_us, (unsigned)runtime.diagnostics.dispatched,
-           (unsigned)runtime.diagnostics.decode_failed, (unsigned)runtime.diagnostics.overflow,
-           active_faults, fault_ids, (unsigned)speed.state, (double)speed.value,
-           core.snapshot.imperial ? "true" : "false",
+           (unsigned)runtime.diagnostics.decode_failed, (unsigned)runtime.diagnostics.overflow, active_faults,
+           fault_ids, (unsigned)speed.state, (double)speed.value, core.snapshot.imperial ? "true" : "false",
            core.snapshot.language == METER_LANGUAGE_ZH ? "zh-CN" : "en", demo_ui_active_page(ui));
     product->ui->destroy(ui);
+    bool durable = meter_host_nvm_close(nvm, 5000u);
     meter_host_close();
     lv_deinit();
-    return pass ? 0 : 7;
+    return pass && durable ? 0 : 7;
 }

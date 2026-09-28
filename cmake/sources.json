@@ -1,10 +1,13 @@
 {
   "core": [
     "core/meter_core.c",
-    "core/meter_settings.c"
+    "core/meter_settings.c",
+    "core/meter_snapshot.c"
   ],
   "runtime": [
-    "runtime/meter_runtime.c"
+    "runtime/meter_runtime.c",
+    "runtime/meter_requests.c",
+    "runtime/meter_batch_builder.c"
   ],
   "protocol_common": [
     "protocols/common/meter_frame_router.c"
@@ -25,5 +28,11 @@
   "diagnostics": [
     "diagnostics/meter_diagnostics.c",
     "diagnostics/meter_trace.c"
+  ],
+  "storage": [
+    "storage/meter_record.c",
+    "storage/meter_slots.c",
+    "storage/meter_nvm.c",
+    "storage/meter_eeprom.c"
   ]
 }

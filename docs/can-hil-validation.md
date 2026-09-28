@@ -2,7 +2,9 @@
 
 ## Baseline and evidence
 
-Date: 2026-09-28. Framework tested: 98b56a9. Board firmware Platform: 5aa2a20534c96975bfaaf31e8e42df6d6246ab50. SDK identity: 2bc652c45fa8a0aa352538666c98ea1f86a85ec3-dirty-0164123894516e10. lvgl-aic: dfdd4c0c07b6d09a438ca8a0627b3deeb3b0e918. Board: d50t-2-lite, LVGL 9.6.0, build Sep 28 2026 00:34:39.
+The board name below is a public alias; original UART evidence retains the private identifier locally.
+
+Date: 2026-09-28. Framework tested: 98b56a9. Board firmware Platform: 5aa2a20534c96975bfaaf31e8e42df6d6246ab50. SDK identity: 2bc652c45fa8a0aa352538666c98ea1f86a85ec3-dirty-0164123894516e10. lvgl-aic: dfdd4c0c07b6d09a438ca8a0627b3deeb3b0e918. Board: reference-board, LVGL 9.6.0, build Sep 28 2026 00:34:39.
 
 The operator authorized PCAN_USBBUS1 and COM11 and released existing senders/terminals. The runner used python-can PCAN at 500000 bit/s and pySerial at 115200 baud. No flashing, reset, parameter change, PCAN-View GUI automation or customer data was involved. UART/CAN resources were released at the end; the original firmware remains installed.
 

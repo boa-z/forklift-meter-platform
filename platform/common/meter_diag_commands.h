@@ -14,6 +14,7 @@ typedef enum
     METER_QUERY_SIGNAL,
     METER_QUERY_TOUCH,
     METER_QUERY_TRACE,
+    METER_QUERY_STORAGE,
     METER_QUERY_TRACE_DUMP,
     METER_QUERY_TRACE_CLEAR
 } meter_diag_query_kind_t;

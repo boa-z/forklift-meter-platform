@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,6 +15,11 @@ FONT = 'third_party/lvgl/scripts/generators/built_in_font/SourceHanSansSC-Normal
 LICENSE = 'third_party/lvgl/scripts/generators/built_in_font/font_license/SourceHanSansSC/LICENSE.txt'
 PIN = '80ca777e37a2b176770726a02e07a6fb79ef0b39'
 VERSION = '1.5.3'
+
+def portable_font_source(text):
+    """规范生成注释中的字体路径，避免暴露本机目录并保持跨平台哈希。"""
+    return re.sub(r'(?m)( \* Opts: --font ).*?( --size )',
+                  lambda match: match[1] + FONT + match[2], text)
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -64,7 +70,7 @@ def main():
                        cwd=ROOT, check=True)
         # Normalize tool output for cross-platform hashes.
         out = ROOT / filename
-        out.write_text(out.read_text(encoding='utf-8'), encoding='utf-8', newline='\n')
+        out.write_text(portable_font_source(out.read_text(encoding='utf-8')), encoding='utf-8', newline='\n')
         metadata['files'][filename] = digest(out)
     (ROOT / metadata['license_file']).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(PLATFORM / LICENSE, ROOT / metadata['license_file'])

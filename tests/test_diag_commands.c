@@ -37,7 +37,8 @@ int main(void)
                               .entries = entries,
                               .entry_count = 2,
                               .cleared = 2};
-    const char *names[] = {"info", "diag", "runtime", "can", "pdo", "sdo", "domain", "touch", "trace"};
+    const char *names[] = {"info", "diag",   "runtime", "can",   "pdo",
+                           "sdo",  "domain", "touch",   "trace", "storage"};
     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
         run(names[i], NULL, &view);
     run("info", NULL, &view);
@@ -57,6 +58,13 @@ int main(void)
     run("sdo", NULL, &view);
     assert(strstr(output, "operation=WRITE") && strstr(output, "state=TIMEOUT") &&
            strstr(output, "last_abort=0x05040000"));
+    snapshot.storage.available = true;
+    snapshot.storage.backend = "eeprom";
+    snapshot.storage.state = 5;
+    snapshot.storage.ram_revision = UINT64_C(4294967297);
+    snapshot.storage.durable_revision = UINT64_C(4294967297);
+    run("storage", NULL, &view);
+    assert(strstr(output, "state=DURABLE") && strstr(output, "durable_revision=4294967297"));
     meter_diag_snapshot_t before = snapshot;
     run("diag", NULL, &view);
     assert(memcmp(&before, &snapshot, sizeof(snapshot)) == 0);

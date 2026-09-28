@@ -1,4 +1,5 @@
 #include "platform/common/meter_diag_commands.h"
+#include "storage/meter_nvm.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,8 +17,8 @@ bool meter_diag_query(int argc, const char *const *argv, meter_diag_query_t *q)
 {
     if (!q || !argv || argc < 2 || argc > 3 || !argv[0] || strcmp(argv[0], "meter") || !argv[1])
         return false;
-    static const char *const names[] = {"info", "diag",   "runtime", "can",   "pdo",
-                                        "sdo",  "domain", "signal",  "touch", "trace"};
+    static const char *const names[] = {"info",   "diag",   "runtime", "can",   "pdo",    "sdo",
+                                        "domain", "signal", "touch",   "trace", "storage"};
     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
         if (!strcmp(argv[1], names[i]))
         {
@@ -199,6 +200,27 @@ static void touch(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, void 
          U(d->irq), U(d->reads), U(d->events), U(d->delivered), U(d->recovered), U(d->empty_reads),
          U(d->invalid_reads));
 }
+static void storage(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, void *ctx)
+{
+    if (s->storage.available)
+    {
+        line(emit, ctx, "storage reads=%lu writes=%lu errors=%lu", U(s->storage.reads), U(s->storage.writes),
+             U(s->storage.errors));
+        line(emit, ctx,
+             "storage backend=%s state=%s dirty=%u degraded=%u depth=%lu last_error=%lu result=%lu",
+             s->storage.backend ? s->storage.backend : "unknown",
+             meter_nvm_state_name((meter_nvm_state_t)s->storage.state), (unsigned)s->storage.dirty,
+             (unsigned)s->storage.degraded, U(s->storage.depth), U(s->storage.last_error),
+             U(s->storage.last_result));
+        line(emit, ctx, "storage ram_revision=%llu inflight_revision=%llu durable_revision=%llu",
+             (unsigned long long)s->storage.ram_revision, (unsigned long long)s->storage.inflight_revision,
+             (unsigned long long)s->storage.durable_revision);
+        line(emit, ctx, "storage language=%lu brightness=%lu imperial=%u", U(s->storage.language),
+             U(s->storage.brightness), (unsigned)s->storage.imperial);
+    }
+    else
+        emit(ctx, "storage unavailable (no NVM backend)");
+}
 void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, meter_diag_line_fn emit,
                        void *ctx)
 {
@@ -228,6 +250,9 @@ void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, 
         line(emit, ctx, "uptime_ms : %lu", U(s->uptime_ms));
         break;
     }
+    case METER_QUERY_STORAGE:
+        storage(s, emit, ctx);
+        break;
     case METER_QUERY_DIAG:
         runtime(s, emit, ctx);
         for (unsigned i = 0; i < METER_BUS_COUNT; ++i)
@@ -246,11 +271,7 @@ void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, 
         }
         else
             emit(ctx, "ui unavailable");
-        if (s->storage.available)
-            line(emit, ctx, "storage reads=%lu writes=%lu errors=%lu", U(s->storage.reads),
-                 U(s->storage.writes), U(s->storage.errors));
-        else
-            emit(ctx, "storage unavailable (no NVM backend)");
+        storage(s, emit, ctx);
         break;
     case METER_QUERY_RUNTIME:
         runtime(s, emit, ctx);

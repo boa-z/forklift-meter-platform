@@ -1,9 +1,9 @@
 #ifndef METER_PRODUCT_H
 #define METER_PRODUCT_H
-#include <stddef.h>
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
 #include "contracts/meter_protocol.h"
+#include <stddef.h>
 typedef bool (*meter_decode_fn_t)(const meter_can_frame_t *frame, meter_update_sink_t sink, void *context);
 typedef struct
 {
@@ -53,6 +53,13 @@ typedef struct
     void (*present)(void *ui, const meter_snapshot_t *snapshot, uint32_t elapsed_ms);
     void (*destroy)(void *ui);
 } meter_ui_factory_t;
+/** @brief Product 本机设置记录策略；未绑定时平台不启用持久化。 */
+typedef struct
+{
+    bool enabled;
+    uint16_t record_type, product_namespace, schema;
+    uint32_t debounce_ms, max_delay_ms;
+} meter_storage_profile_t;
 typedef struct
 {
     const char *id;
@@ -67,6 +74,7 @@ typedef struct
     void (*evaluate)(meter_snapshot_t *snapshot);
     meter_command_route_fn_t command_route;
     void *command_route_context;
+    const meter_storage_profile_t *storage;
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

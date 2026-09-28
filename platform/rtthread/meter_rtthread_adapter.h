@@ -8,8 +8,6 @@ typedef struct
     bool (*touch_init)(void *context);
     bool (*can_open)(void *context, meter_bus_role_t bus);
     bool (*can_read)(void *context, meter_can_frame_t *frame);
-    bool (*load_settings)(void *context, uint8_t *data, size_t capacity, size_t *size);
-    bool (*save_settings)(void *context, const uint8_t *data, size_t size);
     void *context;
     /* Monotonic clock must advance even when no CAN frame arrives. */
     uint32_t (*now_ms)(void *context);

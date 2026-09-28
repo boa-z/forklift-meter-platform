@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-The first gate targets the synthetic reference-demo on D50T-2-Lite: CAN PHY, driver, Runtime, decoder and Domain. UI/touch remain separate manual gates. Reference-Mixed HIL remains NOT_RUN until firmware Product selection, RT-Thread CAN TX and a Mixed image are verified.
+The first gate targets the synthetic reference-demo on reference-board: CAN PHY, driver, Runtime, decoder and Domain. UI/touch remain separate manual gates. Reference-Mixed HIL remains NOT_RUN until firmware Product selection, RT-Thread CAN TX and a Mixed image are verified.
 
 HOST_PASS means parser/vector/virtual-bus tests passed. HIL_NOT_RUN means hardware was not exercised or the selected run was skipped/incomplete. HIL_PASS means the selected physical tests passed; inspect recorded test names for full gate coverage. HIL_FAIL preserves failures. Zero pytest exit status with skipped hardware tests is not HIL_PASS.
 
@@ -29,9 +29,9 @@ python -m pytest -m hil --hil --can-interface pcan --can-channel PCAN_USBBUS1 --
 python -m pytest -m hil --hil --can-interface socketcan --can-channel can0 --can-bitrate 500000 --dut-port /dev/ttyUSB0
 ~~~
 
-Connect only the intended test board. Stop PCAN-View transmit lists and release UART terminals. PCAN-View remains manual inspection/capture only. Reserve the shared board under SDK policy. Before CAN stimulus, the harness checks reference-demo, d50t-2-lite and CAN0 bitrate. Tests clear recent Trace, inject synthetic signals and stop all tasks afterward; they do not change settings. The final board may become STALE when traffic stops.
+Connect only the intended test board. Stop PCAN-View transmit lists and release UART terminals. PCAN-View remains manual inspection/capture only. Reserve the shared board under SDK policy. Before CAN stimulus, the harness checks reference-demo, reference-board and CAN0 bitrate. Tests clear recent Trace, inject synthetic signals and stop all tasks afterward; they do not change settings. The final board may become STALE when traffic stops.
 
---hil-evidence selects the evidence root; --hil-image records the flashed image SHA256 (otherwise NOT_PROVIDED). Firmware-reported identity is always captured when reachable. --dut-baud defaults to 115200. Do not run physical HIL with pytest-xdist: UART ownership is exclusive.
+--hil-evidence selects the evidence root; --hil-image records the flashed image SHA256 (otherwise NOT_PROVIDED). Firmware-reported identity is always captured when reachable. --dut-baud defaults to 115200. --dut-board selects the exact expected board identity (default reference-board); the identity check is never skipped. Do not run physical HIL with pytest-xdist: UART ownership is exclusive.
 
 ## Gates
 
@@ -44,7 +44,7 @@ Connect only the intended test board. Stop PCAN-View transmit lists and release 
 | HIL-05 | Known-ID DLC7 increments decode_failed once, not malformed; INVALID_FRAME Trace |
 | HIL-06 | Five frames every 10ms for 2s; at least 500 RX; no new overflow/drop/error/reset |
 
-The D50T burst gate also saves native RT-Thread canstat before/after and asserts zero native receive drops. This exposes losses before the meter Runtime boundary. burst-summary.json separates Host scheduled TX, native driver RX/drop and Domain-path RX/dispatched. The native canstat extension is specific to RT-Thread; other DUT frontends must supply their own equivalent before reusing this gate.
+The reference-board burst gate also saves native RT-Thread canstat before/after and asserts zero native receive drops. This exposes losses before the meter Runtime boundary. burst-summary.json separates Host scheduled TX, native driver RX/drop and Domain-path RX/dispatched. The native canstat extension is specific to RT-Thread; other DUT frontends must supply their own equivalent before reusing this gate.
 
 Counters use deltas rather than lifetime totals. A physically valid short frame is a decoder error; this gate does not inject impossible DLC>8, bad CRC or bus-off. The first boundary gate covers required speed/SOC. The known generated-float height=6m error is not hidden or claimed fixed by this gate. Settings/SDO/PDO and camera assertions are out of scope.
 

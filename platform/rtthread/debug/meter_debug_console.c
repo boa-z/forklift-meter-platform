@@ -43,9 +43,8 @@ static int meter(int argc, char **argv)
     meter_diag_query_t query;
     if (!meter_diag_query(argc, (const char *const *)argv, &query))
     {
-        output(
-            NULL,
-            "usage: meter info|diag|runtime|can [0|1]|pdo|sdo|domain|signal <key>|touch|trace [dump|clear]");
+        output(NULL, "usage: meter info|diag|runtime|can [0|1]|pdo|sdo|domain|signal "
+                     "<key>|touch|storage|trace [dump|clear]");
         return -RT_EINVAL;
     }
     if (!diagnostics)
