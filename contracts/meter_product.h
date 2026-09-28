@@ -55,7 +55,7 @@ typedef struct
     void *(*create)(void *parent, const meter_ui_actions_t *actions);
     void (*present)(void *ui, const meter_snapshot_t *snapshot, uint32_t elapsed_ms);
     void (*destroy)(void *ui);
-    /** @brief 可选只读升级展示，由 App/UI owner 调用，不触发下载或激活。 */
+    /** @brief 可选只读升级展示，由 UI owner 调用，不触发下载或激活。 */
     void (*present_update)(void *ui, const meter_update_view_t *view, meter_language_t language);
 } meter_ui_factory_t;
 /** @brief Product 本机设置记录策略；未绑定时平台不启用持久化。 */

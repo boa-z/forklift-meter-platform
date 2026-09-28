@@ -3,6 +3,8 @@
 本目录维护现行契约、操作指南与验证记录。过时任务计划和重复阶段报告已收敛；历史测试原始 SHA 保留，不将旧镜像结果归于重写后的提交。完整旧版内容可从 Git 历史获取。
 
 - [Runtime 所有权与生命周期](runtime-production.zh-CN.md)
+- [维护者评估](maintainability.zh-CN.md)
+- [当前维护计划](maintenance-plan.zh-CN.md)
 - [动态周期 TX 契约](dynamic-periodic-tx.zh-CN.md)
 - [Domain、CANopen 与 Product 服务](protocols.zh-CN.md)
 - [External/私有 Product 集成](downstream.zh-CN.md)

@@ -24,7 +24,7 @@ const meter_core_storage_t storage = {signals, PRIVATE_SIGNAL_SLOTS, parameters,
 meter_core_init(&core, &private_catalog, &storage);
 ```
 
-`meter_core_init` 在任一表格大于所绑定的存储时失败，因此过小的产品配置表现为启动错误而非内存损坏。`products/demo/demo_storage.c` 是 Demo 规模下的相同模式。静态存储已足够；`contracts`、`core`、`runtime`、`protocols` 或 `products` 中没有任何部分使用堆。
+`meter_core_init` 在任一表格大于所绑定的存储时失败，因此过小的产品配置表现为启动错误而非内存损坏。`products/demo/product/demo_storage.c` 是 Demo 规模下的相同模式。静态存储已足够；`contracts`、`core`、`runtime`、`protocols` 或 `products` 中没有任何部分使用堆。
 
 信号、参数和故障标识均为通过你的目录解析的 16 位句柄，而非数组下标。公共 Demo 条目使用 `1..0x0FFF`；私有扩展范围起始于 `METER_ID_PRIVATE_FIRST`（`0x1000`），因此你的标识不会与后续公共目录行冲突。使用 `meter_snapshot_read`、`meter_snapshot_parameter` 和 `meter_snapshot_fault_active` 读取域值，使用 `meter_snapshot_fault_set` 写入故障状态；未声明的标识将报告为未知数据。监视器不携带存储：每个监视器都是必须命名已声明信号的呈现行。
 

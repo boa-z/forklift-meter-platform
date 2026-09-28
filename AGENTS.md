@@ -1,5 +1,7 @@
 # Public demo development rules
 
+Start with [the documentation map](docs/README.md), [maintainer assessment](docs/maintainability.md) and [active maintenance plan](docs/maintenance-plan.md). Record durable decisions and validation in the repository. Keep behavior-preserving cleanup separate from protocol, timing, ownership, persistence, update trust/recovery and product-policy decisions; unresolved decisions stay open for human review.
+
 - Linux is the default CI platform (`ubuntu-latest`). Keep CLI builds, tests and scripts portable; Windows/MSYS2 is an additional host environment.
 - Prefer existing LVGL features over custom infrastructure. Use native widgets, layout, animation, translation, display and input APIs when they meet the requirement.
 - For missing functionality, review maintained mainstream community libraries before writing an equivalent implementation. Pin versions and document license, footprint and provenance; do not add a dependency without a concrete need.

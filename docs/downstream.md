@@ -24,7 +24,7 @@ const meter_core_storage_t storage = {signals, PRIVATE_SIGNAL_SLOTS, parameters,
 meter_core_init(&core, &private_catalog, &storage);
 ```
 
-`meter_core_init` fails if any table is larger than the storage you bind, so an undersized product is a start-up error rather than memory corruption. `products/demo/demo_storage.c` is the same pattern at Demo size. Static storage is enough; nothing in `contracts`, `core`, `runtime`, `protocols` or `products` takes heap.
+`meter_core_init` fails if any table is larger than the storage you bind, so an undersized product is a start-up error rather than memory corruption. `products/demo/product/demo_storage.c` is the same pattern at Demo size. Static storage is enough; nothing in `contracts`, `core`, `runtime`, `protocols` or `products` takes heap.
 
 Signal, parameter and fault identities are 16-bit handles resolved through your catalog, never array positions. Public Demo entries use `1..0x0FFF`; a private extension range starts at `METER_ID_PRIVATE_FIRST` (`0x1000`) so your ids cannot collide with a later public catalog row. Read domain values with `meter_snapshot_read`, `meter_snapshot_parameter` and `meter_snapshot_fault_active`, and write fault state with `meter_snapshot_fault_set`; an identity you did not declare reports as unknown data. Monitors carry no storage: each one is a presentation row that must name a declared signal.
 
