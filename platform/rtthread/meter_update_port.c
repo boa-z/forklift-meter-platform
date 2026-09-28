@@ -38,11 +38,11 @@ static meter_uds_t uds;
 static UDSTpISOTpC_t transport;
 static struct
 {
-    bool started, maintenance, admitted, healthy, cancel, abandon, barrier_requested, busy;
+    bool started, maintenance, admitted, healthy, cancel, abandon, barrier_requested, busy, exclusive;
     uint64_t barrier_target;
     meter_update_state_t state;
     meter_update_error_t error;
-    uint32_t generation, received, total, rx, tx, drops, tx_errors;
+    uint32_t generation, received, total, rx, tx, drops, tx_errors, suppressed;
     char target[METER_UPDATE_VERSION_SIZE];
 } shared;
 uint32_t UDSMillis(void)
@@ -219,13 +219,15 @@ static size_t info(void *ctx, uint8_t *out, size_t capacity)
         "{\"product\":\"%s\",\"hardware\":\"%s\",\"version\":\"%s\",\"platform\":\"%s\",\"sdk\":\"%s\","
         "\"target\":\"%s\","
         "\"state\":\"%s\",\"error\":%u,\"received\":%u,\"total\":%u,\"backend_supported\":%s,\"backend_"
-        "reason\":\"%s\",\"maintenance\":%u,\"rx\":%u,\"tx\":%u,\"drops\":%u,\"tx_errors\":%u,\"os_file\":"
+        "reason\":\"%s\",\"maintenance\":%u,\"exclusive\":%u,\"suppressed\":%u,\"rx\":%u,\"tx\":%u,\"drops\":"
+        "%u,\"tx_errors\":%u,\"os_file\":"
         "\"d13x_os.itb\",\"candidate_capacity\":%u,\"confirmation\":\"native_auto\"}",
         p->id, METER_BUILD_BOARD, METER_UPDATE_FIRMWARE_VERSION, METER_BUILD_PLATFORM, METER_BUILD_SDK,
         shared.target, meter_update_state_name(shared.state), (unsigned)shared.error,
         (unsigned)shared.received, (unsigned)shared.total, meter_aic_update_supported() ? "true" : "false",
-        meter_aic_update_reason(), shared.maintenance, (unsigned)shared.rx, (unsigned)shared.tx,
-        (unsigned)shared.drops, (unsigned)shared.tx_errors, (unsigned)meter_aic_update_capacity());
+        meter_aic_update_reason(), shared.maintenance, shared.exclusive, (unsigned)shared.suppressed,
+        (unsigned)shared.rx, (unsigned)shared.tx, (unsigned)shared.drops, (unsigned)shared.tx_errors,
+        (unsigned)meter_aic_update_capacity());
     rt_mutex_release(&lock);
     return n >= 0 && (size_t)n < capacity ? (size_t)n : 0;
 }
@@ -266,6 +268,16 @@ static void tx_entry(void *arg)
             rt_mutex_release(&lock);
         }
 }
+/* 维护模式有意丢弃业务帧，独立统计，不伪装成硬件或队列零丢帧。 */
+static void normal_frame(const meter_can_frame_t *frame)
+{
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    if (shared.exclusive)
+        shared.suppressed++;
+    else if (rt_mq_send(&normal_rx, frame, sizeof(*frame)) != RT_EOK)
+        shared.drops++;
+    rt_mutex_release(&lock);
+}
 static void protocol_entry(void *arg)
 {
     (void)arg;
@@ -282,11 +294,9 @@ static void protocol_entry(void *arg)
                 shared.rx++;
                 rt_mutex_release(&lock);
             }
-            else if (rt_mq_send(&normal_rx, &frame, sizeof(frame)) != RT_EOK)
+            else
             {
-                rt_mutex_take(&lock, RT_WAITING_FOREVER);
-                shared.drops++;
-                rt_mutex_release(&lock);
+                normal_frame(&frame);
             }
         }
         UDSServerPoll(&uds.server);
@@ -341,11 +351,19 @@ void meter_board_update_poll(meter_core_t *core, bool ui_healthy)
         return;
     const meter_product_t *p = meter_product_get();
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    bool admitted = p->update_admission(&core->snapshot, shared.maintenance);
+    bool admitted = p->update_admission(&core->snapshot, shared.maintenance) && meter_board_nvm_ready();
     if (shared.admitted && !admitted)
         shared.cancel = true;
-    shared.admitted = admitted && meter_board_nvm_ready();
+    shared.admitted = admitted;
     shared.healthy = ui_healthy && meter_board_nvm_ready();
+    /* 暂停业务必须保留 App/NVM 门禁轮询，不能挂起整个 App 线程。 */
+    shared.exclusive = (shared.maintenance || shared.cancel || shared.busy) && p->update_exclusive;
+    if (shared.exclusive)
+    {
+        meter_can_frame_t discarded;
+        while (rt_mq_recv(&normal_rx, &discarded, sizeof(discarded), 0) == RT_EOK)
+            shared.suppressed++;
+    }
     if (shared.barrier_requested)
     {
         if (!shared.barrier_target)
@@ -353,6 +371,32 @@ void meter_board_update_poll(meter_core_t *core, bool ui_healthy)
         if (shared.barrier_target && meter_board_nvm_barrier(shared.barrier_target))
             rt_event_send(&barrier_event, 1);
     }
+    rt_mutex_release(&lock);
+}
+bool meter_board_update_exclusive(void)
+{
+    if (!shared.started)
+        return false;
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    bool value = shared.exclusive;
+    rt_mutex_release(&lock);
+    return value;
+}
+void meter_board_update_view(meter_update_view_t *view)
+{
+    if (!view)
+        return;
+    memset(view, 0, sizeof(*view));
+    if (!shared.started)
+        return;
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    view->visible = shared.exclusive;
+    view->state = shared.state;
+    view->error = (uint32_t)shared.error;
+    view->received = shared.received;
+    view->total = shared.total;
+    memcpy(view->target_version, shared.target, sizeof(view->target_version));
+    memcpy(view->current_version, METER_UPDATE_FIRMWARE_VERSION, sizeof(METER_UPDATE_FIRMWARE_VERSION));
     rt_mutex_release(&lock);
 }
 bool meter_board_update_maintenance(void)

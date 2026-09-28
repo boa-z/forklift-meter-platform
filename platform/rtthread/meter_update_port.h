@@ -1,5 +1,6 @@
 #ifndef METER_UPDATE_PORT_H
 #define METER_UPDATE_PORT_H
+#include "contracts/meter_update_view.h"
 #include "core/meter_core.h"
 /** @brief 启动可选 OTA workers；须在 CAN/NVM 初始化之后调用。 */
 bool meter_board_update_start(void);
@@ -11,4 +12,8 @@ bool meter_board_update_maintenance(void);
 bool meter_board_update_read(meter_can_frame_t *);
 /** @brief 查询 CAN 接收所有者是否已移交给 Protocol worker。 */
 bool meter_board_update_started(void);
+/** @brief 查询 Product 独占维护模式；该模式暂停正常业务。 */
+bool meter_board_update_exclusive(void);
+/** @brief 在锁内复制只读展示值，由 App 交给 UI；不暴露 worker 内存。 */
+void meter_board_update_view(meter_update_view_t *view);
 #endif

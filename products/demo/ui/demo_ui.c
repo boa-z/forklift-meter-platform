@@ -1,7 +1,7 @@
 #include "ui/demo_internal.h"
 #include <string.h>
-lv_obj_t *demo_text(demo_ui_t *u, lv_obj_t *parent, int x, int y, demo_text_id_t id,
-                    const lv_font_t *font, uint32_t color)
+lv_obj_t *demo_text(demo_ui_t *u, lv_obj_t *parent, int x, int y, demo_text_id_t id, const lv_font_t *font,
+                    uint32_t color)
 {
     (void)u;
     lv_obj_t *label = meter_text(parent, x, y, demo_i18n_text(id), font, color);
@@ -34,12 +34,9 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     demo_theme_panel(u->root);
     /* The display canvas fills the rectangular screen; only cards are rounded. */
     lv_obj_set_style_radius(u->root, 0, 0);
-    demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24,
-               0x5de5ca);
-    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE,
-               &lv_font_montserrat_12, 0x9cb5c4);
-    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING,
-                               &lv_font_montserrat_12, 0xf3ba65);
+    demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24, 0x5de5ca);
+    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE, &lv_font_montserrat_12, 0x9cb5c4);
+    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING, &lv_font_montserrat_12, 0xf3ba65);
     u->clock = meter_text(u->root, 714, 18, "00:00", &lv_font_montserrat_14, 0xe9f2f5);
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
@@ -57,6 +54,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     demo_settings_create(u);
     demo_navigation_create(u);
     demo_navigation_show(u, 0);
+    meter_update_widget_create(&u->update_widget, u->root);
     return u;
 }
 void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t elapsed)
@@ -105,4 +103,37 @@ void demo_ui_destroy(void *context)
 unsigned demo_ui_active_page(const void *context)
 {
     return ((const demo_ui_t *)context)->page;
+}
+
+static void present_update(void *context, const meter_update_view_t *view, meter_language_t language,
+                           bool preview)
+{
+    demo_ui_t *u = context;
+    const demo_text_id_t phases[] = {
+        DEMO_TXT_OTA_IDLE,      DEMO_TXT_OTA_DOWNLOADING, DEMO_TXT_OTA_TRANSFERRED, DEMO_TXT_OTA_VERIFYING,
+        DEMO_TXT_OTA_CANDIDATE, DEMO_TXT_OTA_DURABLE,     DEMO_TXT_OTA_ACTIVATING,  DEMO_TXT_OTA_ACTIVATED,
+        DEMO_TXT_OTA_CONFIRMED, DEMO_TXT_OTA_ABORTED,     DEMO_TXT_OTA_FAILED};
+    demo_text_id_t phase = DEMO_TXT_OTA_FAILED;
+    if ((unsigned)view->state < sizeof(phases) / sizeof(phases[0]))
+        phase = phases[view->state];
+    lv_translation_set_language(meter_i18n_language_code(language));
+    meter_update_widget_text_t text = {
+        demo_i18n_text(DEMO_TXT_OTA_TITLE),
+        demo_i18n_text(phase),
+        demo_i18n_text(view->state == METER_UPDATE_ABORTED || view->state == METER_UPDATE_FAILED
+                           ? DEMO_TXT_OTA_STOPPED
+                           : DEMO_TXT_OTA_NOTE),
+        demo_i18n_text(DEMO_TXT_OTA_CURRENT),
+        demo_i18n_text(DEMO_TXT_OTA_TARGET),
+        demo_i18n_text(DEMO_TXT_OTA_ERROR),
+        preview ? demo_i18n_text(DEMO_TXT_OTA_PREVIEW) : ""};
+    meter_update_widget_present(&u->update_widget, view, &text, language);
+}
+void demo_ui_update(void *ui, const meter_update_view_t *view, meter_language_t language)
+{
+    present_update(ui, view, language, false);
+}
+void demo_ui_update_preview(void *ui, const meter_update_view_t *view, meter_language_t language)
+{
+    present_update(ui, view, language, true);
 }

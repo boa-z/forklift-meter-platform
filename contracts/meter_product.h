@@ -3,6 +3,7 @@
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
 #include "contracts/meter_protocol.h"
+#include "contracts/meter_update_view.h"
 #include <stddef.h>
 typedef bool (*meter_decode_fn_t)(const meter_can_frame_t *frame, meter_update_sink_t sink, void *context);
 typedef struct
@@ -52,6 +53,8 @@ typedef struct
     void *(*create)(void *parent, const meter_ui_actions_t *actions);
     void (*present)(void *ui, const meter_snapshot_t *snapshot, uint32_t elapsed_ms);
     void (*destroy)(void *ui);
+    /** @brief 可选只读升级展示，由 App/UI owner 调用，不触发下载或激活。 */
+    void (*present_update)(void *ui, const meter_update_view_t *view, meter_language_t language);
 } meter_ui_factory_t;
 /** @brief Product 本机设置记录策略；未绑定时平台不启用持久化。 */
 typedef struct
@@ -79,6 +82,8 @@ typedef struct
     const struct meter_update_policy *update;
     /** @brief App 提供快照，Product 决定维护模式与业务准入。 */
     bool (*update_admission)(const meter_snapshot_t *, bool maintenance);
+    /** @brief Product 选择升级维护时暂停正常协议业务与仪表刷新。 */
+    bool update_exclusive;
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

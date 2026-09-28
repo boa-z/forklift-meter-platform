@@ -7,10 +7,10 @@
   "license": "OFL-1.1",
   "license_file": "assets/LICENSES/SourceHanSansSC-OFL.txt",
   "converter": "lv_font_conv@1.5.3",
-  "symbols": "。一上不与中为于互产亮仅代仪传位低作例保信值偏储充入公关制动升单占压参叉可号合后向告器回地场域失好存实小工已常度座开待性感成或护报挡据授接控提放故效数文断无时显有期本机权构椅正求池注活测温源演独现生用电留的监盘相码示禁离空立等线维置考能般英荷虚行表角言警设诊试语误请败起超车转载辆过连速遥重量错阈限障领驶驻高；",
+  "symbols": "。一上下不与中为久于互产亮仅代仪件传位低作例保信候值偏停储像充入公关制前动勿包化升单占压参叉可号合后向启告器回固在地场域备失好存安完实小尚工已常并度座开当待性感成或护报持挡据授接控提操收放故效数文断新无时显暂有期未本机权构查标校椅止正求池注活测温源演激版独现生用电留的监盘目相看码确示禁离空立等级线维置考能般英荷虚行表装览角言警认设诊试语误请败起超车转载辆输过连选速遥重量错镜阈限障预领驶驻验高，；",
   "modifications": "Renamed subset; ASCII and demo translations; 14/20 px, 4 bpp",
   "files": {
-    "generated/meter_demo_cjk_14.c": "277c5bbcc014359d4c66c550b3f179be5c149790e1fce728d0dac0e85178db5d",
-    "generated/meter_demo_cjk_20.c": "66a024c6316081c377b95a814e26b2112dc9e2e2577d4935b058ac64f63274c5"
+    "generated/meter_demo_cjk_14.c": "cc73f828d59e6cae7b5421ea4f9f32c8447496e66921716fce3ac7528946c4d1",
+    "generated/meter_demo_cjk_20.c": "56b303f803252e00ee9a126412f312de843704e8fb520c839d3084545ddb700f"
   }
 }

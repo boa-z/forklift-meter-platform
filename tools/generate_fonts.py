@@ -70,7 +70,7 @@ def main():
                        cwd=ROOT, check=True)
         # Normalize tool output for cross-platform hashes.
         out = ROOT / filename
-        out.write_text(portable_font_source(out.read_text(encoding='utf-8')), encoding='utf-8', newline='\n')
+        out.write_text(portable_font_source(out.read_text(encoding='utf-8')).rstrip() + chr(10), encoding='utf-8', newline='\n')
         metadata['files'][filename] = digest(out)
     (ROOT / metadata['license_file']).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(PLATFORM / LICENSE, ROOT / metadata['license_file'])

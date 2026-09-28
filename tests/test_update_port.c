@@ -4,7 +4,14 @@
 #include <stdarg.h>
 static char console_output[1024];
 static size_t console_used;
-static bool diagnostic_test;
+static bool diagnostic_test, nvm_ready = true;
+static bool admission(const meter_snapshot_t *snapshot, bool maintenance)
+{
+    (void)snapshot;
+    return maintenance;
+}
+static meter_product_t test_product = {
+    .id = "synthetic", .update_admission = admission, .update_exclusive = true};
 static unsigned released;
 int rt_mutex_take(struct rt_mutex *mutex, int timeout)
 {
@@ -102,6 +109,41 @@ int main(void)
     assert(console_used == expected_size + 1);
     assert(memcmp(console_output, expected, expected_size) == 0);
     assert(console_output[expected_size] == '\n');
+    /* 维护入口清空旧业务帧，流控丢弃单独计数；离开后恢复接收。 */
+    meter_core_t core = {0};
+    meter_can_frame_t frame = {0}, observed;
+    normal_frame(&frame);
+    assert(normal_rx.full);
+    shared.maintenance = true;
+    meter_board_update_poll(&core, true);
+    assert(meter_board_update_exclusive() && shared.admitted && !normal_rx.full);
+    assert(shared.suppressed == 1 && shared.drops == 0);
+    normal_frame(&frame);
+    assert(shared.suppressed == 2 && !normal_rx.full);
+    shared.total = 1065984;
+    shared.received = 532992;
+    meter_update_view_t view;
+    meter_board_update_view(&view);
+    assert(view.visible && view.received == 532992 && view.total == 1065984);
+    nvm_ready = false;
+    meter_board_update_poll(&core, true);
+    assert(shared.cancel && !shared.admitted && meter_board_update_exclusive());
+    shared.maintenance = false;
+    meter_board_update_poll(&core, true);
+    assert(meter_board_update_exclusive());
+    cancel_work(&discarded);
+    meter_board_update_poll(&core, true);
+    assert(!meter_board_update_exclusive());
+    normal_frame(&frame);
+    assert(meter_board_update_read(&observed));
+    nvm_ready = true;
+    shared.maintenance = true;
+    test_product.update_exclusive = false;
+    meter_board_update_poll(&core, true);
+    assert(shared.admitted && !meter_board_update_exclusive());
+    normal_frame(&frame);
+    normal_frame(&frame);
+    assert(shared.drops == 1 && shared.suppressed == 2);
     return 0;
 }
 
@@ -207,8 +249,7 @@ int rt_thread_startup(struct rt_thread *t)
 const meter_product_t *meter_product_get(void)
 {
     assert(diagnostic_test);
-    static const meter_product_t product = {.id = "synthetic"};
-    return &product;
+    return &test_product;
 }
 meter_update_backend_t meter_aic_update_backend(meter_aic_update_t *a)
 {
@@ -243,8 +284,8 @@ int meter_aic_update_confirm(void)
 }
 bool meter_board_nvm_ready(void)
 {
-    UNEXPECTED();
-    return false;
+    assert(diagnostic_test);
+    return nvm_ready;
 }
 uint64_t meter_board_nvm_flush(void)
 {

@@ -65,8 +65,8 @@ if os.environ.get('METER_CAN_UPDATE', '0') == '1':
     group += DefineGroup('METER-CAN-UPDATE', [os.path.join(cwd,p) for p in app_update] + upstream_update + native_update,
         depend=['AIC_FORKLIFT_METER_PLATFORM_APP'],
         CPPPATH=[cwd, product, identity_dir, protocol, ota, os.path.join(crypto,'include'), os.path.join(crypto,'library')],
-        CPPDEFINES=['UDS_SYS=0', 'UDS_TP_ISOTP_C', 'UDS_LOG_LEVEL=0',
+        CPPDEFINES=['UDS_SYS=0', 'UDS_TP_ISOTP_C', 'UDS_LOG_LEVEL=0', 'UDS_SERVER_DEFAULT_P2_MS=1',
             'UDS_SERVER_RECV_BUF_SIZE=1024', 'UDS_SERVER_SEND_BUF_SIZE=1024',
-            'ISO_TP_DEFAULT_ST_MIN_US=5000', 'ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000',
+            'ISO_TP_DEFAULT_ST_MIN_US=0', 'ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000',
             'METER_AIC_OTA'])
 Return('group')

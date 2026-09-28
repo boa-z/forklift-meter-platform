@@ -243,7 +243,7 @@ if(METER_ENABLE_UPDATE)
     target_include_directories(meter_uds PUBLIC third_party/iso14229/src)
     target_compile_definitions(meter_uds PUBLIC UDS_SYS=0 UDS_TP_ISOTP_C UDS_LOG_LEVEL=0
         UDS_SERVER_RECV_BUF_SIZE=1024 UDS_SERVER_SEND_BUF_SIZE=1024
-        ISO_TP_DEFAULT_ST_MIN_US=5000 ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000)
+        UDS_SERVER_DEFAULT_P2_MS=1 ISO_TP_DEFAULT_ST_MIN_US=0 ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000)
     if(BUILD_TESTING)
         add_executable(test-update tests/test_update.c)
         target_link_libraries(test-update PRIVATE meter_update)

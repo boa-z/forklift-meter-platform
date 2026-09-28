@@ -4,7 +4,7 @@
 
 CAN OTA 是可选 Framework 能力。目标路径为 CAN → ISO-TP/UDS → 有界任务副本 → 单一 Update worker → 现有 ArtInChip OTA 安装器 → 非活动 A/B 候选 → NVM durable 门禁 → 激活 → 重启 → 新固件观测。Product 决定准入与维护模式，Core/UI 不解析 CAN、不调用 Flash。不在 RAM 缓存完整固件，不自制 CAN 文件分片协议。
 
-可选应用构建现已接入 RT-Thread Protocol、CAN TX 和 Update worker，以及未经修改的 ArtInChip 原生安装器。默认构建保持原样。传输完成、候选验证、激活和新固件观察保持区分。原生 SDK 在应用健康检查前自动清除升级标志，对外报告 native_auto，不代表应用控制的确认。SHA256 是完整性检查，不是签名。真实 OTA、rollback 和下载中断电仍未经验证。
+可选应用构建现已接入 RT-Thread Protocol、CAN TX 和 Update worker，以及未经修改的 ArtInChip 原生安装器。默认构建保持原样。传输完成、候选验证、激活和新固件观察保持区分。原生 SDK 在应用健康检查前自动清除升级标志，对外报告 native_auto，不代表应用控制的确认。SHA256 是完整性检查，不是签名。首次实板 A 到 B 升级已成功启动；rollback 和下载中断电仍未经验证。
 
 ## SDK 审查
 
@@ -30,7 +30,7 @@ CAN OTA 是可选 Framework 能力。目标路径为 CAN → ISO-TP/UDS → 有�
 
 UDS 收发缓冲各 1024 字节，每个复制的升级块最多 512 字节。148 字节 manifest 为 Product[32]、Hardware[32]、Version[48]、大端 uint32 包长度、SHA256[32]。DID 0xF180 写 manifest、读 JSON 诊断。RequestDownload 使用地址零和准确包长，TransferData 使用标准模 256 序号，TransferExit 请求设备验证。StartRoutine 0xF001 激活、0xF002 中止、0xF003 为设备确认保留。设备激活后才允许 ECUReset，CLI 不将发送重启等同新固件确认。
 
-Host 预检每次最多读取 64 KiB，传输块最多 512 字节。同一打开文件在发送过程中再次计算 hash，内容变化时在验证之前中止。CLI 遵守设备块长、接收端 STmin/流控，将 ISO-TP 数据流限制为 0.1 秒窗口内 20000 bit/s。该限额不包括 CAN 帧开销，不代表已证明总线公平性；正常/Burst HIL 门槛保持不变。
+Host 预检每次最多读取 64 KiB，传输块最多 512 字节。同一打开文件在发送过程中再次计算 hash，内容变化时在验证之前中止。CLI 遵守设备块长与接收端 STmin/流控。独占维护配置请求零 STmin、每八帧流控，移除原来的 Host 20000 bit/s 数据限额，但不会覆盖较慢接收端的 STmin。固件通过上游配置采用一毫秒响应调度延迟；挂起操作保持原有有界超时。维护模式以外的正常/Burst HIL 门槛保持不变。
 
 ## OS-only 包策略
 
@@ -66,7 +66,7 @@ PCAN 默认 PCAN_USBBUS1、500000 bit/s，请求 ID 0x7E0、响应 ID 0x7E8。�
 
 新增测试覆盖切块边界、CPIO/元数据异常、容量对齐、原生成包及失败不发布包。Host 测试还覆盖 manifest 边界、损坏、修改前身份/维护/能力拒绝、块序号回绕、文件变化、超时/Abort 和激活目标检查。python-can 虚拟总线测试通过 can-isotp、udsoncan 交换真实分段 ISO-TP 响应并解析 CAN 证据。这是 Host 传输测试，不是 PCAN 实物或 OTA 安装。C 测试覆盖状态转换、worker 完成、异常 UDS 请求及不链接 SDK 的实际拒绝后端。Linux CI 新增可选升级配置，本机测试不代表远端 CI 已运行。
 
-板端固件已可构建，真实原生解包器与摘要实现的 Host 回归覆盖任意分块、无效 ENV、不安全分区几何、异常元数据/FIT/尾标、坏块、擦写读取失败、回读损坏、hash 不匹配、Abort 和 ENV 落盘丢失。回归中的 Flash/ENV 是测试替身。真实 CAN OTA、吞吐、A/B 激活、UI/UART/CAN 共存和下载中断电均为 NOT_RUN，需刷入新基线后验证。原生自动确认属于已知限制，不能将 rollback 标记 PASS。
+板端固件已可构建，真实原生解包器与摘要实现的 Host 回归覆盖任意分块、无效 ENV、不安全分区几何、异常元数据/FIT/尾标、坏块、擦写读取失败、回读损坏、hash 不匹配、Abort 和 ENV 落盘丢失。回归中的 Flash/ENV 是测试替身。首次实板传输完成 1,065,984 字节，并从备用 OS 槽启动 ota-board-b，耗时 1059.317 秒，吞吐 1006.294 字节/秒；这一慢速基线不能作为性能验收通过。UART 和周期 CAN 保持响应，操作者确认界面与触摸正常。高速独占维护与下载中断电仍需独立实板证据。原生自动确认属于已知限制，不能将 rollback 标记 PASS。
 
 ## 板端测试构建
 
@@ -74,7 +74,7 @@ PCAN 默认 PCAN_USBBUS1、500000 bit/s，请求 ID 0x7E0、响应 ID 0x7E8。�
 
 Protocol/Update/TX 线程优先级为 19/25/18，栈为 6144/12288/2048 字节。原生 RT-Thread MQ 容量为任务 1、结果 1、普通 RX 64、TX 16。单一准入额度限制未完成任务；取消期间拒绝新任务，直到旧任务/结果清空。CAN TX 仅可能阻塞自身 worker。App 仍是 Domain 单写者与 LVGL owner，NVM 保留独立 worker。适配层持有 1536 字节前缀、4096 字节写入和回读缓冲；厂商 OTA 分配两个 8192 字节缓冲并持有 4096 字节回读缓冲。这些是固定上界，不是实测栈水位。
 
-合成 Demo 要求本地维护模式与 NVM ready，不具备车辆安全联锁。维护模式冻结设置写入，激活前最多等待五秒，确保目标 NVM revision 已 durable。诊断会话超时取消未完成传输并清理旧工作，已验证候选保留供独立 CLI 激活命令使用；显式 Abort 销毁该候选。激活不能用 Abort 撤销。HIL 时保持正常周期 CAN，沿用原有验收阈值。
+合成 Demo 要求本地维护模式与 NVM ready，不具备车辆安全联锁。维护模式冻结设置写入，激活前最多等待五秒，确保目标 NVM revision 已 durable。诊断会话超时取消未完成传输并清理旧工作，已验证候选保留供独立 CLI 激活命令使用；显式 Abort 销毁该候选。激活不能用 Abort 撤销。Product 可选择 update_exclusive，Demo 启用该策略：本机维护暂停普通协议与 App 仪表刷新，清空业务队列，把主动抑制帧与队列/硬件错误分别计数。全屏双语升级画面取代实时仪表，百分比仅表示收到的字节。UART 诊断、协议流控、Update worker 与 NVM 激活屏障继续运行。退出维护且取消处理完成后恢复正常处理。测速时应停止外部周期发送；正常/Burst HIL 在维护模式以外执行，门槛不变。
 
 ~~~text
 METER_CAN_UPDATE=1
@@ -89,10 +89,18 @@ python -m tools.ota --evidence evidence/ota-download download ota-output/ota.cpi
 python -m tools.ota --evidence evidence/ota-activate activate --version ota-board-b --reboot
 ~~~
 
-刷入后先验证 UI、触摸、meter info、NVM READY 及 backend_supported=true，不先打开维护模式。之后启用维护模式进行受控测试。保留含原生槽位选择的 UART 启动日志、PCAN ASC、包 hash、升级前后版本和诊断。错误 Product、损坏包、传输中断、主动 Abort 与 UI/UART/CAN 共存分别留证。人工断电属于独立测试，此次构建与 Host PASS 均不代表其结果。
+刷入后先验证 UI、触摸、meter info、NVM READY 及 backend_supported=true，不先打开维护模式。之后启用维护模式进行受控测试。保留含原生槽位选择的 UART 启动日志、PCAN ASC、包 hash、升级前后版本和诊断。错误 Product、损坏包、传输中断、主动 Abort、维护进入/退出、UART 响应以及升级后普通 CAN 恢复分别留证。人工断电属于独立测试，此次构建与 Host PASS 均不代表其结果。
 
 ## 实板传输观察
 
 首次板测发现两个集成问题：同步 UDS 客户端等待完整 ISO-TP 响应，而协商的 150 ms P2 预算短于 5 ms STmin 下的分段 JSON 诊断响应；RT-Thread 控制台也会截断单次过长的格式化输出。Host 连接改为显式有界的两秒完整响应预算，保留 120 秒 response-pending 上限。这是客户端重组预算，不代表已证明 ECU 满足 P2。串口诊断按有界片段输出。回归先协商会话，再接收真实 ISO-TP 长响应；适配测试模拟 128 字节控制台缓冲。
 
 CAN 证据的 RX/TX 使用统一 Host 墙钟与通道索引，避免混用 PCAN 运行时间与 epoch 时间戳。可选周期流量复用同一个 python-can 通道，关闭通道前停止周期任务，用于单一 PCAN owner 下的共存验证。首次失败探测的原始记录继续保留作为失败证据。
+
+## 首次实板基线
+
+2026-09-28，ota-board-a 通过 500000 bit/s PCAN 下载并验证 ota-board-b，候选激活落盘后重启，从 os_r 启动。包 SHA256 为 dc49b31ac0020bafc888a5b4fbde2c557aaad9ab0ebabdfc63172f7480c27d94。下载耗时 1059.317 秒，吞吐 1006.294 字节/秒。这证明升级路径闭环，不代表速度达标。新的独占策略属于性能变更，需另行实测。
+
+错误 Product 拒绝、512 字节后的主动 Abort、512 字节后的空闲超时通过。后两项尚未触发候选擦除，不能证明 Flash 安装期间的中断安全。完整慢速传输期间，52990 个普通帧被接收并分发，未记录错误或溢出增量；103 次 UART 采样及操作者观察仅证明该基线的响应正常。
+
+重启八秒后的首次检查因 NVM 仍处于 LOADING 而失败。后续原始 UART 查询确认 READY，durable revision 为 6，中文、亮度 65、英制设置保持不变。保留首次有界检查失败及后续成功两份证据，启动延迟仍需调查。原生自动确认机制不变；rollback、签名安全与下载中断电尚未验证。

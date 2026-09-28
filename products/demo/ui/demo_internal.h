@@ -2,10 +2,11 @@
 #define DEMO_INTERNAL_H
 #include "generated/demo_catalog.h"
 #include "generated/demo_icons.h"
-#include "ui/demo_theme.h"
-#include "ui/demo_i18n.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
+#include "ui/common/widgets/update/meter_update_widget.h"
+#include "ui/demo_i18n.h"
+#include "ui/demo_theme.h"
 #include "ui/demo_ui.h"
 enum
 {
@@ -19,6 +20,7 @@ typedef struct
 {
     lv_obj_t *root, *pages[DEMO_PAGE_COUNT], *nav[DEMO_PAGE_COUNT], *nav_labels[DEMO_PAGE_COUNT], *connection,
         *clock;
+    meter_update_widget_t update_widget;
     meter_ui_actions_t actions;
     unsigned page;
     meter_snapshot_t snapshot;
@@ -36,8 +38,8 @@ typedef struct
     bool language_presented;
     meter_language_t presented_language;
 } demo_ui_t;
-lv_obj_t *demo_text(demo_ui_t *ui, lv_obj_t *parent, int x, int y, demo_text_id_t id,
-                    const lv_font_t *font, uint32_t color);
+lv_obj_t *demo_text(demo_ui_t *ui, lv_obj_t *parent, int x, int y, demo_text_id_t id, const lv_font_t *font,
+                    uint32_t color);
 lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int width, int height);
 void demo_dashboard_create(demo_ui_t *ui);
 void demo_dashboard_update(demo_ui_t *ui);

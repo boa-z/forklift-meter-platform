@@ -29,7 +29,7 @@ static const meter_product_t product = {
     "reference-demo",    &meter_demo_capabilities, &meter_demo_protocols, &meter_demo_routes,
     PRODUCT_UI,          &meter_demo_resources,    &meter_demo_locale,    &meter_demo_auth,
     &meter_demo_catalog, meter_demo_evaluate,      demo_command_route,    NULL,
-    &storage_profile,    &update_policy,           update_admission};
+    &storage_profile,    &update_policy,           update_admission,      true};
 const meter_product_t *meter_product_get(void)
 {
     return &product;

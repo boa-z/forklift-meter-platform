@@ -198,6 +198,8 @@ def test_virtual_can_roundtrip_and_evidence(tmp_path):
     assert not thread.is_alive() and not errors
     with can.ASCReader(log) as reader:
         frames = list(reader)
+    flow = [x for x in frames if x.arbitration_id == 0x7e0 and x.data and x.data[0] == 0x30]
+    assert flow and all(x.data[1:3] == bytes([8, 0]) for x in flow)
     assert any(x.arbitration_id == 0x7e0 and not x.is_rx for x in frames)
     assert any(x.arbitration_id == 0x7e8 and x.is_rx for x in frames)
 

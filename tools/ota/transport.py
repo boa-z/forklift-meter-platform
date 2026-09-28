@@ -102,8 +102,8 @@ def connect(channel, interface, bitrate, evidence, request_id=0x7e0, response_id
 
         stack = isotp.TransportLayer(rxfn=receive, txfn=transmit,
             address=isotp.Address(isotp.AddressingMode.Normal_11bits, txid=request_id, rxid=response_id),
-            params={"stmin": 5, "blocksize": 8, "tx_padding": 0, "max_frame_size": 1024,
-                    "rate_limit_enable": True, "rate_limit_max_bitrate": 20000,
+            params={"stmin": 0, "blocksize": 8, "tx_padding": 0, "max_frame_size": 1024,
+                    "rate_limit_enable": False, "rate_limit_max_bitrate": 500000,
                     "rate_limit_window_size": 0.1})
         config = dict(default_client_config)
         # 同步连接等待完整 ISO-TP PDU；固定有界预算覆盖 1024 字节和 5 ms STmin。

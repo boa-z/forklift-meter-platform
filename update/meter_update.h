@@ -5,22 +5,7 @@
 #include <stdint.h>
 #define METER_UPDATE_BLOCK_SIZE 512u
 #define METER_UPDATE_ID_SIZE 32u
-#define METER_UPDATE_VERSION_SIZE 48u
-/** @brief 升级阶段；接收完成不等于候选验证或激活成功。 */
-typedef enum
-{
-    METER_UPDATE_IDLE,
-    METER_UPDATE_DOWNLOADING,
-    METER_UPDATE_TRANSFERRED,
-    METER_UPDATE_VERIFYING,
-    METER_UPDATE_CANDIDATE,
-    METER_UPDATE_WAIT_DURABLE,
-    METER_UPDATE_ACTIVATING,
-    METER_UPDATE_ACTIVATED,
-    METER_UPDATE_CONFIRMED,
-    METER_UPDATE_ABORTED,
-    METER_UPDATE_FAILED
-} meter_update_state_t;
+#include "contracts/meter_update_view.h"
 /** @brief 可诊断错误；激活写入错误不能解释为已回滚。 */
 typedef enum
 {

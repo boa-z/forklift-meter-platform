@@ -9,6 +9,7 @@ uint32_t UDSMillis(void)
 static uint8_t request[1024], response[1024];
 static size_t request_n, response_n;
 static unsigned submits, cancellations;
+static uint32_t response_time;
 static bool done;
 static meter_update_error_t completion_error;
 static meter_update_job_t saved;
@@ -19,6 +20,7 @@ static UDSErr_t tx(UDSTp_t *p, const uint8_t *d, size_t n, const UDSSDU_t *i)
     assert(n <= sizeof(response));
     memcpy(response, d, n);
     response_n = n;
+    response_time = now;
     return UDS_OK;
 }
 static UDSErr_t rx(UDSTp_t *p, uint8_t *d, size_t n, size_t *out, UDSSDU_t *i)
@@ -95,6 +97,7 @@ int main(void)
     meter_uds_port_t p = {0, submit, result, info, can_reset, noop, cancel};
     meter_uds_t u;
     assert(meter_uds_init(&u, &tp, &p));
+    assert(u.server.p2_ms == 1 && u.server.p2_star_ms == 5000);
     uint8_t session[] = {0x10, 2};
     send(&u, session, 2);
     assert(response[0] == 0x50);
@@ -121,12 +124,13 @@ int main(void)
     }
     assert(submits == 1);
     done = true;
+    uint32_t completed_at = now;
     for (unsigned i = 0; i < 60; i++)
     {
         now++;
         UDSServerPoll(&u.server);
     }
-    assert(response[0] == 0x74);
+    assert(response[0] == 0x74 && response_time - completed_at <= 3);
     for (unsigned i = 0; i < 260; i++)
     {
         uint8_t block[] = {0x36, (uint8_t)(i + 1u), 0x5a};
@@ -166,6 +170,7 @@ int main(void)
     unsigned cancelled = cancellations;
     assert(u.server.fn(&u.server, UDS_EVT_SessionTimeout, NULL) == UDS_PositiveResponse);
     assert(!u.pending && !u.manifest_valid && !u.server.xferIsActive && cancellations == cancelled + 1);
+    assert(u.server.p2_ms == 1);
     done = true;
     send(&u, session, sizeof(session));
     send(&u, meta, sizeof(meta));

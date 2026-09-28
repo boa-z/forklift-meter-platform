@@ -118,13 +118,28 @@ static void meter_thread(void *parameter)
         meter_debug_lock();
         uint32_t now = board.now_ms(board.context);
         meter_diagnostics_time(&diagnostics, now);
-        meter_rtthread_adapter_poll(&adapter, 8);
+        bool exclusive = false;
+#ifdef METER_ENABLE_CAN_UPDATE
+        exclusive = meter_board_update_exclusive();
+#endif
+        if (!exclusive)
+            meter_rtthread_adapter_poll(&adapter, 8);
         meter_board_nvm_poll(now, &diagnostics.data.storage);
 #ifdef METER_ENABLE_CAN_UPDATE
         meter_board_update_poll(&core, first_frame);
+        exclusive = meter_board_update_exclusive();
+        if (product->ui->present_update)
+        {
+            meter_update_view_t view;
+            meter_board_update_view(&view);
+            product->ui->present_update(ui, &view, core.snapshot.language);
+        }
 #endif
-        product->ui->present(ui, &core.snapshot, (uint32_t)(now - previous));
-        meter_diag_increment(&diagnostics.data.ui.present_count);
+        if (!exclusive)
+        {
+            product->ui->present(ui, &core.snapshot, (uint32_t)(now - previous));
+            meter_diag_increment(&diagnostics.data.ui.present_count);
+        }
         previous = now;
         lv_timer_handler();
         meter_board_diagnostics(&diagnostics);
@@ -135,7 +150,7 @@ static void meter_thread(void *parameter)
         }
         meter_debug_unlock();
         meter_debug_log_drain();
-        rt_thread_mdelay(16);
+        rt_thread_mdelay(exclusive ? 100 : 16);
     }
 failed:
     meter_board_close(&diagnostics);
