@@ -202,7 +202,7 @@ int main(int argc, char **argv)
         if (page && (n == 4 || n == 7))
             meter_host_click(100 + (int)page * 195, 450, n == 4);
         if (subpage && (n == 12 || n == 15))
-            meter_host_click(364, 82, n == 12);
+            meter_host_click(750, 75, n == 12);
         if (smoke)
         {
             if (n == 20 || n == 23)
@@ -309,3 +309,4 @@ int main(int argc, char **argv)
     lv_deinit();
     return pass && durable ? 0 : 7;
 }
+
