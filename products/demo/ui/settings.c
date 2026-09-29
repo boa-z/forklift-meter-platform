@@ -210,22 +210,22 @@ void demo_settings_create(demo_ui_t *u)
     const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS,
                                      DEMO_TXT_SPEED_LIMIT};
     for (unsigned i = 0; i < 4; ++i)
-        demo_text(u, card, 22, 8 + (int)i * 45, labels[i], &lv_font_montserrat_16, 0xe4eff5);
-    u->unit_button = settings_button(u, card, 290, 2, DEMO_TXT_METRIC, action);
-    u->language_button = settings_button(u, card, 290, 47, DEMO_TXT_CHINESE, action);
+        demo_text(u, card, 22, 4 + (int)i * 42, labels[i], &lv_font_montserrat_16, 0xe4eff5);
+    u->unit_button = settings_button(u, card, 290, 0, DEMO_TXT_METRIC, action);
+    u->language_button = settings_button(u, card, 290, 42, DEMO_TXT_CHINESE, action);
     u->brightness = lv_slider_create(card);
     u->limit = lv_slider_create(card);
     lv_obj_t *sliders[] = {u->brightness, u->limit};
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_slider(sliders[i]);
-        lv_obj_set_pos(sliders[i], 302, 100 + (int)i * 45);
+        lv_obj_set_pos(sliders[i], 302, 86 + (int)i * 42);
         lv_obj_set_size(sliders[i], 238, 12);
         lv_obj_add_event_cb(sliders[i], action, LV_EVENT_RELEASED, u);
     }
     lv_slider_set_range(u->brightness, 10, 100);
     lv_slider_set_range(u->limit, 5, 50);
-    u->version_entry = settings_button(u, card, 22, 205, DEMO_TXT_INSTRUMENT_VERSION, version_open);
+    u->version_entry = settings_button(u, card, 22, 190, DEMO_TXT_INSTRUMENT_VERSION, version_open);
     lv_obj_set_size(u->version_entry, 250, 30);
     card = u->settings_cards[1];
     u->user_password_button = settings_button(u, card, 22, 24, DEMO_TXT_USER_PASSWORD, password_open);

@@ -361,3 +361,7 @@ Host build and the full 87-test suite pass for the two-route settings change. A 
 The routing capture exposed two layout defects: menu labels used left alignment inside wide touch targets, and the version entry overlapped the last user-setting row. Labels now use centered alignment, the five user-setting rows use a compact vertical rhythm, and the version entry stays inside the content panel. Monitor readout labels and values remain white. The OTA failure is independent of this UI change: the SDK wrapper reached SCons but the current SDK `.config` lacks the mkimage cluster-size value and the helper Python alias is unresolved, so no image was produced. The earlier successful OTA path used a complete board configuration; restore that target configuration before retrying.
 
 Open decision: CAN bitrate persistence is not enabled by this layout-only correction. The current Demo CAN-rate row is an in-memory administrator preference; making it restart-effective requires extending the retained settings schema and boot-time CAN initialization contract. Keep this as a bounded follow-up rather than silently changing the persisted format.
+
+### Five-item user settings page
+
+The User Settings content panel now presents five compact rows at the existing font size: speed units, language, brightness, speed limit and instrument version. The rows fit within the panel without overlap; the version row still opens its independent detail page. Administrator routing and the existing CAN-rate entry remain unchanged pending the retained-settings extension decision.
