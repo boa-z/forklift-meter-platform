@@ -64,6 +64,10 @@ PCAN defaults to PCAN_USBBUS1 at 500000 bit/s, request ID 0x7E0 and response ID 
 
 ## Validation and remaining work
 
+Before connecting, read `meter can 0` over UART and pass its reported bitrate explicitly with `--bitrate`. The CLI default is not the Product default; a mismatch can cause bus-off even with correct wiring. A discovered PCAN channel does not prove which board CAN connector is attached.
+
+The activation barrier follows the Product storage contract: absent or explicitly disabled storage has no settings revision to persist. Enabled storage still requires a nonzero requested revision and a successful durable check; unavailable or failed enabled storage never qualifies for the no-storage path. Host regression covers absent/disabled storage, missing revision, pending persistence and durable completion.
+
 Additional tests cover chunk boundaries, CPIO/metadata faults, aligned capacity, native packaging and no publication after a tool failure. Host tests also exercise manifest bounds, corruption, identity/maintenance/capability rejection before mutation, block counter wrap, changing files, timeout/Abort and activation target checks. A python-can virtual bus test exchanges an actual segmented ISO-TP response using can-isotp and udsoncan and parses the resulting CAN evidence. This is a host transport test, not PCAN hardware or an OTA installation. C tests cover state transitions, worker completion, malformed UDS requests and the real rejecting backend without SDK linkage. Linux CI adds the optional update configuration; local tests do not mean remote CI has run.
 
 Native-parser/crypto Host regression covers arbitrary chunks, invalid ENV, unsafe geometry, malformed metadata/FIT/trailer, bad blocks, erase/write/read failures, readback corruption, hash mismatch, Abort and lost ENV flush. Flash/ENV in those tests are doubles. Current source-bound board throughput, maintenance, NVM and reboot results are in [validation](validation.md); Host failures tests do not establish physical power-loss or rollback behavior.

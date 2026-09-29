@@ -341,9 +341,15 @@ void meter_board_update_poll(meter_core_t *core, bool ui_healthy)
     shared.exclusive = (shared.maintenance || shared.cancel || shared.busy) && p->update_exclusive;
     if (shared.barrier_requested)
     {
-        if (!shared.barrier_target)
-            shared.barrier_target = meter_board_nvm_flush();
-        if (shared.barrier_target && meter_board_nvm_barrier(shared.barrier_target))
+        /* 与生命周期退出一致：未配置持久化的 Product 没有待提交设置。 */
+        bool durable = !p->storage || !p->storage->enabled;
+        if (!durable)
+        {
+            if (!shared.barrier_target)
+                shared.barrier_target = meter_board_nvm_flush();
+            durable = shared.barrier_target && meter_board_nvm_barrier(shared.barrier_target);
+        }
+        if (durable)
             rt_event_send(&barrier_event, 1);
     }
     rt_mutex_release(&lock);

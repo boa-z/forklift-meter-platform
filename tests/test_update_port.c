@@ -5,6 +5,9 @@
 static char console_output[1024];
 static size_t console_used;
 static bool diagnostic_test, nvm_ready = true;
+static bool barrier_test, durable_ready;
+static unsigned barrier_events, flush_requests;
+static uint64_t durable_revision;
 static bool admission(const meter_snapshot_t *snapshot, bool maintenance)
 {
     (void)snapshot;
@@ -62,6 +65,34 @@ static void setup(void)
     service.generation = 9;
     service.opened = true;
     service.backend.abort = release_test;
+}
+static void test_optional_storage_barrier(void)
+{
+    /* 没有持久化职责时可完成屏障；已启用的存储仍须等待具体 durable revision。 */
+    setup();
+    barrier_test = true;
+    shared.started = shared.maintenance = shared.barrier_requested = true;
+    meter_core_t core = {0};
+    test_product.storage = NULL;
+    meter_board_update_poll(&core, true);
+    assert(barrier_events == 1 && flush_requests == 0);
+    meter_storage_profile_t storage = {.enabled = false};
+    test_product.storage = &storage;
+    meter_board_update_poll(&core, true);
+    assert(barrier_events == 2 && flush_requests == 0);
+    storage.enabled = true;
+    nvm_ready = false;
+    meter_board_update_poll(&core, true);
+    assert(barrier_events == 2 && flush_requests == 1 && !shared.admitted);
+    nvm_ready = true;
+    durable_revision = 9;
+    meter_board_update_poll(&core, true);
+    assert(barrier_events == 2 && flush_requests == 2 && shared.barrier_target == 9);
+    durable_ready = true;
+    meter_board_update_poll(&core, true);
+    assert(barrier_events == 3 && flush_requests == 2);
+    test_product.storage = NULL;
+    barrier_test = false;
 }
 int main(void)
 {
@@ -140,6 +171,7 @@ int main(void)
     meter_board_update_stop();
     assert(shared.stopping && !shared.admitted && !meter_board_update_stopped());
     assert(!submit(NULL, &job));
+    test_optional_storage_barrier();
     return 0;
 }
 
@@ -206,10 +238,9 @@ int rt_event_recv(struct rt_event *e, unsigned b, int f, int t, rt_uint32_t *r)
 }
 int rt_event_send(struct rt_event *e, unsigned b)
 {
-    (void)e;
-    (void)b;
-    UNEXPECTED();
-    return -1;
+    assert(barrier_test && e == &barrier_event && b == 1u);
+    ++barrier_events;
+    return RT_EOK;
 }
 int rt_mq_init(struct rt_messagequeue *q, const char *s, void *p, size_t a, size_t b, int f)
 {
@@ -285,14 +316,14 @@ bool meter_board_nvm_ready(void)
 }
 uint64_t meter_board_nvm_flush(void)
 {
-    UNEXPECTED();
-    return 0;
+    assert(barrier_test);
+    ++flush_requests;
+    return durable_revision;
 }
 bool meter_board_nvm_barrier(uint64_t n)
 {
-    (void)n;
-    UNEXPECTED();
-    return false;
+    assert(barrier_test && n == durable_revision && n != 0);
+    return durable_ready;
 }
 bool meter_board_can_raw_read(void *ctx, meter_can_frame_t *f)
 {

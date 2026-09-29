@@ -64,6 +64,10 @@ PCAN 默认 PCAN_USBBUS1、500000 bit/s，请求 ID 0x7E0、响应 ID 0x7E8。�
 
 ## 验证与剩余工作
 
+连接前通过 UART 读取 `meter can 0`，将其实际速率显式传入 `--bitrate`。CLI 默认值不是 Product 默认值，速率不一致时即使接线正确也可能 bus-off。发现 PCAN 通道不代表已确认它连接的板端 CAN 插座。
+
+激活屏障遵循 Product 存储契约：未配置或显式禁用存储时没有待持久化的设置版本；启用存储时仍要求非零目标 revision 和成功的 durable 检查。已启用但不可用或失败的存储不能走无存储路径。Host 回归覆盖无存储、禁用存储、无目标版本、持久化未完成及 durable 完成。
+
 新增测试覆盖切块边界、CPIO/元数据异常、容量对齐、原生成包及失败不发布包。Host 测试还覆盖 manifest 边界、损坏、修改前身份/维护/能力拒绝、块序号回绕、文件变化、超时/Abort 和激活目标检查。python-can 虚拟总线测试通过 can-isotp、udsoncan 交换真实分段 ISO-TP 响应并解析 CAN 证据。这是 Host 传输测试，不是 PCAN 实物或 OTA 安装。C 测试覆盖状态转换、worker 完成、异常 UDS 请求及不链接 SDK 的实际拒绝后端。Linux CI 新增可选升级配置，本机测试不代表远端 CI 已运行。
 
 真实原生解包器/摘要 Host 回归覆盖任意切块、无效 ENV、不安全分区几何、异常元数据/FIT/尾标、坏块、擦写读失败、回读损坏、hash 不匹配、Abort 和 ENV 落盘丢失；这些测试中的 Flash/ENV 是替身。绑定源码的实板吞吐、维护、NVM 和重启结果见[验证记录](validation.zh-CN.md)，Host 故障测试不代表实际掉电或回滚验证。
