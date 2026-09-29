@@ -15,7 +15,7 @@ from tools.firmware_product import select
 
 def project_name(config, app_name):
     """错误的 SDK 应用配置必须在启动构建前拒绝。"""
-    text = config.decode('utf-8')
+    text = config.decode('utf-8').replace('\r\n', '\n')
     required = ('CONFIG_PRJ_APP="' + app_name + '"',
                 'CONFIG_PRJ_KERNEL="rt-thread"',
                 'CONFIG_AIC_FORKLIFT_METER_PLATFORM_APP=y')
