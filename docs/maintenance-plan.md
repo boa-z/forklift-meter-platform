@@ -351,3 +351,7 @@ Right-side monitor, controller-parameter and settings entries no longer use nest
 ### Settings routing and state presentation
 
 The Demo now exposes two settings routes: User Settings and Administrator Settings. The former includes a clickable instrument-version item that opens the version detail view and returns through its back control. Selecting Administrator Settings while unauthorised opens the administrator PIN editor first; the administrator page is shown only after the existing authorization result permits it. The former standalone Password category was removed. The settings and monitor left rails use filled background regions, while monitor values and labels use white text for stronger contrast. SDL routing captures are under `evidence/adaptation/ui-routing-admin-version/`.
+
+### Admin/version routing OTA boundary
+
+Host build and the full 87-test suite pass for the two-route settings change. A new board candidate build was attempted as `demo-ui-routing-20260929b`; the SDK wrapper restored `.config`, but SCons stopped before image generation because the SDK mkimage configuration returned a missing cluster size (`int(None)`) and the selected environment could not resolve the SDK Python helper. No OTA package was produced and no board state was changed. This remains a build-environment blocker; the prior board transfer `0x31` evidence is unchanged.
