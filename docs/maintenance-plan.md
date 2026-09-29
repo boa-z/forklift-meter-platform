@@ -387,3 +387,10 @@ The Demo monitor, fault and settings content now uses a shared five-row layout t
 ### Five-row candidate OTA boundary
 
 Candidate `demo-ui-five-row-20260929` was built from Framework `263b87c` with the restored SDK Python 3.8/SCons environment. The OS image SHA256 is `170ff976ff525a2c8e720e0bc729d3e49d953afa6833c19591dcff6e69449cd7`; the package SHA256 is `fdb20b2d82824dc95dcc22352c591146e9266ee5284425889c5ea79770c80a46`. Host package integrity passed. The target accepted the first 512-byte block, then returned UDS `RequestOutOfRange (0x31)` for the next TransferData request. The transfer was aborted and maintenance recovery was attempted; `meter info` confirms the board remains on `demo-ui-routing-20260929`. This batch therefore has no OTA success claim; raw UART/CAN evidence is under `evidence/ota/demo-ui-five-row-20260929/`.
+
+
+### OTA alignment root cause and successful retry
+
+The failed candidate used an OS payload of 1,107,968 bytes, which is 2 KiB aligned but not divisible by the native AIC backend write block of 4 KiB. The backend rejected the session when the first FIT metadata and image block were committed, surfaced over UDS as `RequestOutOfRange (0x31)`. The previous successful candidate used a 1,110,016-byte, 4 KiB-aligned OS payload. The OTA packer now defaults to 4 KiB OS padding and has a regression test for the D50T board contract.
+
+After rebooting the target, the corrected package was preflighted and installed: 1,111,040 bytes received, candidate verification passed, activation and reboot completed, and post-reboot identity reported `demo-ui-five-row-20260929`, Framework `263b87c`, SDK `5bef2d47`, LVGL `9.6.0`, state `IDLE`, error `0`, and zero queue rejects. Package SHA256 is `10cc2260307ea3fd05f41a0debcf1c6d9c7e1a890e96662a27c1b83395828016`; raw evidence is under `evidence/ota/demo-ui-five-row-20260929/retry-fixed/`.

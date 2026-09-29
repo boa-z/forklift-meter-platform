@@ -386,3 +386,10 @@ Demo 监控、故障和设置内容统一采用每页五行的排版目标：条
 ### 五行布局候选镜像 OTA 边界
 
 候选版本 `demo-ui-five-row-20260929` 使用恢复后的 SDK Python 3.8/SCons 环境构建，Framework 为 `263b87c`。OS 镜像 SHA256 为 `170ff976ff525a2c8e720e0bc729d3e49d953afa6833c19591dcff6e69449cd7`；OTA 包 SHA256 为 `fdb20b2d82824dc95dcc22352c591146e9266ee5284425889c5ea79770c80a46`。主机包完整性预检通过。开发板接收第一个 512 字节块后，在下一次 TransferData 返回 UDS `RequestOutOfRange (0x31)`。已执行中止并尝试恢复维护状态；`meter info` 确认板端仍为 `demo-ui-routing-20260929`。因此本批次不宣称 OTA 成功，原始 UART/CAN 证据位于 `evidence/ota/demo-ui-five-row-20260929/`。
+
+
+### OTA 对齐根因与成功重试
+
+此前候选包中的 OS 为 1,107,968 字节，虽然满足 2 KiB 对齐，但不能被原生 AIC 后端的 4 KiB 写入块整除。后端在提交首个 FIT 元数据和镜像块时拒绝会话，并通过 UDS 表现为 `RequestOutOfRange (0x31)`。此前成功候选的 OS 为 1,110,016 字节，满足 4 KiB 对齐。现在 OTA 打包器默认按 4 KiB 补齐 OS，并增加了 D50T 板级契约回归测试。
+
+开发板重启后，修正包完成预检和安装：接收 1,111,040 字节，候选校验通过，激活和重启完成；重启后身份为 `demo-ui-five-row-20260929`，Framework `263b87c`，SDK `5bef2d47`，LVGL `9.6.0`，状态 `IDLE`，错误 `0`，队列拒绝 `0`。OTA 包 SHA256 为 `10cc2260307ea3fd05f41a0debcf1c6d9c7e1a890e96662a27c1b83395828016`；原始证据位于 `evidence/ota/demo-ui-five-row-20260929/retry-fixed/`。
