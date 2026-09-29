@@ -86,6 +86,25 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const m
     core->snapshot.can_rate = METER_CAN_RATE_500K;
     return true;
 }
+bool meter_core_init_with_settings(meter_core_t *core, const meter_catalog_t *catalog,
+                                  const meter_core_storage_t *storage,
+                                  const meter_initial_settings_t *settings)
+{
+    if (settings && ((unsigned)settings->language > METER_LANGUAGE_ZH ||
+                     (unsigned)settings->can_rate > METER_CAN_RATE_500K ||
+                     settings->brightness < 10u || settings->brightness > 100u))
+        return false;
+    if (!meter_core_init(core, catalog, storage))
+        return false;
+    if (settings)
+    {
+        core->snapshot.language = settings->language;
+        core->snapshot.can_rate = settings->can_rate;
+        core->snapshot.brightness = settings->brightness;
+        core->snapshot.imperial = settings->imperial;
+    }
+    return true;
+}
 static bool apply_value(meter_core_t *core, const meter_update_t *update, bool arbitrate)
 {
     if (!core || !update || (unsigned)update->value.state > METER_VALUE_ERROR)

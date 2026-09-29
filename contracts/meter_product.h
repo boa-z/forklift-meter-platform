@@ -107,6 +107,8 @@ typedef struct
      * snapshot 仅在回调内可修改，发生变化须递增 revision；不得保留指针、阻塞或操作设备。
      * 未经回调处理的 PRODUCT 动作拒绝。队列接纳与 RAM 应用都不代表 NVM 已持久化。 */
     bool (*local_action)(meter_snapshot_t *snapshot, const meter_action_t *action, uint32_t now_ms);
+    /** @brief 可选 Product 默认设置；NULL 保持兼容默认，不代表工厂恢复策略。 */
+    const meter_initial_settings_t *initial_settings;
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

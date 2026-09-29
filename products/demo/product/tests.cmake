@@ -1,3 +1,4 @@
+add_test(NAME dbc-generation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/protocol/generate_can.py --product-root ${METER_PRODUCT_ROOT} --check)
 add_executable(test-demo-pdo "${METER_PRODUCT_ROOT}/tests/test_pdo.c")
 target_link_libraries(test-demo-pdo PRIVATE meter_product_data meter_core meter_runtime)
 add_test(NAME demo-pdo COMMAND test-demo-pdo)

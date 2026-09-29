@@ -22,6 +22,10 @@ typedef struct
  * 此时既不写 core 也不写 storage。仅在启动阶段调用一次，不阻塞、不持锁。
  */
 bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const meter_core_storage_t *storage);
+/** @brief 启动前验证 Product 默认设置；失败不改写 core/存储，NULL 保留兼容默认。 */
+bool meter_core_init_with_settings(meter_core_t *core, const meter_catalog_t *catalog,
+                                  const meter_core_storage_t *storage,
+                                  const meter_initial_settings_t *settings);
 /**
  * @brief 写入一个信号值，作为 meter_update_sink_t 使用。
  *

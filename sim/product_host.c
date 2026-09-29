@@ -12,6 +12,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     bool hidden = false;
     const char *capture = NULL, *fixture = NULL;
     meter_language_t language = METER_LANGUAGE_EN;
+    bool language_override = false;
     for (int i = 1; i < argc; ++i)
     {
         if (!strcmp(argv[i], "--smoke")) { hidden = true; frames = 120; }
@@ -24,6 +25,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
             const char *name = argv[++i];
             if (strcmp(name, "english") && strcmp(name, "chinese")) return 2;
             language = !strcmp(name, "chinese") ? METER_LANGUAGE_ZH : METER_LANGUAGE_EN;
+            language_override = true;
         }
         else return 2;
     }
@@ -34,9 +36,11 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
         calloc(c->parameter_count ? c->parameter_count : 1, sizeof(float)), c->parameter_count,
         calloc(c->fault_count ? c->fault_count : 1, sizeof(meter_fault_state_t)), c->fault_count};
     meter_core_t core; meter_runtime_t runtime;
-    if (!s.signals || !s.parameters || !s.faults || !meter_core_init(&core,c,&s) ||
+    if (!s.signals || !s.parameters || !s.faults ||
+        !meter_core_init_with_settings(&core,c,&s,p->initial_settings) ||
         !meter_runtime_init(&runtime,p,meter_core_apply,&core)) return 3;
-    core.snapshot.language = language;
+    if (language_override) core.snapshot.language = language;
+    language = core.snapshot.language;
     meter_runtime_connection(&runtime,true);
     meter_core_connection(&core,true,runtime.generation);
     if (fixture && !meter_fixture_load(&core,fixture)) return 4;

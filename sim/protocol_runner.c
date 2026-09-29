@@ -24,7 +24,8 @@ int main(int argc, char **argv)
     meter_core_t core;
     meter_runtime_t runtime;
     if (!storage.signals || !storage.parameters || !storage.faults ||
-        !meter_core_init(&core, cat, &storage) || !meter_runtime_init(&runtime, p, meter_core_apply, &core)) return 3;
+        !meter_core_init_with_settings(&core, cat, &storage, p->initial_settings) ||
+        !meter_runtime_init(&runtime, p, meter_core_apply, &core)) return 3;
     bool catalog_only = argc == 2 && !strcmp(argv[1], "--catalog");
     if (argc > 1 && !catalog_only) return 2;
     meter_runtime_connection(&runtime, true);

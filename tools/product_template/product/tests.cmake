@@ -1,3 +1,4 @@
+add_test(NAME dbc-generation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/protocol/generate_can.py --product-root ${METER_PRODUCT_ROOT} --check)
 add_test(NAME product-domain COMMAND ${Python3_EXECUTABLE} "${METER_PRODUCT_ROOT}/tests/test_product.py" $<TARGET_FILE:meter-protocol-runner>)
 if(METER_BUILD_UI)
     add_test(NAME product-ui COMMAND meter-demo --smoke)

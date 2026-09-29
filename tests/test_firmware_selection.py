@@ -3,6 +3,8 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +14,17 @@ spec.loader.exec_module(selector)
 
 
 class FirmwareSelection(unittest.TestCase):
+    def test_generated_template_has_firmware(self):
+        with tempfile.TemporaryDirectory() as directory:
+            product = Path(directory) / 'independent-product'
+            subprocess.run([sys.executable, str(ROOT / 'tools/create_product.py'),
+                            '--id', 'independent-product', '--output', str(product)], check=True,
+                           capture_output=True)
+            selected, sources = selector.select(ROOT, product)
+            self.assertEqual(selected, product.resolve())
+            self.assertIn(product / 'product/firmware.c', sources)
+            self.assertIn('NAME dbc-generation', (product / 'product/tests.cmake').read_text())
+
     def test_independent_products(self):
         for selected in ('products/demo', 'examples/reference-b'):
             product, sources = selector.select(ROOT, selected)

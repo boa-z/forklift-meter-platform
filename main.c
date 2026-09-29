@@ -52,7 +52,8 @@ static void meter_thread(void *parameter)
     lv_init();
     meter_debug_lvgl_log_init();
     meter_rtthread_board_port_t board = meter_board_port(&ui_diagnostics);
-    if (!meter_i18n_init() || !composition.locale_init() || !meter_core_init(&core, product->catalog, &bound) ||
+    if (!meter_i18n_init() || !composition.locale_init() ||
+        !meter_core_init_with_settings(&core, product->catalog, &bound, product->initial_settings) ||
         !board.display_init(board.context) || !board.touch_init(board.context))
     { LOG_E("UI/core startup failed"); return; }
     lv_obj_t *screen = lv_screen_active();

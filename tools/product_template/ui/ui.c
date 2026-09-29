@@ -15,4 +15,4 @@ static void present(void *ui,const meter_snapshot_t *s,uint32_t elapsed)
     lv_label_set_text_fmt(ui,"@PRODUCT_ID@: %.1f m/s (%u)",(double)v.value,(unsigned)v.state);
 }
 static void destroy(void *ui) { lv_obj_delete(ui); }
-const meter_ui_factory_t product_ui={create,present,destroy};
+const meter_ui_factory_t product_ui={.create=create,.present=present,.destroy=destroy};

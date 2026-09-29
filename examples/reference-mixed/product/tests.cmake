@@ -1,3 +1,4 @@
+add_test(NAME dbc-generation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/protocol/generate_can.py --product-root ${METER_PRODUCT_ROOT} --check)
 add_test(NAME mixed-domain COMMAND ${Python3_EXECUTABLE} "${METER_PRODUCT_ROOT}/tests/test_product.py" $<TARGET_FILE:meter-protocol-runner>)
 add_executable(test-mixed-canopen "${METER_PRODUCT_ROOT}/tests/test_canopen_adapter.c")
 target_link_libraries(test-mixed-canopen PRIVATE meter_core meter_runtime meter_protocol_common meter_protocol_product meter_catalog meter_product_data meter_sdo_test_peer)

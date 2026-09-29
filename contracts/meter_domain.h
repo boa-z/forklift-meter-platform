@@ -30,6 +30,14 @@ typedef enum
     METER_CAN_RATE_250K = 1,
     METER_CAN_RATE_500K = 2
 } meter_can_rate_t;
+/** @brief Product 启动默认设置；仅在初始化时使用，之后由持久化恢复覆盖。 */
+typedef struct
+{
+    meter_language_t language;
+    meter_can_rate_t can_rate;
+    uint8_t brightness;
+    bool imperial;
+} meter_initial_settings_t;
 /**
  * @brief 信号与来源身份，产品词汇表中的 16 位句柄。
  *

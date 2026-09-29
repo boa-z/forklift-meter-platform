@@ -1,3 +1,4 @@
+add_test(NAME dbc-generation COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/protocol/generate_can.py --product-root ${METER_PRODUCT_ROOT} --check)
 add_test(NAME reference-domain COMMAND ${Python3_EXECUTABLE} "${METER_PRODUCT_ROOT}/tests/test_product.py" $<TARGET_FILE:meter-protocol-runner>)
 add_test(NAME reference-font COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_fonts.py --product-root ${METER_PRODUCT_ROOT} --check)
 add_test(NAME reference-boundary COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_reference_boundary.py)
