@@ -72,7 +72,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     lv_obj_remove_style_all(u->root);
     lv_obj_set_pos(u->root, 0, 0);
     lv_obj_set_size(u->root, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(u->root, lv_color_hex(0x091a25), 0);
+    lv_obj_set_style_bg_color(u->root, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
     demo_theme_panel(u->root);
@@ -91,6 +91,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
         lv_obj_set_scrollable(u->pages[i], false);
         demo_theme_panel(u->pages[i]);
         lv_obj_set_style_radius(u->pages[i], 0, 0);
+        lv_obj_set_style_bg_color(u->pages[i], lv_color_hex(0x000000), 0);
     }
     demo_dashboard_create(u);
     demo_monitor_create(u);

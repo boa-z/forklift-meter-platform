@@ -121,6 +121,7 @@ void demo_monitor_create(demo_ui_t *u)
     lv_obj_set_pos(u->parameter_input, 22, 76);
     lv_obj_set_size(u->parameter_input, 278, 54);
     u->parameter_keyboard = lv_keyboard_create(u->parameter_editor);
+    demo_theme_keyboard(u->parameter_keyboard);
     lv_keyboard_set_mode(u->parameter_keyboard, LV_KEYBOARD_MODE_NUMBER);
     lv_obj_set_pos(u->parameter_keyboard, 326, 60);
     lv_obj_set_size(u->parameter_keyboard, 370, 230);

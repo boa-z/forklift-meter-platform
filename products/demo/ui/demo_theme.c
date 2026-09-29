@@ -15,16 +15,19 @@ const meter_widget_style_t *demo_theme_widget_style(void)
 }
 void demo_theme_panel(lv_obj_t *panel)
 {
-    lv_obj_set_style_bg_color(panel, lv_color_hex(0x142a38), 0);
+    lv_obj_set_style_bg_color(panel, lv_color_hex(0x090d10), 0);
+    lv_obj_set_style_border_color(panel, lv_color_hex(0x26343d), 0);
     lv_obj_set_style_border_width(panel, 0, 0);
+    lv_obj_set_style_outline_color(panel, lv_color_hex(0x26343d), 0);
+    lv_obj_set_style_outline_width(panel, 1, 0);
     lv_obj_set_style_radius(panel, 14, 0);
     lv_obj_set_style_pad_all(panel, 0, 0);
     lv_obj_set_scrollable(panel, false);
 }
 void demo_theme_button(lv_obj_t *button)
 {
-    lv_obj_set_style_bg_color(button, lv_color_hex(0x142a38), 0);
-    lv_obj_set_style_bg_color(button, lv_color_hex(0x245b50), LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(button, lv_color_hex(0x151b20), 0);
+    lv_obj_set_style_bg_color(button, lv_color_hex(0x008f4c), LV_STATE_CHECKED);
     lv_obj_set_style_text_color(button, style.text, 0);
     lv_obj_set_style_shadow_width(button, 0, 0);
     lv_obj_set_style_radius(button, 8, 0);
@@ -34,4 +37,22 @@ void demo_theme_slider(lv_obj_t *slider)
     lv_obj_set_style_bg_color(slider, style.track, LV_PART_MAIN);
     lv_obj_set_style_bg_color(slider, style.primary, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(slider, style.primary, LV_PART_KNOB);
+}
+
+void demo_theme_keyboard(lv_obj_t *keyboard)
+{
+    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x090d10), 0);
+    lv_obj_set_style_border_color(keyboard, lv_color_hex(0x3d4b54), 0);
+    lv_obj_set_style_border_width(keyboard, 2, 0);
+    lv_obj_set_style_radius(keyboard, 10, 0);
+    lv_obj_set_style_pad_all(keyboard, 8, 0);
+    lv_obj_set_style_pad_row(keyboard, 6, 0);
+    lv_obj_set_style_pad_column(keyboard, 6, 0);
+    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x182126), LV_PART_ITEMS);
+    lv_obj_set_style_border_color(keyboard, lv_color_hex(0x42525c), LV_PART_ITEMS);
+    lv_obj_set_style_border_width(keyboard, 1, LV_PART_ITEMS);
+    lv_obj_set_style_radius(keyboard, 6, LV_PART_ITEMS);
+    lv_obj_set_style_text_color(keyboard, lv_color_hex(0xf4f7f8), LV_PART_ITEMS);
+    lv_obj_set_style_text_font(keyboard, &lv_font_montserrat_20, LV_PART_ITEMS);
+    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x008f4c), LV_PART_ITEMS | LV_STATE_PRESSED);
 }

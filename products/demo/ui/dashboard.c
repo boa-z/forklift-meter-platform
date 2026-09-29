@@ -22,12 +22,11 @@ void demo_dashboard_create(demo_ui_t *u)
     u->load = meter_value_label_create(load, 15, 34, "kg");
     u->load_arc = meter_arc_bar_create(load, 151, 20, 60, 0, 360, 5, "kg");
     lv_obj_t *strip = demo_panel(page, 16, 314, 768, 52);
-    const char *names[] = {"Seat", "Brake", "Neutral", "Charge", "Warning"};
     const lv_image_dsc_t *icons[] = {&demo_icon_armchair, &demo_icon_circle_letter_p,
                                      &demo_icon_circle_letter_n, &demo_icon_battery,
                                      &demo_icon_alert_triangle};
     for (unsigned i = 0; i < 5; ++i)
-        u->status[i] = meter_status_create(strip, 13 + (int)i * 151, 11, names[i], icons[i]);
+        u->status[i] = meter_status_create(strip, 13 + (int)i * 151, 11, "", icons[i]);
     const meter_widget_style_t *style = demo_theme_widget_style();
     meter_gauge_set_style(u->speed, style);
     meter_gauge_set_style(u->steering, style);

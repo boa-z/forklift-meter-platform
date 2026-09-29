@@ -54,7 +54,13 @@ void meter_status_set(meter_status_t *s, bool active, meter_value_state_t state)
     lv_obj_set_style_text_color(
         s->label, state == METER_VALUE_VALID ? (active ? s->style.primary : s->style.muted) : s->style.warning, 0);
     if (s->icon)
+    {
         lv_obj_set_style_image_opa(s->icon, active ? 255 : 100, 0);
+        lv_obj_set_style_image_recolor(s->icon,
+                                       state != METER_VALUE_VALID ? s->style.warning
+                                       : active ? s->style.primary : s->style.error, 0);
+        lv_obj_set_style_image_recolor_opa(s->icon, 255, 0);
+    }
 }
 void meter_status_set_name(meter_status_t *s, const char *name)
 {

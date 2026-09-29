@@ -154,6 +154,7 @@ void demo_settings_create(demo_ui_t *u)
         lv_obj_set_size(fields[i], 278, 54);
     }
     u->password_keyboard = lv_keyboard_create(u->password_editor);
+    demo_theme_keyboard(u->password_keyboard);
     lv_keyboard_set_mode(u->password_keyboard, LV_KEYBOARD_MODE_NUMBER);
     lv_obj_set_pos(u->password_keyboard, 326, 60);
     lv_obj_set_size(u->password_keyboard, 370, 230);
