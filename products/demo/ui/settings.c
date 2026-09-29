@@ -131,7 +131,8 @@ static lv_obj_t *settings_button(demo_ui_t *u, lv_obj_t *parent, int x, int y, d
                                  lv_event_cb_t callback)
 {
     lv_obj_t *button = lv_button_create(parent);
-    demo_theme_button(button);
+    demo_theme_list_row(button);
+    lv_obj_set_style_text_color(button, lv_color_hex(0xedf5f8), 0);
     lv_obj_set_pos(button, x, y);
     lv_obj_set_size(button, 250, 48);
     lv_obj_t *label = demo_text(u, button, 0, 0, text, &lv_font_montserrat_20, 0xedf5f8);
@@ -164,12 +165,18 @@ void demo_settings_create(demo_ui_t *u)
         lv_obj_set_size(u->settings_menu[i], 200, 64);
         lv_obj_add_event_cb(u->settings_menu[i], settings_menu_select, LV_EVENT_CLICKED, u);
         lv_obj_t *label = demo_text(u, u->settings_menu[i], 12, 0, menu_ids[i], &lv_font_montserrat_20, 0xedf5f8);
-        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_size(label, 176, 48);
         lv_obj_center(label);
     }
     for (unsigned i = 0; i < 4; ++i)
-        u->settings_cards[i] = demo_panel(p, 216, 66, 568, 240);
+    {
+        u->settings_cards[i] = lv_obj_create(p);
+        lv_obj_remove_style_all(u->settings_cards[i]);
+        lv_obj_set_pos(u->settings_cards[i], 216, 66);
+        lv_obj_set_size(u->settings_cards[i], 568, 240);
+        demo_theme_list_row(u->settings_cards[i]);
+    }
     lv_obj_t *card = u->settings_cards[0];
     const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS,
                                      DEMO_TXT_SPEED_LIMIT};

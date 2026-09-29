@@ -343,3 +343,7 @@ Monitor and settings now use one `demo_theme_menu_button` rule for category cont
 ### Unified item and password controls
 
 Right-side settings rows, category menus and the password editor now share the Demo theme's dark surfaces, orange selected state, muted labels, border treatment and spacing rhythm. Password entry uses the same dark field and themed keypad instead of a standalone white control; the left password choices use the shared category-button rule. Authentication behavior and keyboard event handling are unchanged. The compact SDL capture set was regenerated after the change.
+
+### Flat right-side item lists
+
+Right-side monitor, controller-parameter and settings entries no longer use nested rounded rectangles. Their surfaces are transparent with a single bottom separator, preserving the dark canvas and making the four-row rhythm easier to scan. Category labels use single-line circular scrolling when a translation is longer than its touch target. The four settings categories continue to open as independent pages from the left menu; authorization and editor behavior are unchanged. SDL captures were regenerated under `evidence/adaptation/ui-left-tab-compact/`.
