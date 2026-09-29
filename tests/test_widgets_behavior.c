@@ -23,6 +23,14 @@ static lv_obj_t *find_hub(lv_obj_t *root)
     return match;
 }
 
+static bool contains_text(lv_obj_t *object, const char *text)
+{
+    if (lv_obj_check_type(object, &lv_label_class) && !strcmp(lv_label_get_text(object), text))
+        return true;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(object); ++i)
+        if (contains_text(lv_obj_get_child(object, (int32_t)i), text)) return true;
+    return false;
+}
 int main(void)
 {
     lv_init();
@@ -59,6 +67,23 @@ int main(void)
     config.min = 0;
     meter_gauge_t *speed = meter_gauge_create(panel, 0, 0, &config);
     CHECK(speed);
+    /* 中英文未知读数只保留占位符，过期和错误仍有明确提示。 */
+    for (unsigned language = 0; language < 2; ++language)
+    {
+        lv_translation_set_language(meter_i18n_language_code((meter_language_t)language));
+        meter_gauge_set_language(speed, (meter_language_t)language);
+        meter_ring_set_language(ring, (meter_language_t)language);
+        meter_gauge_set_state(speed, METER_VALUE_UNKNOWN);
+        meter_ring_set_state(ring, METER_VALUE_UNKNOWN);
+        CHECK(contains_text(panel, "-- km/h") && contains_text(root, "-- kg"));
+        CHECK(!contains_text(panel, meter_i18n_state(METER_VALUE_UNKNOWN)));
+        CHECK(!contains_text(root, meter_i18n_state(METER_VALUE_UNKNOWN)));
+        meter_gauge_set_state(speed, METER_VALUE_STALE);
+        meter_ring_set_state(ring, METER_VALUE_ERROR);
+        CHECK(contains_text(panel, meter_i18n_state(METER_VALUE_STALE)));
+        CHECK(contains_text(root, meter_i18n_state(METER_VALUE_ERROR)));
+    }
+    lv_translation_set_language(METER_LANGUAGE_CODE_EN);
     CHECK(meter_gauge_set_range(speed, 0, 32));
     meter_gauge_set_value(speed, 31.06855f);
     CHECK(!meter_gauge_set_range(speed, 0, 31.06855f));

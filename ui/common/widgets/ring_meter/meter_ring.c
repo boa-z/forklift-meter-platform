@@ -38,7 +38,10 @@ static void redraw(meter_ring_t *r)
                        0, r->language);
     lv_label_set_text_static(r->label, r->text);
     lv_obj_center(r->label);
-    lv_label_set_text_static(r->validity, r->state == METER_VALUE_VALID ? "" : meter_i18n_state(r->state));
+    /* 占位符已表达未知；仍保留过期和传感器错误提示。 */
+    lv_label_set_text_static(r->validity,
+                             r->state == METER_VALUE_VALID || r->state == METER_VALUE_UNKNOWN
+                                 ? "" : meter_i18n_state(r->state));
     lv_obj_align(r->validity, LV_ALIGN_CENTER, 0, 24);
 }
 meter_ring_t *meter_arc_bar_create(lv_obj_t *parent, int x, int y, int diameter, float start, float end,
