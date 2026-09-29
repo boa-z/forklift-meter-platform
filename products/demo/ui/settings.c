@@ -112,7 +112,7 @@ void demo_settings_show_page(demo_ui_t *u, unsigned page)
     for (unsigned i = 0; i < 4; ++i)
     {
         lv_obj_set_hidden(u->settings_cards[i], i != page);
-        lv_obj_set_style_bg_color(u->settings_menu[i], lv_color_hex(i == page ? 0xff7a00 : 0x1a242b), 0);
+        demo_theme_menu_button(u->settings_menu[i], i == page);
     }
 }
 static void settings_menu_select(lv_event_t *event)
@@ -145,23 +145,27 @@ void demo_settings_create(demo_ui_t *u)
     u->settings_title = meter_text(p, 216, 8, "", &lv_font_montserrat_24, 0xedf5f8);
     u->settings_note = meter_text(p, 24, 34, "", &lv_font_montserrat_20, 0x8ba9bb);
     lv_obj_set_hidden(u->settings_note, true);
-    u->settings_rail = demo_panel(p, 0, 0, 200, 312);
-    lv_obj_set_style_radius(u->settings_rail, 0, 0);
+    /* 导航栏使用透明容器，只让四个按钮表达选中状态，避免形成整块深色背景。 */
+    u->settings_rail = lv_obj_create(p);
+    lv_obj_remove_style_all(u->settings_rail);
+    lv_obj_set_pos(u->settings_rail, 0, 0);
+    lv_obj_set_size(u->settings_rail, 200, 256);
+    lv_obj_set_style_bg_opa(u->settings_rail, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(u->settings_rail, 0, 0);
+    lv_obj_set_style_outline_width(u->settings_rail, 0, 0);
+    lv_obj_set_scrollable(u->settings_rail, false);
     const demo_text_id_t menu_ids[] = {DEMO_TXT_USER_SETTINGS, DEMO_TXT_PASSWORD, DEMO_TXT_ADMIN_SETTINGS,
                                        DEMO_TXT_INSTRUMENT_VERSION};
     for (unsigned i = 0; i < 4; ++i)
     {
         u->settings_menu[i] = lv_button_create(u->settings_rail);
-        demo_theme_button(u->settings_menu[i]);
-        lv_obj_set_pos(u->settings_menu[i], 0, (int)i * 78);
-        lv_obj_set_size(u->settings_menu[i], 200, 78);
-        lv_obj_set_style_radius(u->settings_menu[i], 0, 0);
-        lv_obj_set_style_border_width(u->settings_menu[i], 0, 0);
+        demo_theme_menu_button(u->settings_menu[i], i == 0);
+        lv_obj_set_pos(u->settings_menu[i], 0, (int)i * 64);
+        lv_obj_set_size(u->settings_menu[i], 200, 64);
         lv_obj_add_event_cb(u->settings_menu[i], settings_menu_select, LV_EVENT_CLICKED, u);
         lv_obj_t *label = demo_text(u, u->settings_menu[i], 12, 0, menu_ids[i], &lv_font_montserrat_20, 0xedf5f8);
         lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-        lv_obj_set_size(label, 176, 56);
+        lv_obj_set_size(label, 176, 48);
         lv_obj_center(label);
     }
     for (unsigned i = 0; i < 4; ++i)

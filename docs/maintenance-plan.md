@@ -331,3 +331,11 @@ The monitor and settings rails now attach to the page's left edge and form conti
 ### Full-width left-tab OTA attempt
 
 Host SDL verification passed and the complete capture set is stored under `evidence/adaptation/ui-left-tab-full/`. Candidate `demo-ui-lefttab-20260929` was built from framework `31d8ac6`; the OS image SHA256 is `e3746fe21833217bbe6e1c6ac3b778e84075b6a96970694838b27c63e4869375` and the OTA package SHA256 is `ae0e3736862fad99989f40d1cf7c64502464afde335a2af99c4014207a15a011`. Host package preflight passed. The board accepted the manifest and first 512-byte block, then returned UDS `RequestOutOfRange (0x31)` on the next transfer. Abort, maintenance off/on and a board reboot were attempted before retries; the same response persisted. Raw attempts are under `evidence/ota/demo-ui-lefttab-20260929/`. The board remains on `demo-ui-settings-20260929`; no OTA success is claimed for this layout.
+
+### Compact left-tab visual refinement
+
+The monitor and settings category controls remain aligned to the left edge with continuous 64 px touch targets. The settings rail is now a transparent container; only the four buttons draw their selected or inactive state, so the rail does not create an oversized background field. Monitor and settings still share the same geometry, typography, translations and four-item pagination rule. Fresh SDL captures are under `evidence/adaptation/ui-left-tab-compact/`; targeted UI tests pass and the existing full-suite baseline remains 87/87.
+
+### Shared category-menu styling
+
+Monitor and settings now use one `demo_theme_menu_button` rule for category controls: 200 x 64 px geometry is owned by each page, while radius, border, text color, selected orange and pressed feedback are shared. Settings no longer overrides menu colors directly, so both left menus have identical visual states without adding a rail background. Existing navigation and authorization behavior is unchanged.

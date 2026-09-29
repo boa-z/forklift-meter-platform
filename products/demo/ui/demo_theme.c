@@ -33,6 +33,13 @@ void demo_theme_button(lv_obj_t *button)
     lv_obj_set_style_shadow_width(button, 0, 0);
     lv_obj_set_style_radius(button, 6, 0);
 }
+void demo_theme_menu_button(lv_obj_t *button, bool selected)
+{
+    demo_theme_button(button);
+    lv_obj_set_style_radius(button, 0, 0);
+    lv_obj_set_style_border_width(button, 0, 0);
+    lv_obj_set_state(button, LV_STATE_CHECKED, selected);
+}
 void demo_theme_slider(lv_obj_t *slider)
 {
     lv_obj_set_style_bg_color(slider, style.track, LV_PART_MAIN);

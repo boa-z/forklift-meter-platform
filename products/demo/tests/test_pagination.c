@@ -143,8 +143,8 @@ static int check_monitor_layout(demo_ui_t *ui)
     lv_obj_get_coords(ui->monitor_mode_button, &first_tab);
     lv_obj_get_coords(ui->parameter_mode_button, &second_tab);
     lv_obj_get_coords(lv_obj_get_parent(ui->monitor_labels[0]), &first_row);
-    CHECK(first_tab.x1 == 0 && first_tab.x2 == 199 && first_tab.y1 == 53 && first_tab.y2 == 208);
-    CHECK(second_tab.x1 == 0 && second_tab.x2 == 199 && second_tab.y1 == 209 && second_tab.y2 == 364);
+    CHECK(first_tab.x1 == 0 && first_tab.x2 == 199 && first_tab.y1 == 53 && first_tab.y2 == 116);
+    CHECK(second_tab.x1 == 0 && second_tab.x2 == 199 && second_tab.y1 == 117 && second_tab.y2 == 180);
     CHECK(first_row.x1 == 200 && first_row.x2 == 783 && first_row.y1 == 71);
     CHECK(first_row.y2 < 365);
     return 0;
