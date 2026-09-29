@@ -33,14 +33,15 @@ size_t meter_settings_size(const meter_core_t *core)
 bool meter_settings_encode(const meter_core_t *core, uint8_t *out, size_t size)
 {
     const size_t length = meter_settings_size(core);
-    if (!length || !out || size < length)
+    if (!length || !out || size < length || (unsigned)core->snapshot.can_rate > METER_CAN_RATE_500K)
         return false;
     const meter_catalog_t *catalog = core->snapshot.catalog;
     memset(out, 0, length);
-    memcpy(out, "MSP2", 4);
+    memcpy(out, "MSP3", 4);
     out[4] = core->snapshot.imperial;
     out[5] = core->snapshot.brightness;
     out[6] = (uint8_t)core->snapshot.language;
+    out[7] = (uint8_t)core->snapshot.can_rate;
     put32(out + 8, (uint32_t)catalog->parameter_count);
     for (size_t i = 0; i < catalog->parameter_count; ++i)
     {
@@ -56,9 +57,11 @@ bool meter_settings_encode(const meter_core_t *core, uint8_t *out, size_t size)
 bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
 {
     if (!core || !data || size != meter_settings_size(core) || size < METER_SETTINGS_OVERHEAD ||
-        memcmp(data, "MSP2", 4) || data[7] != 0 || data[4] > 1 || data[5] < 10 || data[5] > 100 ||
+        memcmp(data, "MSP3", 4) || data[7] > METER_CAN_RATE_500K ||
+        data[4] > 1 || data[5] < 10 || data[5] > 100 ||
         data[6] > METER_LANGUAGE_ZH || get32(data + size - 4) != checksum(data, size - 4))
         return false;
+    const meter_can_rate_t rate = (meter_can_rate_t)data[7];
     const meter_catalog_t *catalog = core->snapshot.catalog;
     if (get32(data + 8) != catalog->parameter_count)
         return false;
@@ -73,7 +76,7 @@ bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
                 return false;
     }
     bool changed = core->snapshot.imperial != (data[4] != 0) || core->snapshot.brightness != data[5] ||
-                   core->snapshot.language != (meter_language_t)data[6];
+                   core->snapshot.language != (meter_language_t)data[6] || core->snapshot.can_rate != rate;
     /* 全部校验成功后才按稳定 ID 应用，目录调整顺序不改变参数身份。 */
     for (size_t i = 0; i < catalog->parameter_count; ++i)
     {
@@ -86,6 +89,7 @@ bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
     core->snapshot.imperial = data[4] != 0;
     core->snapshot.brightness = data[5];
     core->snapshot.language = (meter_language_t)data[6];
+    core->snapshot.can_rate = rate;
     if (changed)
         ++core->snapshot.revision;
     return true;

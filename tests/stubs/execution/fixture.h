@@ -5,6 +5,19 @@ static bool lifecycle_test;
 static unsigned init_calls, fail_init, startup_calls, fail_startup, wake_bindings;
 static unsigned close_calls, flush_calls, stop_calls;
 static bool nvm_start_ok = true, nvm_ready = true, nvm_stopped = true, barrier_ready;
+static unsigned settings_boot_calls;
+static meter_can_rate_t boot_rate;
+bool meter_board_settings_boot(const meter_snapshot_t *snapshot)
+{
+    assert(nvm_ready);
+    ++settings_boot_calls;
+    boot_rate = snapshot->can_rate;
+    return true;
+}
+bool meter_board_backlight_apply(uint8_t brightness, uint32_t now)
+{
+    (void)brightness; (void)now; return true;
+}
 static uint64_t flush_ticket;
 static uint32_t fake_now;
 static void (*app_wait_hook)(void);

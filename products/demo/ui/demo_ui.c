@@ -135,7 +135,7 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
     demo_monitor_update(u);
     demo_faults_update(u);
     demo_settings_update(u);
-    lv_obj_set_style_opa(u->pages[u->page], (lv_opa_t)(80 + u->view.brightness * 175 / 100), 0);
+    /* 亮度由板级背光应用，UI 保持原始对比度。 */
 }
 void demo_ui_destroy(void *context)
 {

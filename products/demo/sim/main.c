@@ -26,9 +26,10 @@ static bool action(void *context, const meter_action_t *a)
     if (!c->product->auth->local_settings ||
         (a->kind == METER_ACTION_PARAMETER && !c->product->capabilities->parameter_write))
         return false;
-    if (a->kind == METER_ACTION_PRODUCT)
-        return c->product->local_action && c->product->local_action(a, SDL_GetTicks());
-    if (!meter_core_action(c->core, a))
+    bool applied = a->kind == METER_ACTION_PRODUCT
+        ? c->product->local_action && c->product->local_action(&c->core->snapshot, a, SDL_GetTicks())
+        : meter_core_action(c->core, a);
+    if (!applied)
         return false;
     /* 保存请求不回滚已应用的 RAM；失败由 NVM 状态单独报告。 */
     (void)meter_host_nvm_changed(c->nvm, SDL_GetTicks());

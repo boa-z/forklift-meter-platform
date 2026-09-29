@@ -368,7 +368,7 @@ The User Settings content panel now presents five compact rows at the existing f
 
 ### Restored SDK Python/SCons build environment
 
-The board wrapper now uses the SDK-bundled Python 3.8 executable `tools/env/tools/Python38/python3.exe` together with the bundled SCons 3.1.2 library. Python 2.7 is retained only for legacy SDK utilities; it cannot run the current application SConscript because `importlib.util` is required. Candidate `demo-ui-routing-20260929` rebuilt successfully with this environment, produced the D50T-2-Lite image and OS ITB, and restored `.config` byte-for-byte. Evidence is under `evidence/ota/demo-ui-routing-20260929e/`.
+The board wrapper now uses the SDK-bundled Python 3.8 executable `tools/env/tools/Python38/python3.exe` together with the bundled SCons 3.1.2 library. Python 2.7 is retained only for legacy SDK utilities; it cannot run the current application SConscript because `importlib.util` is required. Candidate `demo-ui-routing-20260929` rebuilt successfully with this environment, produced the reference-board image and OS ITB, and restored `.config` byte-for-byte. Evidence is under `evidence/ota/demo-ui-routing-20260929e/`.
 
 ### Demo settings routing OTA result
 
@@ -391,6 +391,18 @@ Candidate `demo-ui-five-row-20260929` was built from Framework `263b87c` with th
 
 ### OTA alignment root cause and successful retry
 
-The failed candidate used an OS payload of 1,107,968 bytes, which is 2 KiB aligned but not divisible by the native AIC backend write block of 4 KiB. The backend rejected the session when the first FIT metadata and image block were committed, surfaced over UDS as `RequestOutOfRange (0x31)`. The previous successful candidate used a 1,110,016-byte, 4 KiB-aligned OS payload. The OTA packer now defaults to 4 KiB OS padding and has a regression test for the D50T board contract.
+The failed candidate used an OS payload of 1,107,968 bytes, which is 2 KiB aligned but not divisible by the native AIC backend write block of 4 KiB. The backend rejected the session when the first FIT metadata and image block were committed, surfaced over UDS as `RequestOutOfRange (0x31)`. The previous successful candidate used a 1,110,016-byte, 4 KiB-aligned OS payload. The OTA packer now defaults to 4 KiB OS padding and has a regression test for the reference-board board contract.
 
 After rebooting the target, the corrected package was preflighted and installed: 1,111,040 bytes received, candidate verification passed, activation and reboot completed, and post-reboot identity reported `demo-ui-five-row-20260929`, Framework `263b87c`, SDK `5bef2d47`, LVGL `9.6.0`, state `IDLE`, error `0`, and zero queue rejects. Package SHA256 is `10cc2260307ea3fd05f41a0debcf1c6d9c7e1a890e96662a27c1b83395828016`; raw evidence is under `evidence/ota/demo-ui-five-row-20260929/retry-fixed/`.
+
+
+### Retained board settings integration
+
+User-authorized on 2026-09-29: implement real brightness and retained CAN bitrate using the existing App/NVM owners. This closes the earlier CAN persistence decision; it is a deliberate storage/boot extension, not a behavior-preserving cleanup. One firmware still contains one Product. No customer protocol, assets or credentials are imported.
+
+- MSP3 uses header byte 7 for the stable 125/250/500 kbit/s selection (0/1/2), and Demo declares FMP2 schema 3. Per the maintainer clarification, there is no legacy-record reader or migration. Retain stable parameter IDs, checksum and two-slot durability. Reject old or corrupt records without partial application or automatic erase; explicitly initialize the authorized development-board settings region before validating the new record.
+- App waits for the asynchronous initial NVM result before starting CAN workers, then latches an immutable rate for both reference-board buses. Blank/invalid media uses validated defaults while preserving NVM error/repair policy. Slow I/O keeps CAN closed; stop remains cancellable. A configured rate change is authorized by Product, changes the snapshot revision and is saved by the existing debounced service; live CAN/OTA traffic stays at the boot rate. Restart only after the durable revision catches up.
+- The optional Product local_action callback now receives a borrowed mutable App snapshot. Update out-of-tree callbacks to accept the snapshot first; never retain it or perform I/O. UI and shell both reach this callback through App-owned queues. The shell product intent route does not bypass authorization. Remote Parameters remain transport-neutral and separate.
+- Board PWM3 applies brightness 10..100 through a 20000 ns period and 2000 + 180 * value ns pulse, with register readback and bounded one-second retries. The board adapter owns electrical mapping; App applies after retained load and each accepted change. Host UI keeps full opacity. Unknown dashboard values retain -- without duplicate NO DATA labels; stale/error indications stay visible.
+
+Execution order: finish deterministic format rejection, authorization, PWM failure/readback and delayed-boot tests; run Debug/Release and target build; verify OTA identity, retained brightness and CAN reboot behavior on hardware; then consolidate this development branch by functional changes with recoverable old refs and unchanged source trees. Do not attribute old hardware captures to rewritten commit IDs. Current hardware validation for this batch: NOT_RUN.

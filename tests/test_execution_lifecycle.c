@@ -83,6 +83,45 @@ static void durability_steps(void)
     }
 }
 
+static void begin_durability_stop(void)
+{
+    assert(startup_calls == 4u && settings_boot_calls == 1u);
+    nvm_ready = false;
+    meter_execution_stop();
+    app_wait_hook = durability_steps;
+}
+static void finish_boot_stop(void)
+{
+    assert(shared.state == METER_EXEC_STOPPING);
+    shared.protocol_done = true;
+    shared.tx_done[0] = true;
+    shared.tx_done[1] = true;
+    nvm_stopped = true;
+    nvm_ready = true;
+    if (shared.ui_release) meter_execution_ui_stopped();
+    assert(waits++ < 8u);
+}
+static void stop_after_boot(void)
+{
+    assert(settings_boot_calls == 1u && boot_rate == METER_CAN_RATE_250K);
+    assert(startup_calls == 4u);
+    meter_execution_stop();
+    app_wait_hook = finish_boot_stop;
+}
+static void complete_boot_scan(void)
+{
+    assert(startup_calls == 1u && settings_boot_calls == 0u);
+    assert(state_lock.depth == 0u);
+    core.snapshot.can_rate = METER_CAN_RATE_250K;
+    nvm_ready = true;
+    app_wait_hook = stop_after_boot;
+}
+static void cancel_boot_scan(void)
+{
+    assert(startup_calls == 1u && settings_boot_calls == 0u);
+    meter_execution_stop();
+    app_wait_hook = finish_boot_stop;
+}
 int main(int argc, char **argv)
 {
     assert(argc == 3);
@@ -114,7 +153,7 @@ int main(int argc, char **argv)
         assert(!meter_execution_start(&settings));
         return 0;
     }
-    if (strcmp(argv[1], "durability") == 0)
+    if (strcmp(argv[1], "durability") == 0 || strncmp(argv[1], "boot-", 5) == 0)
         storage_profile.enabled = true;
     if (strcmp(argv[1], "nvm-start") == 0)
     {
@@ -129,12 +168,15 @@ int main(int argc, char **argv)
     app_wait_hook = finish_failed_start;
     if (strcmp(argv[1], "durability") == 0)
     {
-        nvm_ready = false;
         shared.protocol_ready = true;
         meter_execution_ui_stopped();
         assert(!shared.ui_done);
-        meter_execution_stop();
-        app_wait_hook = durability_steps;
+        app_wait_hook = begin_durability_stop;
+    }
+    if (strcmp(argv[1], "boot-settings") == 0 || strcmp(argv[1], "boot-stop") == 0)
+    {
+        nvm_ready = false;
+        app_wait_hook = strcmp(argv[1], "boot-settings") == 0 ? complete_boot_scan : cancel_boot_scan;
     }
     app_entry(NULL);
     assert(meter_execution_stopped() && shared.ui_done && close_calls == 1u);
@@ -145,6 +187,8 @@ int main(int argc, char **argv)
         assert(startup_calls == 1u);
     if (strcmp(argv[1], "durability") == 0)
         assert(waits == 7u && flush_calls == 2u);
+    if (strcmp(argv[1], "boot-stop") == 0)
+        assert(startup_calls == 1u && settings_boot_calls == 0u);
     return 0;
 }
 

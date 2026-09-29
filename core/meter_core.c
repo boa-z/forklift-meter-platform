@@ -83,6 +83,7 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const m
     for (size_t i = 0; i < catalog->fault_count; ++i)
         core->snapshot.faults[i] = (meter_fault_state_t){catalog->faults[i].id, false};
     core->snapshot.brightness = 80;
+    core->snapshot.can_rate = METER_CAN_RATE_500K;
     return true;
 }
 static bool apply_value(meter_core_t *core, const meter_update_t *update, bool arbitrate)

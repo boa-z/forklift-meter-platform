@@ -279,6 +279,10 @@ void demo_settings_create(demo_ui_t *u)
     lv_obj_set_style_bg_color(u->settings_detail, lv_color_hex(0x07090b), 0);
     lv_obj_set_style_bg_opa(u->settings_detail, LV_OPA_COVER, 0);
     lv_obj_set_scrollable(u->settings_detail, false);
+    lv_obj_set_parent(u->settings_note, u->settings_detail);
+    lv_obj_set_pos(u->settings_note, 18, 300);
+    lv_obj_set_width(u->settings_note, 560);
+    demo_i18n_bind_label(u->settings_note, DEMO_TXT_ADMIN_NOTE);
     u->settings_detail_title = meter_text(u->settings_detail, 18, 20, "", &lv_font_montserrat_20, 0xedf5f8);
     lv_obj_set_width(u->settings_detail_title, 470);
     lv_label_set_long_mode(u->settings_detail_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
@@ -444,6 +448,7 @@ void demo_settings_create(demo_ui_t *u)
 }
 void demo_settings_update(demo_ui_t *u)
 {
+    lv_obj_set_hidden(u->settings_note, u->selected_setting != 4);
     const lv_font_t *font = u->view.language == METER_LANGUAGE_EN
                                 ? &lv_font_montserrat_20
                                 : meter_font_get(u->view.language, METER_FONT_LABEL);

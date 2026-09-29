@@ -104,8 +104,9 @@ typedef struct
     /** @brief 可选命令完成条件；纯函数，返回 APPLIED/TX_COMPLETED/REMOTE_CONFIRMED，默认要求远端确认。 */
     meter_command_stage_t (*command_completion)(const meter_command_t *command);
     /** @brief App owner 内的可选设置入口：普通动作返回准入，PRODUCT 动作返回已处理。
-     * 不得阻塞或操作设备；未经回调处理的 PRODUCT 动作拒绝。队列接纳不代表此处成功。 */
-    bool (*local_action)(const meter_action_t *action, uint32_t now_ms);
+     * snapshot 仅在回调内可修改，发生变化须递增 revision；不得保留指针、阻塞或操作设备。
+     * 未经回调处理的 PRODUCT 动作拒绝。队列接纳与 RAM 应用都不代表 NVM 已持久化。 */
+    bool (*local_action)(meter_snapshot_t *snapshot, const meter_action_t *action, uint32_t now_ms);
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

@@ -23,6 +23,13 @@ typedef enum
     METER_LANGUAGE_EN = 0,
     METER_LANGUAGE_ZH = 1
 } meter_language_t;
+/** @brief 本机 CAN 速率选择；持久化取值固定，两个参考板总线共用，重启生效。 */
+typedef enum
+{
+    METER_CAN_RATE_125K = 0,
+    METER_CAN_RATE_250K = 1,
+    METER_CAN_RATE_500K = 2
+} meter_can_rate_t;
 /**
  * @brief 信号与来源身份，产品词汇表中的 16 位句柄。
  *
@@ -145,6 +152,7 @@ typedef struct
     bool imperial;
     meter_language_t language;
     uint8_t brightness;
+    meter_can_rate_t can_rate; /* 已配置值，不代表当前运行中的控制器速率。 */
     meter_profile_t profile; /* 与 Domain 值一起在同一发布锁内复制。 */
 } meter_snapshot_t;
 /** @brief 未声明身份的统一返回值：UNKNOWN 且数值与时间戳为零。 */

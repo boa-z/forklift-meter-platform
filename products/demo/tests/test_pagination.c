@@ -21,7 +21,7 @@ static bool accept = true;
 static bool send(void *context, const meter_action_t *action)
 {
     ++actions_sent;
-    if (!accept || !demo_settings_action(action, lv_tick_get()))
+    if (!accept || !demo_settings_action(&((meter_core_t *)context)->snapshot, action, lv_tick_get()))
         return false;
     return action->kind == METER_ACTION_PRODUCT || meter_core_action(context, action);
 }

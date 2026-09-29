@@ -14,8 +14,10 @@ SOURCES = (
     'platform/common/meter_diag_commands.c',
     'platform/rtthread/meter_rtthread_adapter.c',
     'platform/rtthread/meter_execution_port.c',
+    'platform/rtthread/meter_board_settings.c',
     'examples/parameter-workflow/app.c',
     'products/demo/application/presentation.c',
+    'products/demo/services/settings_app.c',
     'products/demo/protocol/can/demo_pdo.c',
     'runtime/meter_calibration.c',
     'diagnostics/meter_classification.c',
@@ -39,8 +41,11 @@ def main():
             if relative.startswith('products/demo/'):
                 includes += ['-I', str(ROOT / 'products/demo')]
             native = relative == 'platform/rtthread/meter_execution_port.c'
+            board_settings = relative == 'platform/rtthread/meter_board_settings.c'
             if native:
                 includes += ['-I', str(ROOT / 'tests/stubs/execution'), '-UMETER_ENABLE_CAN_UPDATE']
+            if board_settings:
+                includes += ['-I', str(ROOT / 'tests/stubs/board_settings')]
             command = ([executable, '--enable=warning,performance,portability', '--error-exitcode=1', '--std=c11']
                        + includes + [str(source)] if tool == 'cppcheck' else
                        [executable, str(source), '--', '-std=c11'] + includes)
@@ -48,11 +53,14 @@ def main():
             configuration = ['.clang-tidy']
             if native:
                 configuration += ['tests/stubs/execution/rtthread.h', 'tests/stubs/execution/finsh.h']
+            if board_settings:
+                configuration += ['tests/stubs/board_settings/rtdevice.h', 'tests/stubs/board_settings/ulog.h']
             rows.append(dict(source=relative, sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
                              tool=tool, version=version, command=command, result=result.returncode,
                              configuration_sha256={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
                                                    for p in configuration},
-                             context='host RT-Thread stubs; OTA disabled' if native else 'portable C11'))
+                             context='host RT-Thread PWM stubs' if board_settings else
+                                     'host RT-Thread stubs; OTA disabled' if native else 'portable C11'))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(rows, indent=2), encoding='utf-8')
     if any(row['result'] for row in rows):

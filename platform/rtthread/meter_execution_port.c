@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "platform/rtthread/meter_execution_port.h"
 #include "platform/rtthread/meter_board_port.h"
+#include "platform/rtthread/meter_board_settings.h"
 #include "platform/rtthread/meter_nvm_port.h"
 #include "platform/rtthread/debug/meter_debug_console.h"
 #include "core/meter_snapshot.h"
@@ -508,7 +509,7 @@ static void apply_actions(uint32_t now)
     if (allowed)
     {
         applied = message.action.kind == METER_ACTION_PRODUCT
-            ? (p->local_action && p->local_action(&message.action, now))
+            ? (p->local_action && p->local_action(&config.core->snapshot, &message.action, now))
             : meter_core_action(config.core, &message.action);
     }
     if (applied) (void)meter_board_nvm_changed(now);
@@ -601,6 +602,18 @@ static void app_entry(void *arg)
     (void)arg;
     bool ok = true;
     if (config.product->storage && config.product->storage->enabled) ok = meter_board_nvm_start(config.core);
+    /* 启动时先收敛异步读取，禁止用默认速率先开 CAN 再切换。停止请求仍可打断等待。 */
+    while (ok && !meter_board_nvm_ready())
+    {
+        lock_state();
+        bool stop = shared.stop_requested;
+        unlock_state();
+        if (stop) { ok = false; break; }
+        meter_board_nvm_poll(meter_board_now_ms(), &app_diag.data.storage);
+        if (!meter_board_nvm_ready())
+            (void)rt_sem_take(&app_event, rt_tick_from_millisecond(5));
+    }
+    if (ok) ok = meter_board_settings_boot(&config.core->snapshot);
 #ifdef METER_ENABLE_CAN_UPDATE
     if (ok && config.product->update) ok = meter_board_update_start();
 #endif
@@ -693,6 +706,8 @@ static void app_entry(void *arg)
         if (!stopping && app_policy.commands && config.product->app_run)
             config.product->app_run(now, &app_commands);
         apply_actions(now);
+        if (!stopping && meter_board_nvm_ready())
+            (void)meter_board_backlight_apply(config.core->snapshot.brightness, now);
         meter_core_tick(config.core, now);
         if (config.product->evaluate) config.product->evaluate(&config.core->snapshot);
         publish_app(now);

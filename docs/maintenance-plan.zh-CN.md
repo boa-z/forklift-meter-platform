@@ -367,7 +367,7 @@ Demo 现在提供两个设置路由：用户设置和管理员设置。用户设
 
 ### 恢复 SDK Python/SCons 构建环境
 
-板级封装现在使用 SDK 内置的 Python 3.8 可执行文件 `tools/env/tools/Python38/python3.exe` 和内置 SCons 3.1.2 库。Python 2.7 仅保留给旧 SDK 工具使用，当前应用 SConscript 依赖 `importlib.util`，不能用 Python 2.7 构建。候选 `demo-ui-routing-20260929` 已用该环境重新构建成功，生成 D50T-2-Lite 镜像和 OS ITB，并逐字节恢复 `.config`。证据位于 `evidence/ota/demo-ui-routing-20260929e/`。
+板级封装现在使用 SDK 内置的 Python 3.8 可执行文件 `tools/env/tools/Python38/python3.exe` 和内置 SCons 3.1.2 库。Python 2.7 仅保留给旧 SDK 工具使用，当前应用 SConscript 依赖 `importlib.util`，不能用 Python 2.7 构建。候选 `demo-ui-routing-20260929` 已用该环境重新构建成功，生成 reference-board 镜像和 OS ITB，并逐字节恢复 `.config`。证据位于 `evidence/ota/demo-ui-routing-20260929e/`。
 
 ### Demo 设置路由 OTA 结果
 
@@ -390,6 +390,18 @@ Demo 监控、故障和设置内容统一采用每页五行的排版目标：条
 
 ### OTA 对齐根因与成功重试
 
-此前候选包中的 OS 为 1,107,968 字节，虽然满足 2 KiB 对齐，但不能被原生 AIC 后端的 4 KiB 写入块整除。后端在提交首个 FIT 元数据和镜像块时拒绝会话，并通过 UDS 表现为 `RequestOutOfRange (0x31)`。此前成功候选的 OS 为 1,110,016 字节，满足 4 KiB 对齐。现在 OTA 打包器默认按 4 KiB 补齐 OS，并增加了 D50T 板级契约回归测试。
+此前候选包中的 OS 为 1,107,968 字节，虽然满足 2 KiB 对齐，但不能被原生 AIC 后端的 4 KiB 写入块整除。后端在提交首个 FIT 元数据和镜像块时拒绝会话，并通过 UDS 表现为 `RequestOutOfRange (0x31)`。此前成功候选的 OS 为 1,110,016 字节，满足 4 KiB 对齐。现在 OTA 打包器默认按 4 KiB 补齐 OS，并增加了 reference-board 板级契约回归测试。
 
 开发板重启后，修正包完成预检和安装：接收 1,111,040 字节，候选校验通过，激活和重启完成；重启后身份为 `demo-ui-five-row-20260929`，Framework `263b87c`，SDK `5bef2d47`，LVGL `9.6.0`，状态 `IDLE`，错误 `0`，队列拒绝 `0`。OTA 包 SHA256 为 `10cc2260307ea3fd05f41a0debcf1c6d9c7e1a890e96662a27c1b83395828016`；原始证据位于 `evidence/ota/demo-ui-five-row-20260929/retry-fixed/`。
+
+
+### 板级设置持久化集成
+
+用户于 2026-09-29 授权：沿用现有 App/NVM owner 接入真实亮度与 CAN 波特率持久化。这关闭之前的 CAN 持久化决策，是明确的存储/启动扩展，不属于行为保持清理。每个固件仍只含一个 Product，不导入客户协议、素材或凭据。
+
+- MSP3 使用头部字节 7 保存稳定的 125/250/500 kbit/s 选择（0/1/2），Demo 声明 FMP2 schema 3。按维护者最新要求，不实现旧记录读取或迁移。保留稳定参数 ID、校验与双槽持久化；整体拒绝旧版/损坏记录，不自动擦除。本次先显式初始化已获授权的开发板设置区，再验证新格式。
+- App 在异步 NVM 初次读取完成后才启动 CAN worker，并为参考板两个总线锁存不可变速率。空白/异常介质使用已校验默认值，保留 NVM 错误/修复策略。慢 I/O 时 CAN 保持关闭，停止仍可打断等待。配置修改经 Product 授权、递增快照 revision、由现有去抖服务保存；运行中 CAN/OTA 保持启动速率，durable revision 追上后再重启。
+- Product 的可选 local_action 回调增加首个借用的可变 App 快照参数。外部回调需更新签名，不得保留指针或执行 I/O。UI 与 shell 均通过 App 队列到达回调，shell 的 Product 意图入口不绕过授权。远端 Parameters 继续独立且传输无关。
+- 板级 PWM3 以 20000 ns 周期、2000 + 180 * value ns 脉宽应用 10..100 的亮度，执行寄存器读回并以一秒间隔重试失败。电气映射归 Board adapter；App 在保留值加载后和每次修改后应用。Host UI 保持完整不透明度。主界面未知值保留 --，移除重复无数据文字，过期/错误提示继续显示。
+
+执行顺序：完成格式拒绝、授权、PWM 失败/读回与延迟启动测试；运行 Debug/Release 和实板构建；OTA 验证身份、亮度保存及 CAN 重启生效；最后按功能整理当前分支历史，保留可恢复的旧引用并验证源码树一致。旧实板证据不得归属到重写后的提交。本批实板验证当前为 NOT_RUN。

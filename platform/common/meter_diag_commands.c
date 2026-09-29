@@ -217,6 +217,7 @@ static void storage(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, voi
              (unsigned long long)s->storage.durable_revision);
         line(emit, ctx, "storage language=%lu brightness=%lu imperial=%u", U(s->storage.language),
              U(s->storage.brightness), (unsigned)s->storage.imperial);
+        line(emit, ctx, "storage configured_can_rate=%lu apply=next-boot", U(s->storage.configured_can_rate));
     }
     else
         emit(ctx, "storage unavailable (no NVM backend)");

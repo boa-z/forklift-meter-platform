@@ -30,6 +30,7 @@ board_id = os.environ.get('METER_BOARD_ID', 'reference-board')
 identity.generate(cwd, AIC_ROOT, board_id, os.path.join(identity_dir,'meter_build_identity.h'))
 common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_board_port.c', 'platform/rtthread/meter_nvm_port.c',
+          'platform/rtthread/meter_board_settings.c',
           'platform/rtthread/meter_eeprom_i2c.c',
           'third_party/CANopenNode/301/crc16-ccitt.c', 'storage/meter_file.c', 'platform/common/meter_diag_commands.c',
           'platform/rtthread/debug/meter_debug_console.c', 'platform/rtthread/debug/meter_debug_log.c']

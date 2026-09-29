@@ -35,9 +35,9 @@ void demo_settings_reset(uint32_t generation)
     auth_feedback = DEMO_FEEDBACK_IDLE;
     /* 不重建存活的 ledger；模式切换撤销授权，由下次 tick 收敛旧事务。 */
 }
-bool demo_settings_action(const meter_action_t *action, uint32_t now_ms)
+bool demo_settings_action(meter_snapshot_t *snapshot, const meter_action_t *action, uint32_t now_ms)
 {
-    if (!action || !isfinite(action->value) || !initialize())
+    if (!snapshot || !action || !isfinite(action->value) || !initialize())
         return false;
     app_now = now_ms;
     if (action->kind != METER_ACTION_PRODUCT)
@@ -71,8 +71,19 @@ bool demo_settings_action(const meter_action_t *action, uint32_t now_ms)
         unsigned maximum = row == 0 ? 2 : 1;
         if (action->value < 0 || action->value > maximum || floorf(action->value) != action->value)
             return false;
-        /* 四项仅为易失性演示偏好，绝不重配 CAN、修改小时累计或写 EEPROM。 */
-        admin_values[row] = (unsigned)action->value;
+        if (row == 0)
+        {
+            /* App 更新待重启配置；运行中不重配设备，NVM 仍由统一服务持久化。 */
+            meter_can_rate_t rate = (meter_can_rate_t)(unsigned)action->value;
+            if (snapshot->can_rate != rate)
+            {
+                snapshot->can_rate = rate;
+                ++snapshot->revision;
+            }
+        }
+        else
+            /* 其余三项仍为易失性演示偏好，不修改小时累计或擦除介质。 */
+            admin_values[row] = (unsigned)action->value;
         return true;
     }
     if (action->id >= DEMO_INTENT_REMOTE_FIRST && action->id < DEMO_INTENT_REMOTE_FIRST + DEMO_REMOTE_COUNT)
@@ -145,7 +156,7 @@ void demo_settings_publish(meter_snapshot_t *snapshot)
     const meter_signal_id_t admin_ids[] = {DEMO_ADMIN_CAN, DEMO_ADMIN_HOURS, DEMO_ADMIN_SPEED, DEMO_ADMIN_MEMORY};
     const meter_signal_id_t remote_ids[] = {DEMO_REMOTE_SPEED, DEMO_REMOTE_RAMP, DEMO_REMOTE_LIFT, DEMO_REMOTE_REGEN};
     for (unsigned i = 0; i < DEMO_ADMIN_COUNT; ++i)
-        publish(snapshot, admin_ids[i], (float)admin_values[i]);
+        publish(snapshot, admin_ids[i], i == 0 ? (float)snapshot->can_rate : (float)admin_values[i]);
     for (unsigned i = 0; i < DEMO_REMOTE_COUNT; ++i)
         publish(snapshot, remote_ids[i], remote_values[i]);
 }
