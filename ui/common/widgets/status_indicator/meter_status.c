@@ -31,14 +31,15 @@ meter_status_t *meter_status_create(lv_obj_t *p, int x, int y, const char *name,
     s->root = lv_obj_create(p);
     lv_obj_remove_style_all(s->root);
     lv_obj_set_pos(s->root, x, y);
-    lv_obj_set_size(s->root, 140, 30);
+    lv_obj_set_size(s->root, 140, 40);
     lv_obj_add_event_cb(s->root, dispose, LV_EVENT_DELETE, s);
     if (icon)
     {
         s->icon = lv_image_create(s->root);
         lv_image_set_src(s->icon, icon);
+        lv_image_set_scale(s->icon, 176);
     }
-    s->label = meter_text(s->root, 29, 5, name, s->style.label_font, 0);
+    s->label = meter_text(s->root, 46, 10, name, s->style.label_font, 0);
     apply_style(s);
     return s;
 }

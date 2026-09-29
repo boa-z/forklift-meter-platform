@@ -288,3 +288,7 @@ Demo 密码编辑页参考 参考项目 参考产品页面，在现有 800x480 �
 新的 SDL 截图位于 `evidence/adaptation/redesign-captures-3/`。主题和导航调整后，`ui-pagination`、`demo-settings-app`、`i18n-ui` 和 `sdl-smoke` 均通过。这些是主机视觉证据；目标屏幕配色、触摸手感和实板渲染验收留待下一次明确安排的 OTA 批次。
 
 实板验证 2026-09-29：候选 `demo-ui-redesign-20260929` 由 Framework `d63793e` 和 SDK `967d9ec0` 构建。OS 镜像 SHA256 为 `a43cdc7b61c819f740c3f997e762878ad8125ca3be5c03648d64b79777f7df1f`，CAN OTA 包 SHA256 为 `35aff422d7d38031a342de555488098633b82484169b40d55e82cc5e1ac6c15d`。主机包预检通过，开发板接收 1,106,944 字节，激活并重启完成；重启后的探针报告 `reference-demo/reference-board`、版本 `demo-ui-redesign-20260929`、platform `d63793e`、SDK `967d9ec0`、状态 `IDLE`、错误 `0`、队列拒绝 `0`。原始探针/下载/激活/验证证据位于 `evidence/ota/demo-ui-redesign-20260929/`。这证明固件组合和 OTA 身份正确；目标屏幕的视觉验收仍需面板照片或屏幕采集。
+
+### Demo UI 密度细化
+
+本轮视觉复查还发现两个问题：翻页控件占用空间过大，设置页仍像互不相关的控件排列。现在翻页显示为紧凑的 `< 1/4 >` 形式，同时左右保留独立的 64 x 44 触摸热区。设置页改为固定左侧分类栏和单一右侧内容面板，较长的英文分类名称会在触摸区域内换行。主界面移除装饰性圆角卡片和直接分区标题，并放大五个叉车状态图标。页面边界、翻译、动作和快照语义保持不变。新的 SDL 截图位于 `evidence/adaptation/ui-refine-captures/`。

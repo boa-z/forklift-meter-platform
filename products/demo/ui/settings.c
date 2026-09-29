@@ -110,7 +110,17 @@ void demo_settings_show_page(demo_ui_t *u, unsigned page)
         return;
     demo_editors_close(u);
     for (unsigned i = 0; i < 4; ++i)
+    {
         lv_obj_set_hidden(u->settings_cards[i], i != page);
+        lv_obj_set_style_bg_color(u->settings_menu[i], lv_color_hex(i == page ? 0xff7a00 : 0x1a242b), 0);
+    }
+}
+static void settings_menu_select(lv_event_t *event)
+{
+    demo_ui_t *u = lv_event_get_user_data(event);
+    for (unsigned i = 0; i < 4; ++i)
+        if (lv_event_get_target_obj(event) == u->settings_menu[i])
+            demo_settings_show_page(u, i);
 }
 static void turn_page(lv_event_t *event)
 {
@@ -123,7 +133,7 @@ static lv_obj_t *settings_button(demo_ui_t *u, lv_obj_t *parent, int x, int y, d
     lv_obj_t *button = lv_button_create(parent);
     demo_theme_button(button);
     lv_obj_set_pos(button, x, y);
-    lv_obj_set_size(button, 300, 48);
+    lv_obj_set_size(button, 250, 48);
     lv_obj_t *label = demo_text(u, button, 0, 0, text, &lv_font_montserrat_20, 0xedf5f8);
     lv_obj_center(label);
     lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, u);
@@ -134,23 +144,38 @@ void demo_settings_create(demo_ui_t *u)
     lv_obj_t *p = u->pages[DEMO_SETTINGS];
     u->settings_title = meter_text(p, 24, 4, "", &lv_font_montserrat_24, 0xedf5f8);
     u->settings_note = meter_text(p, 24, 34, "", &lv_font_montserrat_20, 0x8ba9bb);
+    u->settings_rail = demo_panel(p, 16, 66, 184, 240);
+    const demo_text_id_t menu_ids[] = {DEMO_TXT_USER_SETTINGS, DEMO_TXT_PASSWORD, DEMO_TXT_ADMIN_SETTINGS,
+                                       DEMO_TXT_INSTRUMENT_VERSION};
     for (unsigned i = 0; i < 4; ++i)
-        u->settings_cards[i] = demo_panel(p, 16, 66, 768, 240);
+    {
+        u->settings_menu[i] = lv_button_create(u->settings_rail);
+        demo_theme_button(u->settings_menu[i]);
+        lv_obj_set_pos(u->settings_menu[i], 8, 8 + (int)i * 56);
+        lv_obj_set_size(u->settings_menu[i], 168, 48);
+        lv_obj_add_event_cb(u->settings_menu[i], settings_menu_select, LV_EVENT_CLICKED, u);
+        lv_obj_t *label = demo_text(u, u->settings_menu[i], 12, 0, menu_ids[i], &lv_font_montserrat_16, 0xedf5f8);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_obj_set_size(label, 156, 40);
+        lv_obj_center(label);
+    }
+    for (unsigned i = 0; i < 4; ++i)
+        u->settings_cards[i] = demo_panel(p, 216, 66, 568, 240);
     lv_obj_t *card = u->settings_cards[0];
     const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS,
                                      DEMO_TXT_SPEED_LIMIT};
     for (unsigned i = 0; i < 4; ++i)
         demo_text(u, card, 22, 18 + (int)i * 57, labels[i], &lv_font_montserrat_20, 0xe4eff5);
-    u->unit_button = settings_button(u, card, 442, 8, DEMO_TXT_METRIC, action);
-    u->language_button = settings_button(u, card, 442, 65, DEMO_TXT_CHINESE, action);
+    u->unit_button = settings_button(u, card, 290, 8, DEMO_TXT_METRIC, action);
+    u->language_button = settings_button(u, card, 290, 65, DEMO_TXT_CHINESE, action);
     u->brightness = lv_slider_create(card);
     u->limit = lv_slider_create(card);
     lv_obj_t *sliders[] = {u->brightness, u->limit};
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_slider(sliders[i]);
-        lv_obj_set_pos(sliders[i], 454, 144 + (int)i * 57);
-        lv_obj_set_size(sliders[i], 270, 12);
+        lv_obj_set_pos(sliders[i], 302, 144 + (int)i * 57);
+        lv_obj_set_size(sliders[i], 238, 12);
         lv_obj_add_event_cb(sliders[i], action, LV_EVENT_RELEASED, u);
     }
     lv_slider_set_range(u->brightness, 10, 100);
@@ -158,9 +183,9 @@ void demo_settings_create(demo_ui_t *u)
     card = u->settings_cards[1];
     demo_text(u, card, 22, 16, DEMO_TXT_DEMO_CREDENTIALS, &lv_font_montserrat_20, 0x9cb5c4);
     u->user_password_button = settings_button(u, card, 22, 60, DEMO_TXT_USER_PASSWORD, password_open);
-    u->admin_password_button = settings_button(u, card, 432, 60, DEMO_TXT_ADMIN_PASSWORD, password_open);
+    u->admin_password_button = settings_button(u, card, 290, 60, DEMO_TXT_ADMIN_PASSWORD, password_open);
     u->password_status = meter_text(card, 22, 136, "", &lv_font_montserrat_20, 0x5de5ca);
-    u->logout_button = settings_button(u, card, 432, 126, DEMO_TXT_SIGN_OUT, logout);
+    u->logout_button = settings_button(u, card, 290, 126, DEMO_TXT_SIGN_OUT, logout);
     demo_text(u, card, 22, 194, DEMO_TXT_DEMO_SESSION, &lv_font_montserrat_20, 0x9cb5c4);
     /* 参考参考产品密码页：左侧设置导航，右侧标题、输入框和 3x4 数字键盘。 */
     u->password_editor = lv_obj_create(u->root);
@@ -236,11 +261,11 @@ void demo_settings_create(demo_ui_t *u)
     for (unsigned i = 0; i < DEMO_ADMIN_COUNT; ++i)
     {
         u->admin_items[i] = settings_button(u, card, 12, 6 + (int)i * 58, admin_ids[i], admin_change);
-        lv_obj_set_width(u->admin_items[i], 744);
+        lv_obj_set_width(u->admin_items[i], 544);
         lv_obj_t *label = lv_obj_get_child(u->admin_items[i], 0);
         lv_obj_align(label, LV_ALIGN_LEFT_MID, 12, 0);
         u->admin_value_labels[i] =
-            meter_text(u->admin_items[i], 490, 12, "", &lv_font_montserrat_20, 0x5de5ca);
+            meter_text(u->admin_items[i], 360, 12, "", &lv_font_montserrat_20, 0x5de5ca);
         lv_obj_set_hidden(u->admin_items[i], true);
     }
     card = u->settings_cards[3];
@@ -252,7 +277,7 @@ void demo_settings_create(demo_ui_t *u)
             i == 3
                 ? meter_text(card, 22, 18 + (int)i * 57, "LVGL", &lv_font_montserrat_20, 0x9cb5c4)
                 : demo_text(u, card, 22, 18 + (int)i * 57, version_ids[i], &lv_font_montserrat_20, 0x9cb5c4);
-        u->version_values[i] = meter_text(card, 370, 18 + (int)i * 57, "", &lv_font_montserrat_20, 0x5de5ca);
+        u->version_values[i] = meter_text(card, 290, 18 + (int)i * 57, "", &lv_font_montserrat_20, 0x5de5ca);
     }
     lv_label_set_text(u->version_labels[3], "LVGL");
     u->setting_status = meter_text(p, 540, 8, "", &lv_font_montserrat_16, 0xff856d);
@@ -311,6 +336,8 @@ void demo_settings_update(demo_ui_t *u)
                            lv_obj_get_child(u->language_button, 0)};
     for (unsigned i = 0; i < sizeof(dynamic) / sizeof(dynamic[0]); ++i)
         lv_obj_set_style_text_font(dynamic[i], font, 0);
+    for (unsigned i = 0; i < 4; ++i)
+        lv_obj_set_style_text_font(lv_obj_get_child(u->settings_menu[i], 0), font, 0);
     for (unsigned i = 0; i < 4; ++i)
     {
         lv_obj_set_style_text_font(u->admin_value_labels[i], font, 0);

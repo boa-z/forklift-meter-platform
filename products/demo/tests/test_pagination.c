@@ -141,7 +141,7 @@ int main(int argc, char **argv)
                     lv_timer_handler();
                     CHECK(pager->current == subpage);
                     char expected_page[16];
-                    snprintf(expected_page, sizeof(expected_page), "%u / %u", subpage + 1u, pager->count);
+                    snprintf(expected_page, sizeof(expected_page), "%u/%u", subpage + 1u, pager->count);
                     CHECK(!strcmp(lv_label_get_text(pager->indicator), expected_page));
                     CHECK(lv_obj_has_state(pager->next, LV_STATE_DISABLED) == (subpage + 1u == pager->count));
                     CHECK(check_rows(ui, page, subpage) == 0);

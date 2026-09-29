@@ -22,7 +22,7 @@ bool demo_pager_select(demo_pager_t *pager, unsigned page)
         return false;
     pager->current = page;
     /* 页码使用 LVGL 自有字符串，不能借用实时读数的静态缓冲区。 */
-    lv_label_set_text_fmt(pager->indicator, "%u / %u", page + 1, pager->count);
+    lv_label_set_text_fmt(pager->indicator, "%u/%u", page + 1, pager->count);
     lv_obj_center(pager->indicator);
     lv_obj_set_state(pager->previous, LV_STATE_DISABLED, page == 0);
     lv_obj_set_state(pager->next, LV_STATE_DISABLED, page + 1 == pager->count);
@@ -49,9 +49,9 @@ void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_button(buttons[i]);
-        lv_obj_set_pos(buttons[i], i == 0 ? 4 : 652, 2);
-        lv_obj_set_size(buttons[i], 112, 44);
-        lv_obj_set_style_bg_color(buttons[i], lv_color_hex(i == 1 ? 0xff7a00 : 0x28343d), 0);
+        lv_obj_set_pos(buttons[i], i == 0 ? 4 : 700, 2);
+        lv_obj_set_size(buttons[i], 64, 44);
+        lv_obj_set_style_bg_opa(buttons[i], LV_OPA_TRANSP, 0);
         lv_obj_set_style_opa(buttons[i], LV_OPA_40, LV_STATE_DISABLED);
         lv_obj_t *label = meter_text(buttons[i], 0, 0, labels[i], &lv_font_montserrat_24, 0xedf5f8);
         lv_obj_center(label);
