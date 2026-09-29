@@ -339,3 +339,7 @@ The monitor and settings category controls remain aligned to the left edge with 
 ### Shared category-menu styling
 
 Monitor and settings now use one `demo_theme_menu_button` rule for category controls: 200 x 64 px geometry is owned by each page, while radius, border, text color, selected orange and pressed feedback are shared. Settings no longer overrides menu colors directly, so both left menus have identical visual states without adding a rail background. Existing navigation and authorization behavior is unchanged.
+
+### Unified item and password controls
+
+Right-side settings rows, category menus and the password editor now share the Demo theme's dark surfaces, orange selected state, muted labels, border treatment and spacing rhythm. Password entry uses the same dark field and themed keypad instead of a standalone white control; the left password choices use the shared category-button rule. Authentication behavior and keyboard event handling are unchanged. The compact SDL capture set was regenerated after the change.

@@ -199,29 +199,27 @@ void demo_settings_create(demo_ui_t *u)
     lv_obj_remove_style_all(u->password_editor);
     lv_obj_set_pos(u->password_editor, 0, 53);
     lv_obj_set_size(u->password_editor, 800, 372);
-    lv_obj_set_style_bg_color(u->password_editor, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_color(u->password_editor, lv_color_hex(0x11161b), 0);
     lv_obj_set_style_bg_opa(u->password_editor, LV_OPA_COVER, 0);
     lv_obj_set_scrollable(u->password_editor, false);
     lv_obj_t *side = lv_obj_create(u->password_editor);
     lv_obj_remove_style_all(side);
     lv_obj_set_pos(side, 0, 0);
     lv_obj_set_size(side, 286, 372);
-    lv_obj_set_style_bg_color(side, lv_color_hex(0x202832), 0);
-    lv_obj_set_style_bg_opa(side, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(side, LV_OPA_TRANSP, 0);
     lv_obj_t *side_title = meter_text(side, 22, 30, "", &lv_font_montserrat_24, 0xedf5f8);
     lv_label_set_text(side_title, demo_i18n_text(DEMO_TXT_SETTINGS));
     lv_obj_t *side_system = lv_button_create(side);
-    demo_theme_button(side_system);
+    demo_theme_menu_button(side_system, true);
     lv_obj_set_pos(side_system, 12, 58);
     lv_obj_set_size(side_system, 262, 58);
     lv_obj_t *system_label =
         demo_text(u, side_system, 18, 0, DEMO_TXT_USER_SETTINGS, &lv_font_montserrat_20, 0xedf5f8);
     lv_obj_center(system_label);
     lv_obj_t *side_advanced = lv_button_create(side);
-    demo_theme_button(side_advanced);
+    demo_theme_menu_button(side_advanced, false);
     lv_obj_set_pos(side_advanced, 12, 126);
     lv_obj_set_size(side_advanced, 262, 58);
-    lv_obj_set_style_bg_color(side_advanced, lv_color_hex(0xff7a00), 0);
     lv_obj_t *side_label =
         demo_text(u, side_advanced, 18, 0, DEMO_TXT_ADMIN_SETTINGS, &lv_font_montserrat_20, 0xffffff);
     lv_obj_center(side_label);
@@ -249,6 +247,11 @@ void demo_settings_create(demo_ui_t *u)
         lv_obj_set_size(fields[i], 400, 58);
         lv_obj_set_style_text_align(fields[i], LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_text_font(fields[i], &lv_font_montserrat_24, 0);
+        lv_obj_set_style_bg_color(fields[i], lv_color_hex(0x1a242b), 0);
+        lv_obj_set_style_text_color(fields[i], lv_color_hex(0xedf5f8), 0);
+        lv_obj_set_style_border_color(fields[i], lv_color_hex(0x53616b), 0);
+        lv_obj_set_style_border_width(fields[i], 1, 0);
+        lv_obj_set_style_radius(fields[i], 6, 0);
     }
     u->password_keyboard = lv_buttonmatrix_create(u->password_editor);
     demo_theme_keyboard(u->password_keyboard);
