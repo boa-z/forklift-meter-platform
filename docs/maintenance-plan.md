@@ -4,6 +4,10 @@
 
 Established 2026-09-28 from the [source assessment](maintainability.md), baseline `81e5083`. This is the active continuation record. Update status and evidence here in the same change as the work; do not depend on chat history.
 
+## Optional-storage update barrier (2026-09-29)
+
+Framework `9b9e671` fixes the activation barrier for Products without enabled settings storage. Previously no nonzero revision could be produced, so activation would time out. The App now completes that barrier only when storage is absent or explicitly disabled; enabled storage still needs a nonzero revision and successful durable check. Admission, cancellation and native ENV verification remain unchanged. The added regression failed against the old implementation; Release/headless+update passed 88/88 after the fix, including absent/disabled storage, unavailable revision, pending persistence and durable completion. Hardware acceptance remains separate; downstream Product evidence stays private.
+
 ## Current batch: Product-owned parameter management
 
 2026-09-29, based on clean Framework `65bcdb2` on main. Inspection confirmed that the existing transaction engine already borrows Product descriptors and contains no transport/storage implementation. Extend that boundary rather than add another manager.
