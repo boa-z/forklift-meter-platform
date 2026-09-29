@@ -129,8 +129,13 @@ for file in (ROOT/'products/demo/ui').glob('*.c'):
             errors.append(f'{file.relative_to(ROOT)} interprets Domain in a renderer')
 for file in (ROOT/'products/demo/application').glob('*'):
     if file.suffix in ('.c', '.h') and re.search(r'lvgl|lv_obj_t|rtthread', file.read_text(encoding='utf-8'), re.I):
-        # Comments may name the prohibited dependency; inspect actual includes/types only.
+        # 注释可提及禁止的依赖；此处只检查实际包含的头文件及类型。
         if re.search(r'^\s*#\s*include.*(?:lvgl|rtthread)|\blv_obj_t\b', file.read_text(encoding='utf-8'), re.M):
             errors.append(f'{file.relative_to(ROOT)} imports rendering or OS types')
+# 参考 UI 仅交换 Product 字段及展示值，不暴露远端地址或工作项。
+for file in (ROOT/'examples/parameter-workflow/ui').rglob('*'):
+    if file.suffix in ('.c', '.h') and re.search(
+            r'\bmeter_parameter_(?:key|work|reply|result)_t\b', file.read_text(encoding='utf-8')):
+        errors.append(f'{file.relative_to(ROOT).as_posix()} exposes remote transaction details to UI')
 if errors: raise SystemExit('\n'.join(errors))
 print('Architecture and selected source closure PASS')

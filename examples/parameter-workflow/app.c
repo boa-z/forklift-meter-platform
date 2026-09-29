@@ -1,8 +1,8 @@
 #include "examples/parameter-workflow/app.h"
 #include "contracts/meter_time.h"
 
-/* Reference Application policy, not a production Product binding. Caller-selected
- * policy is checked by the transaction core; the UI cannot choose retry/deadline rules. */
+/* 参考 App 策略，不是生产 Product 绑定。事务内核校验调用方选择的策略；
+ * UI 无权决定重试与期限规则。 */
 bool reference_parameter_app_init(reference_parameter_app_t *app, const meter_parameter_definition_t *catalog,
                                   size_t count, uint32_t session, uint32_t generation,
                                   meter_parameter_policy_t policy)
@@ -18,8 +18,28 @@ bool reference_parameter_app_init(reference_parameter_app_t *app, const meter_pa
     app->policy = policy;
     app->generation = generation;
     app->active = false;
-    app->profile_ready = true; /* init caller supplies a confirmed reference generation */
+    app->profile_ready = true; /* 初始化调用方提供已确认的参考配置代数。 */
     return true;
+}
+
+/* 这些属主和对象身份仅属于本合成 Product。两个独立属主特意复用对象 7，
+ * 用于验证属主隔离。真实 Product 替换此映射及目录即可，无须改动事务引擎。 */
+static bool parameter_key(reference_parameter_field_t field, meter_parameter_key_t *key)
+{
+    switch (field)
+    {
+    case REFERENCE_FIELD_TRAVEL_LIMIT:
+        *key = (meter_parameter_key_t){1u, 7u};
+        return true;
+    case REFERENCE_FIELD_LIFT_LIMIT:
+        *key = (meter_parameter_key_t){2u, 7u};
+        return true;
+    case REFERENCE_FIELD_AUXILIARY_LIMIT:
+        *key = (meter_parameter_key_t){3u, 7u};
+        return true;
+    default:
+        return false;
+    }
 }
 
 meter_parameter_admission_t reference_parameter_app_submit(reference_parameter_app_t *app,
@@ -29,9 +49,12 @@ meter_parameter_admission_t reference_parameter_app_submit(reference_parameter_a
     if (!app || !app->profile_ready || !intent || intent->view_token == 0u ||
         intent->profile_generation != app->generation)
         return METER_PARAMETER_INVALID;
+    meter_parameter_key_t key;
+    if (!parameter_key(intent->field, &key))
+        return METER_PARAMETER_NOT_FOUND;
     meter_request_id_t id;
     const meter_parameter_admission_t admission =
-        meter_parameters_submit(&app->parameters, intent->key, intent->operation, intent->value, app->policy,
+        meter_parameters_submit(&app->parameters, key, intent->operation, intent->value, app->policy,
                                 &app->authorization, now_ms, &id);
     if (admission == METER_PARAMETER_ACCEPTED)
     {
@@ -48,8 +71,8 @@ void reference_parameter_app_step(reference_parameter_app_t *app, const referenc
                                   uint32_t now_ms)
 {
     meter_parameters_tick(&app->parameters, &app->authorization, now_ms);
-    /* Bounded to one reply and one dispatch per App visit. Stale replies are
-     * consumed even while no caller is active, without attributing them to new work. */
+    /* 每次 App 调度最多消费一个回复、派发一次请求。即使没有活动调用者，
+     * 也会消费旧回复，但绝不将其归属到新请求。 */
     meter_parameter_reply_t reply;
     if (port->receive(port->context, &reply))
         (void)meter_parameters_reply(&app->parameters, &reply, &app->authorization, now_ms);
@@ -59,17 +82,23 @@ void reference_parameter_app_step(reference_parameter_app_t *app, const referenc
     {
         if (!port->send(port->context, &work))
         {
-            /* take is the core's dispatch boundary. A failed handoff is retained
-             * conservatively as transport failure, never silently retried as a write. */
+            /* take 是内核的派发边界。交接失败时保守地保留传输失败结果，
+             * 不得静默重试写入。 */
             reply =
                 (meter_parameter_reply_t){.request = work, .code = METER_PARAMETER_REPLY_TRANSPORT_FAILED};
             (void)meter_parameters_reply(&app->parameters, &reply, &app->authorization, now_ms);
         }
     }
-    if (app->active && meter_parameters_query(&app->parameters, app->view.request, &app->view.result))
+    meter_parameter_result_t result;
+    if (app->active && meter_parameters_query(&app->parameters, app->view.request, &result))
     {
         app->view.pending = false;
         app->view.has_result = true;
+        app->view.outcome = result.outcome;
+        app->view.effect_unknown = result.effect_unknown;
+        app->view.attempts = result.request.attempt;
+        app->view.has_value = result.has_value;
+        app->view.value = result.value;
     }
 }
 

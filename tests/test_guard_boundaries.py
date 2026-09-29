@@ -74,6 +74,13 @@ class GuardBoundaries(unittest.TestCase):
         self.write('products/demo/ui/bad.h', '#include "runtime/engine.h"')
         self.run_guard('check_architecture.py', 'products/demo/ui/bad.h ->')
 
+    def test_reference_ui_keeps_remote_addresses_in_app(self):
+        for kind in ('key', 'work', 'reply', 'result'):
+            with self.subTest(kind=kind):
+                self.write('examples/parameter-workflow/ui/bad.h',
+                           'meter_parameter_' + kind + '_t remote;')
+                self.run_guard('check_architecture.py', 'exposes remote transaction details to UI')
+
     def test_owner_valid_and_forbidden_call(self):
         self.run_guard('check_runtime_ownership.py')
         self.write('platform/rtthread/meter_execution_port.c',

@@ -53,3 +53,5 @@ The implemented extension adds `tools/analyze_handwritten.py` and broadens Clang
 
 
 GCR-004 (2026-09-29): add headless Demo presentation, runtime calibration and diagnostic classification to explicit handwritten analysis; retain previous scopes. Product renderer includes exclude runtime/transport internals; negative fixtures reject Domain interpretation in Demo screens and rendering/OS types in projection. Lexical checks supplement review. No suppression, HIL threshold change or health-policy approval. Owner: maintainer; human review pending; review on Product include layout or analyzer context changes.
+
+GCR-005 (2026-09-29): extend the reference UI lexical guard to reject remote key/work/reply/result types; negative fixtures exercise all four forms. Existing scopes and thresholds remain. This enforces the example boundary, not macro-expanded or transitive type analysis. Maintainer review pending; no suppression or production policy approval.

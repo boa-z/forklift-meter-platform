@@ -209,3 +209,11 @@ Python Host 工具：114 PASS，9 项物理 HIL 跳过；证据 build-maintainer
 提交 1cf7aea（profile）、5342d4b（Product 展示）及 5cfa0bf（标定/分类）分为独立评审批次。已提交候选完成 reference-board 构建、CAN OTA 和源码身份核对重启，物理 HIL 9/9 通过；见[验证记录](validation.zh-CN.md)。板上保留 services-a，两个接口均已释放。默认 runtime/协议/时序/存储策略不变；新服务仍须 Product 显式接入。
 
 后续继续本计划：真实适配器前评审 D-07 Product 映射、测量/profile 失效和认证；修改健康策略或实现持久计数器前决定 D-01/D-05 表；保持 D-03 所有权/恢复语义不变。把既有 iso14229 文档子模块元数据列为依赖清单问题。本地未运行当前 HEAD Linux CI；不新增路线图、私有线端映射或自动依赖修复。
+
+### Product 适配边界跟进
+
+从 67a378a 继续，不新增 Framework 机制。Demo 投影、归一化 profile、标定服务和分类器已具备基础。参考 UI 尚泄露 owner-qualified key 与完整事务结果。批次 A 将地址选择移入合成 Product App，展示仅保留语义字段与纯结果值。不改变 Runtime/公开契约或生产固件。确定性测试保留 owner 隔离、面板/profile 生命周期、权限/排空规则，并区分有效零值与不可用/拒绝结果。
+
+批次 B 将以一条无头 Product 适配示例贯穿既有服务：profile 发布前使旧测量失效，App 归一化功能可见性，仅捕获匹配采集代际的数据，profile 替换后保留不确定写入，后端排空后完成回读。策略均为示例；D-01/D-03/D-05/D-07 生产决策继续开放。
+
+批次 A 验证：全新 Debug/headless 构建中的参数 App、公共头文件、架构及负向守卫用例通过；有效零值与被拒绝的结果副本明确区分。AGENTS.md 现要求说明性代码注释使用中文，新增服务契约已单独提交注释修正。本批不新增硬件验收结论。
