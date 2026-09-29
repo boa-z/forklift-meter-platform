@@ -355,3 +355,7 @@ The Demo now exposes two settings routes: User Settings and Administrator Settin
 ### Admin/version routing OTA boundary
 
 Host build and the full 87-test suite pass for the two-route settings change. A new board candidate build was attempted as `demo-ui-routing-20260929b`; the SDK wrapper restored `.config`, but SCons stopped before image generation because the SDK mkimage configuration returned a missing cluster size (`int(None)`) and the selected environment could not resolve the SDK Python helper. No OTA package was produced and no board state was changed. This remains a build-environment blocker; the prior board transfer `0x31` evidence is unchanged.
+
+### Settings layout correction and OTA diagnosis
+
+The routing capture exposed two layout defects: menu labels used left alignment inside wide touch targets, and the version entry overlapped the last user-setting row. Labels now use centered alignment, the five user-setting rows use a compact vertical rhythm, and the version entry stays inside the content panel. Monitor readout labels and values remain white. The OTA failure is independent of this UI change: the SDK wrapper reached SCons but the current SDK `.config` lacks the mkimage cluster-size value and the helper Python alias is unresolved, so no image was produced. The earlier successful OTA path used a complete board configuration; restore that target configuration before retrying.
