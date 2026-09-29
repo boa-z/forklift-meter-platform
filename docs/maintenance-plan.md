@@ -382,3 +382,8 @@ Pagination controls now live at the upper-left of the active right-side content 
 ### Five-row pages and independent setting details
 
 The Demo monitor, fault and settings content now uses a shared five-row layout target: 56 px rows with 60 px rhythm and bottom separators. Monitor and fault pagination remains local to the active Tab; the compact pager is anchored at the upper-right of the content area. User settings expose five visible entries, and speed units, language, brightness and speed limit each open a separate detail route with a back control. The list is a presentation of the current snapshot; opening a detail page never sends an action. Administrator entries use the same row geometry and open the same detail surface after authorization. Host SDL captures and deterministic route/action checks are under `evidence/adaptation/ui-five-row-details/`. This batch does not enable CAN bitrate persistence or alter any retained format.
+
+
+### Five-row candidate OTA boundary
+
+Candidate `demo-ui-five-row-20260929` was built from Framework `263b87c` with the restored SDK Python 3.8/SCons environment. The OS image SHA256 is `170ff976ff525a2c8e720e0bc729d3e49d953afa6833c19591dcff6e69449cd7`; the package SHA256 is `fdb20b2d82824dc95dcc22352c591146e9266ee5284425889c5ea79770c80a46`. Host package integrity passed. The target accepted the first 512-byte block, then returned UDS `RequestOutOfRange (0x31)` for the next TransferData request. The transfer was aborted and maintenance recovery was attempted; `meter info` confirms the board remains on `demo-ui-routing-20260929`. This batch therefore has no OTA success claim; raw UART/CAN evidence is under `evidence/ota/demo-ui-five-row-20260929/`.
