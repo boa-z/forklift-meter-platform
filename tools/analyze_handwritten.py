@@ -1,4 +1,4 @@
-"""Add explicit handwritten analysis scopes; native includes use HOST STUBS, not target headers."""
+"""补充显式手写分析范围；原生适配使用 Host 桩头文件，不代表目标编译。"""
 import argparse
 import hashlib
 import json
@@ -16,6 +16,7 @@ SOURCES = (
     'platform/rtthread/meter_execution_port.c',
     'examples/parameter-workflow/app.c',
     'products/demo/application/presentation.c',
+    'products/demo/protocol/can/demo_pdo.c',
     'runtime/meter_calibration.c',
     'diagnostics/meter_classification.c',
 )

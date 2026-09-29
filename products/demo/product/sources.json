@@ -1,7 +1,8 @@
 {
   "protocol": [
     "generated/can/demo.c",
-    "generated/can/demo_adapter.c"
+    "generated/can/demo_adapter.c",
+    "protocol/can/demo_pdo.c"
   ],
   "catalog": [
     "generated/demo_catalog.c"

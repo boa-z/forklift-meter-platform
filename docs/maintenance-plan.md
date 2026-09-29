@@ -259,3 +259,12 @@ Host evidence: Debug Demo rebuilt after catalog/font regeneration; `demo-setting
 
 
 Board validation 2026-09-29: OTA candidate demo-ui-auth-20260929 package SHA256 835DD979FB9E520D6E8BA6CF97B214D28484CD5B0962F8FF967A31EC32F4CD64; native build PASS, package preflight PASS, physical HIL 9/9 PASS on COM11/PCAN_USBBUS1. Before identity was demo-ui-20260929; after reboot the board reported demo-ui-auth-20260929, reference-demo/reference-board, CAN 500000, domain signals=25 parameters=10 faults=10, UI present/flush advancing, storage READY. Raw UART/CAN evidence is under evidence/ota/demo-ui-auth-20260929/board2/. Touch keyboard, PIN entry and rendered page visual acceptance were not exercised in this OTA batch.
+
+
+### Demo instrument PDO continuation
+
+The accepted UI baseline is 418a123. Add two explicitly synthetic, transmit-only Demo PDOs through the existing App publication and Product encoder, preserving the existing 0x3C0/50 ms and 0x2F0/100 ms frames. Keep the receive DBC/generator and Core contracts unchanged; a separate transmit DBC describes the new wire layout. These are cyclic process-data examples, not a CANopen NMT/SYNC/object-dictionary implementation or customer mapping.
+
+Order: protect exact payload/freshness/counter and scheduling behavior with deterministic Product tests; add physical CAN receive/recovery checks; build a single Demo firmware, install through existing OTA, and retain identities, hashes and raw logs. Stay inside current static TX budgets. Preserve source sample times and invalidate stale data explicitly. Update this section with results; rendered target UI acceptance remains independent of CAN/HIL acceptance.
+
+Host verification: Demo Debug 87/87 CTests, Release/headless + update 83/83 CTests, Python tools 115/115, and all eleven explicit handwritten Cppcheck sources pass. Evidence is under evidence/adaptation/ with demo-pdo, pdo-release, pdo-python-retry and pdo-analysis prefixes. The initial Release build exposed interpreter discovery after the identity-generation target; the bounded CMake fix resolves Python before constructing that command, including non-test builds. Initial Python failures also identified the new HIL inventory count and missing local inspector/tool paths; the inventory now includes the tenth PDO test and the full rerun uses the existing real inspector/cpio/mkenvimage. No thresholds were reduced. Firmware and physical evidence follow separately.

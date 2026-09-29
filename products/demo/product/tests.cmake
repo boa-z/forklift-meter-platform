@@ -1,3 +1,7 @@
+add_executable(test-demo-pdo "${METER_PRODUCT_ROOT}/tests/test_pdo.c")
+target_link_libraries(test-demo-pdo PRIVATE meter_product_data meter_core meter_runtime)
+add_test(NAME demo-pdo COMMAND test-demo-pdo)
+add_test(NAME demo-pdo-dbc COMMAND ${Python3_EXECUTABLE} "${METER_PRODUCT_ROOT}/tests/test_pdo_dbc.py" $<TARGET_FILE:test-demo-pdo>)
 add_executable(test-demo-settings "${METER_PRODUCT_ROOT}/tests/test_settings_app.c")
 target_link_libraries(test-demo-settings PRIVATE meter_product_data meter_core)
 add_test(NAME demo-settings-app COMMAND test-demo-settings)

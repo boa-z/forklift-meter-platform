@@ -258,3 +258,12 @@ Demo 现在把页面明确分成参数监控和控制器参数设置两项功能
 
 
 实板验证 2026-09-29：OTA 候选 demo-ui-auth-20260929，包 SHA256 835DD979FB9E520D6E8BA6CF97B214D28484CD5B0962F8FF967A31EC32F4CD64；原生构建通过、包预检通过，COM11/PCAN_USBBUS1 实体 HIL 9/9 通过。升级前为 demo-ui-20260929，重启后上报 demo-ui-auth-20260929、reference-demo/reference-board、CAN 500000，领域信号 25、参数 10、故障 10，UI present/flush 持续增长，存储 READY。原始 UART/CAN 证据在 evidence/ota/demo-ui-auth-20260929/board2/。本批次未执行触摸键盘、密码输入和实屏视觉验收。
+
+
+### Demo 仪表 PDO 后续批次
+
+已接受 UI 基线为 418a123。通过现有 App 发布和 Product 编码器新增两路明确的合成、仅发送 Demo PDO，保留现有 0x3C0/50 ms 和 0x2F0/100 ms 帧。接收 DBC/生成器与 Core 契约不变；独立发送 DBC 描述新增线协议。它们是周期过程数据示例，不代表 CANopen NMT/SYNC/对象字典实现或客户映射。
+
+顺序：以确定性 Product 测试保护精确载荷、新鲜度、计数器与调度行为；增加实物 CAN 接收/恢复检查；构建单一 Demo 固件，通过现有 OTA 安装，保存身份、哈希和原始日志。不扩大当前静态 TX 预算。保留源采样时间，显式标记过期数据。结果回填本节；目标屏幕视觉验收与 CAN/HIL 验收分别记录。
+
+Host 验证：Demo Debug 87/87 CTest、Release/headless + update 83/83 CTest、Python 工具 115/115、十一份显式手写源码 Cppcheck 均通过。证据位于 evidence/adaptation/，前缀为 demo-pdo、pdo-release、pdo-python-retry 和 pdo-analysis。首次 Release 构建暴露解释器查找晚于身份生成目标；小范围 CMake 修复在构造命令前解析 Python，也覆盖非测试构建。首次 Python 失败还暴露新增 HIL 清单数量及本地 inspector/工具路径缺失；清单现包含第十项 PDO 测试，完整重跑使用既有真实 inspector/cpio/mkenvimage。未降低任何门槛。固件与实物证据另行记录。

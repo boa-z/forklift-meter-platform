@@ -68,3 +68,5 @@ Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，�
 所选 `product/sources.json` 提供唯一固件组合实现，通过 `contracts/meter_firmware.h` 所有独立静态 Domain/发布/诊断/UI 存储及 Product 本地化初始化。通用启动只了解此契约。Demo 保留原存储容量与本地化初始化顺序，Reference-B 使用独立纯信号存储。用 `tools/firmware_product.py` 查看选中源码闭包，不支持的特性闭包或缺失/越界/重复源码将使构建选择失败。
 
 Demo 与 Reference-B 对此边界分别有宿主编译/链接/测试证据。Reference-Mixed 的 SDO 固件闭包未启用。真实 Product 仍须目标内存/显示/CAN 适配、确认协议/认证描述符及实板验收。`examples/parameter-workflow` 的参考参数 App 仅用于测试，不给镜像增加 Product，也不改变原生 IPC、工作线程或时序契约。
+
+Demo PDO 新增后使用四个周期槽和十个语义值，仍在既有八槽、十六值板级预算内。不改变队列容量、owner、线程或调度周期。两路新增普通 100 ms 帧增加每秒 20 帧；须同时测量总线负载与既有 50/100 ms 流量。载荷、新鲜度和共享 revision 影响见[协议定义](protocols.zh-CN.md)。
