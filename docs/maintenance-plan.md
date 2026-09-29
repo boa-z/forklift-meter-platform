@@ -327,3 +327,7 @@ Monitor telemetry and fault lists now show four entries per page, matching the f
 ### Full-width left-tab and spacing refinement
 
 The monitor and settings rails now attach to the page's left edge and form continuous, gap-free 200 px columns. Their tabs fill the available content height without rounded gaps. Right-side monitor rows use larger label/value faces and wider spacing; the four-item page rule remains enforced. The full SDL capture set, including dashboard, monitor pages, fault pages, settings pages and password page, is under `evidence/adaptation/ui-left-tab-full/`.
+
+### Full-width left-tab OTA attempt
+
+Host SDL verification passed and the complete capture set is stored under `evidence/adaptation/ui-left-tab-full/`. Candidate `demo-ui-lefttab-20260929` was built from framework `31d8ac6`; the OS image SHA256 is `e3746fe21833217bbe6e1c6ac3b778e84075b6a96970694838b27c63e4869375` and the OTA package SHA256 is `ae0e3736862fad99989f40d1cf7c64502464afde335a2af99c4014207a15a011`. Host package preflight passed. The board accepted the manifest and first 512-byte block, then returned UDS `RequestOutOfRange (0x31)` on the next transfer. Abort, maintenance off/on and a board reboot were attempted before retries; the same response persisted. Raw attempts are under `evidence/ota/demo-ui-lefttab-20260929/`. The board remains on `demo-ui-settings-20260929`; no OTA success is claimed for this layout.

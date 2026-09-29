@@ -326,3 +326,7 @@ Demo 监控页现在与设置页采用相同组成：左侧垂直分类栏，右
 ### 左侧 Tab 全宽与排版细化
 
 监控页和设置页的左侧栏现在贴靠页面左边缘，组成连续无缝的 200 px 栏，Tab 填满内容高度并取消圆角间隙。右侧监控条目增大标签/数值字体并扩大行间距；每页四项规则继续由测试强制检查。完整 SDL 截图（主界面、监控、故障、设置和密码页）位于 `evidence/adaptation/ui-left-tab-full/`。
+
+### 左侧 Tab 全宽 OTA 尝试
+
+主机 SDL 验证通过，完整截图位于 `evidence/adaptation/ui-left-tab-full/`。候选 `demo-ui-lefttab-20260929` 由 Framework `31d8ac6` 构建；OS 镜像 SHA256 为 `e3746fe21833217bbe6e1c6ac3b778e84075b6a96970694838b27c63e4869375`，OTA 包 SHA256 为 `ae0e3736862fad99989f40d1cf7c64502464afde335a2af99c4014207a15a011`。主机包预检通过。开发板接受清单和首个 512 字节块后，在下一次传输返回 UDS `RequestOutOfRange (0x31)`。已执行中止、维护开关重置和开发板重启后重试，仍得到相同响应。原始尝试位于 `evidence/ota/demo-ui-lefttab-20260929/`。开发板仍运行 `demo-ui-settings-20260929`，本次不宣称 OTA 成功。
