@@ -29,7 +29,7 @@ typedef struct
 } demo_pager_t;
 typedef struct
 {
-    lv_obj_t *root, *pages[DEMO_PAGE_COUNT], *nav[DEMO_PAGE_COUNT], *nav_labels[DEMO_PAGE_COUNT], *connection,
+    lv_obj_t *root, *pages[DEMO_PAGE_COUNT], *nav[DEMO_PAGE_COUNT], *nav_labels[DEMO_PAGE_COUNT], *nav_icons[DEMO_PAGE_COUNT], *connection,
         *clock;
     meter_update_widget_t update_widget;
     meter_ui_actions_t actions;

@@ -18,7 +18,8 @@ void demo_navigation_show(demo_ui_t *u, unsigned page)
             lv_obj_set_hidden(u->pages[i], false);
         else
             lv_obj_set_hidden(u->pages[i], true);
-        lv_obj_set_style_bg_color(u->nav[i], lv_color_hex(i == page ? 0x245b50 : 0x142a38), 0);
+        lv_obj_set_style_bg_color(u->nav[i], lv_color_hex(i == page ? 0xff7a00 : 0x17242c), 0);
+        lv_obj_set_style_text_color(u->nav_icons[i], lv_color_hex(i == page ? 0xffffff : 0xb8c2c8), 0);
     }
 }
 void demo_navigation_create(demo_ui_t *u)
@@ -32,8 +33,9 @@ void demo_navigation_create(demo_ui_t *u)
         lv_obj_set_size(u->nav[i], 183, 49);
         lv_obj_set_style_shadow_width(u->nav[i], 0, 0);
         lv_obj_set_style_radius(u->nav[i], 8, 0);
-        u->nav_labels[i] = demo_text(u, u->nav[i], 0, 0, ids[i], &lv_font_montserrat_16, 0xe8f1f4);
-        lv_obj_center(u->nav_labels[i]);
+        const char *icons[] = {LV_SYMBOL_HOME, LV_SYMBOL_LIST, LV_SYMBOL_WARNING, LV_SYMBOL_SETTINGS};
+        u->nav_icons[i] = meter_text(u->nav[i], 18, 12, icons[i], &lv_font_montserrat_20, 0xb8c2c8);
+        u->nav_labels[i] = demo_text(u, u->nav[i], 52, 14, ids[i], &lv_font_montserrat_16, 0xe8f1f4);
         lv_obj_add_event_cb(u->nav[i], navigate, LV_EVENT_CLICKED, u);
     }
 }

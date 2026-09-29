@@ -276,7 +276,13 @@ Host 截图显示黑底 800x480 主界面，中文字体和绿色/红色状态�
 
 ### 密码页布局修正
 
-Demo 密码编辑页参考 ZC-202620085 杭叉页面，在现有 800x480 外壳内调整为：左侧系统设置/高级设置双项菜单，右侧标题和返回键，宽四位掩码输入框，以及四行三列数字键盘。键盘改为 Product UI 自有 button matrix，明确处理数字、退格和确认，不再依赖 LVGL 键盘焦点。保留 Demo 黑色主题，同时恢复参考页面的比例和间距。`ui-pagination` 生成 `password-page.bmp` 并继续验证用户/管理员权限路径；针对 Demo 的 UI 测试已通过。目标屏视觉验收仍需单独 OTA 验证。
+Demo 密码编辑页参考 参考项目 参考产品页面，在现有 800x480 外壳内调整为：左侧系统设置/高级设置双项菜单，右侧标题和返回键，宽四位掩码输入框，以及四行三列数字键盘。键盘改为 Product UI 自有 button matrix，明确处理数字、退格和确认，不再依赖 LVGL 键盘焦点。保留 Demo 黑色主题，同时恢复参考页面的比例和间距。`ui-pagination` 生成 `password-page.bmp` 并继续验证用户/管理员权限路径；针对 Demo 的 UI 测试已通过。目标屏视觉验收仍需单独 OTA 验证。
 
 
-密码页 OTA 结果：`demo-password-hangcha-20260929` 由 framework 341f7c3 构建，包 SHA256 为 `2f7020107c5c2e48aa4b9adb9cd3326c656fbec28da2a393c0026810ae572a10`，已安装并重启验证通过。UART/CAN 报告 platform 341f7c3、board reference-board、LVGL 9.6.0。验证后已释放板卡会话。
+密码页 OTA 结果：`demo-password-reference-20260929` 由 framework 341f7c3 构建，包 SHA256 为 `2f7020107c5c2e48aa4b9adb9cd3326c656fbec28da2a393c0026810ae572a10`，已安装并重启验证通过。UART/CAN 报告 platform 341f7c3、board reference-board、LVGL 9.6.0。验证后已释放板卡会话。
+
+### Demo UI 视觉重设计
+
+视觉复查发现，上一版配色和导航让 Demo 更像通用软件仪表板。本批次为主界面、监控、故障、设置和密码页建立统一的仪表视觉：近黑色画布、克制的石墨色面板、白色和灰色文字层级、橙色选中/操作强调色，并将绿色/红色保留给车辆状态。底部导航改为小图标加真实翻译标签，内容区和翻页控件保持已有几何与分页契约。密码页侧栏与主导航使用同一橙色选中态。本批次未改变协议、快照、权限或时序行为。
+
+新的 SDL 截图位于 `evidence/adaptation/redesign-captures-3/`。主题和导航调整后，`ui-pagination`、`demo-settings-app`、`i18n-ui` 和 `sdl-smoke` 均通过。这些是主机视觉证据；目标屏幕配色、触摸手感和实板渲染验收留待下一次明确安排的 OTA 批次。

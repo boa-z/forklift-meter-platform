@@ -51,7 +51,7 @@ void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
         demo_theme_button(buttons[i]);
         lv_obj_set_pos(buttons[i], i == 0 ? 4 : 652, 2);
         lv_obj_set_size(buttons[i], 112, 44);
-        lv_obj_set_style_bg_color(buttons[i], lv_color_hex(0x245b50), 0);
+        lv_obj_set_style_bg_color(buttons[i], lv_color_hex(i == 1 ? 0xff7a00 : 0x28343d), 0);
         lv_obj_set_style_opa(buttons[i], LV_OPA_40, LV_STATE_DISABLED);
         lv_obj_t *label = meter_text(buttons[i], 0, 0, labels[i], &lv_font_montserrat_24, 0xedf5f8);
         lv_obj_center(label);
@@ -72,16 +72,21 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     lv_obj_remove_style_all(u->root);
     lv_obj_set_pos(u->root, 0, 0);
     lv_obj_set_size(u->root, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(u->root, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_color(u->root, lv_color_hex(0x07090b), 0);
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
     demo_theme_panel(u->root);
     /* 显示画布铺满矩形屏幕，仅卡片保留圆角。 */
     lv_obj_set_style_radius(u->root, 0, 0);
-    demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24, 0x5de5ca);
-    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE, &lv_font_montserrat_16, 0x9cb5c4);
-    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING, &lv_font_montserrat_16, 0xf3ba65);
-    u->clock = meter_text(u->root, 714, 18, "00:00", &lv_font_montserrat_16, 0xe9f2f5);
+    demo_text(u, u->root, 22, 14, DEMO_TXT_FIELD, &lv_font_montserrat_24, 0xff8a00);
+    demo_text(u, u->root, 111, 19, DEMO_TXT_REFERENCE, &lv_font_montserrat_16, 0xa5afb8);
+    u->connection = demo_text(u, u->root, 491, 17, DEMO_TXT_WAITING, &lv_font_montserrat_16, 0xffa600);
+    u->clock = meter_text(u->root, 714, 17, "00:00", &lv_font_montserrat_16, 0xf1f4f5);
+    lv_obj_t *header_rule = lv_obj_create(u->root);
+    lv_obj_remove_style_all(header_rule);
+    lv_obj_set_pos(header_rule, 16, 51);
+    lv_obj_set_size(header_rule, 768, 1);
+    lv_obj_set_style_bg_color(header_rule, lv_color_hex(0x36414a), 0);
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
         u->pages[i] = lv_obj_create(u->root);
@@ -91,7 +96,7 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
         lv_obj_set_scrollable(u->pages[i], false);
         demo_theme_panel(u->pages[i]);
         lv_obj_set_style_radius(u->pages[i], 0, 0);
-        lv_obj_set_style_bg_color(u->pages[i], lv_color_hex(0x000000), 0);
+        lv_obj_set_style_bg_color(u->pages[i], lv_color_hex(0x07090b), 0);
     }
     demo_dashboard_create(u);
     demo_monitor_create(u);

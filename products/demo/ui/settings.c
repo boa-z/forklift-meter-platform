@@ -162,7 +162,7 @@ void demo_settings_create(demo_ui_t *u)
     u->password_status = meter_text(card, 22, 136, "", &lv_font_montserrat_20, 0x5de5ca);
     u->logout_button = settings_button(u, card, 432, 126, DEMO_TXT_SIGN_OUT, logout);
     demo_text(u, card, 22, 194, DEMO_TXT_DEMO_SESSION, &lv_font_montserrat_20, 0x9cb5c4);
-    /* 参考杭叉密码页：左侧设置导航，右侧标题、输入框和 3x4 数字键盘。 */
+    /* 参考参考产品密码页：左侧设置导航，右侧标题、输入框和 3x4 数字键盘。 */
     u->password_editor = lv_obj_create(u->root);
     lv_obj_remove_style_all(u->password_editor);
     lv_obj_set_pos(u->password_editor, 0, 53);
@@ -189,7 +189,7 @@ void demo_settings_create(demo_ui_t *u)
     demo_theme_button(side_advanced);
     lv_obj_set_pos(side_advanced, 12, 126);
     lv_obj_set_size(side_advanced, 262, 58);
-    lv_obj_set_style_bg_color(side_advanced, lv_color_hex(0x008f4c), 0);
+    lv_obj_set_style_bg_color(side_advanced, lv_color_hex(0xff7a00), 0);
     lv_obj_t *side_label =
         demo_text(u, side_advanced, 18, 0, DEMO_TXT_ADMIN_SETTINGS, &lv_font_montserrat_20, 0xffffff);
     lv_obj_center(side_label);
