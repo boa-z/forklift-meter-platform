@@ -37,7 +37,7 @@ def revision(root):
 
 def generate(platform, sdk, board, output):
     values = {'PLATFORM': revision(platform), 'SDK': revision(sdk),
-              'LVGL_AIC': revision(Path(sdk) / 'packages/custom/lvgl-aic') if sdk else 'unavailable',
+              'LVGL_AIC': revision(Path(platform) / 'third_party/lvgl-aic'),
               'BOARD': str(board).strip(chr(34))}
     lines = ['/* 自动生成：tools/build_identity.py；禁止手工维护 revision。 */',
              '#ifndef METER_BUILD_IDENTITY_H', '#define METER_BUILD_IDENTITY_H']

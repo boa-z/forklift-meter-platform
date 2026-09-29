@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Luban-Lite product-aware source manifest; SDK supplies LVGL and board glue."""
+"""Luban-Lite product-aware source manifest; application owns LVGL; SDK supplies board interfaces."""
 from building import *
 import json
 import os
@@ -38,8 +38,9 @@ common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protoco
            for p in platform_manifest[group]]
 sources = common + [str(path) for path in product_sources]
 sources = [os.path.join(cwd, p) if not os.path.isabs(p) else p for p in sources]
-lvgl = os.path.join(AIC_ROOT, 'packages', 'custom', 'lvgl-aic')
-group = DefineGroup('FORKLIFT-METER-PLATFORM', sources,
+lvgl = os.path.join(cwd, 'third_party', 'lvgl-aic')
+group = SConscript('third_party/lvgl-aic/SConscript')
+group += DefineGroup('FORKLIFT-METER-PLATFORM', sources,
     depend=['AIC_FORKLIFT_METER_PLATFORM_APP'],
     CPPPATH=[cwd, product, identity_dir, os.path.join(cwd,'third_party/CANopenNode'),
              os.path.join(cwd,'protocols/canopen/canopennode'), os.path.join(lvgl, 'include'), os.path.join(lvgl, 'port')],

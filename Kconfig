@@ -2,9 +2,9 @@ menu "Forklift meter platform"
 config AIC_FORKLIFT_METER_PLATFORM_APP
     bool "Enable product-aware forklift meter application"
     default n
-    depends on LPKG_USING_LVGL
+    depends on AIC_LVGL_PORT && !LPKG_USING_LVGL
     help
-      Build the selected public Product package with the SDK LVGL 9.6 port.
+      Build the selected public Product package with the application-owned LVGL 9.6 port.
 config AIC_FORKLIFT_NVM_FILE_BACKEND
     bool "Use mounted filesystem instead of reference-board EEPROM for settings"
     default n
@@ -20,3 +20,5 @@ config AIC_FORKLIFT_NVM_FILE_KIND
     default "nand-fatfs"
     depends on AIC_FORKLIFT_NVM_FILE_BACKEND
 endmenu
+
+source "application/rt-thread/forklift-meter-platform/third_party/lvgl-aic/Kconfig"
