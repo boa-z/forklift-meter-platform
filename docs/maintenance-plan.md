@@ -365,3 +365,7 @@ Open decision: CAN bitrate persistence is not enabled by this layout-only correc
 ### Five-item user settings page
 
 The User Settings content panel now presents five compact rows at the existing font size: speed units, language, brightness, speed limit and instrument version. The rows fit within the panel without overlap; the version row still opens its independent detail page. Administrator routing and the existing CAN-rate entry remain unchanged pending the retained-settings extension decision.
+
+### Restored SDK Python/SCons build environment
+
+The board wrapper now uses the SDK-bundled Python 3.8 executable `tools/env/tools/Python38/python3.exe` together with the bundled SCons 3.1.2 library. Python 2.7 is retained only for legacy SDK utilities; it cannot run the current application SConscript because `importlib.util` is required. Candidate `demo-ui-routing-20260929` rebuilt successfully with this environment, produced the D50T-2-Lite image and OS ITB, and restored `.config` byte-for-byte. Evidence is under `evidence/ota/demo-ui-routing-20260929e/`.

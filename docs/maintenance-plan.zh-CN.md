@@ -364,3 +364,7 @@ Demo 现在提供两个设置路由：用户设置和管理员设置。用户设
 ### 用户设置页每页五项
 
 用户设置内容面板现在在保持原字体大小的前提下显示五个紧凑条目：速度单位、语言、显示亮度、演示速度上限和仪表版本。五行均在面板内完整排布且不重叠；仪表版本条目仍可进入独立详情页。管理员路由和现有 CAN 波特率条目保持不变，等待保留设置扩展决策。
+
+### 恢复 SDK Python/SCons 构建环境
+
+板级封装现在使用 SDK 内置的 Python 3.8 可执行文件 `tools/env/tools/Python38/python3.exe` 和内置 SCons 3.1.2 库。Python 2.7 仅保留给旧 SDK 工具使用，当前应用 SConscript 依赖 `importlib.util`，不能用 Python 2.7 构建。候选 `demo-ui-routing-20260929` 已用该环境重新构建成功，生成 D50T-2-Lite 镜像和 OS ITB，并逐字节恢复 `.config`。证据位于 `evidence/ota/demo-ui-routing-20260929e/`。
