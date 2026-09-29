@@ -278,3 +278,6 @@ Host screenshot evidence shows the black 800x480 dashboard with larger Chinese t
 ### Password page layout correction
 
 The Demo password editor now follows the ZC-202620085 Hangcha reference composition within the existing 800x480 shell: a two-item settings rail on the left, a right-side title and back control, a wide four-digit masked field, and a four-row three-column numeric keypad. The keypad is a Product UI button matrix with explicit digit, backspace and confirm behavior; it has no LVGL keyboard focus dependency. The dark Demo palette is retained while the reference proportions and spacing are restored. `ui-pagination` captures `password-page.bmp` and checks the existing user/admin authorization path; the targeted Demo UI tests pass after the change. Target-panel visual acceptance remains a separate OTA check.
+
+
+Password page OTA result: `demo-password-hangcha-20260929` was built from framework 341f7c3, packaged with SHA256 `2f7020107c5c2e48aa4b9adb9cd3326c656fbec28da2a393c0026810ae572a10`, installed and reboot-verified on the D50T-2-Lite. UART/CAN reported platform 341f7c3, board reference-board, LVGL 9.6.0. The board session was released after verification.
