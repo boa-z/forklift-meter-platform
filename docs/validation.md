@@ -53,3 +53,30 @@ Only one physical CAN interface was exercised. Simultaneous multi-bus behavior, 
 ## Earlier shutdown validation
 
 Firmware runtime-production-j (368eed1c346ec87912d4b2c40d366ca0cd1f915f) cooperatively stopped during a 4096-byte download with settings pending: in 2.768 s Update became ABORTED, NVM reached durable revision 23, CAN closed, UI released and new settings were rejected. Reboot restored brightness 70, then the fixture restored 75. Evidence: evidence/runtime-production/shutdown-j3. This belongs to that historical image and is not relabeled as a complete shutdown fault matrix for dynamic-tx-e.
+
+## Application services board validation
+
+Source 5cfa0bfeefa7e97dccb56319986af7704673a9bf, firmware services-a, exactly one Demo Product. Tested on the connected board with public identity reference-board, COM11 and PCAN_USBBUS1 at 500 kbit/s; the SDK handover record identifies the physical target. Run 20260928T171051Z-dd46a0a2 is UTC September 28 / local September 29. This is new physical evidence, not reuse of the older dynamic-tx-e results.
+
+| Check | Result / scope |
+|---|---|
+| Native SCons build | PASS; Xuantie GCC 10.2.0 V2.6.1, SDK Python 3.8.10; original configuration restored byte-for-byte |
+| Build-time composition | Demo composition and projection linked; no Reference-B/Mixed sources selected; alternatives remain separate host builds |
+| Existing CAN OTA | Validated 1102848-byte package, activated and rebooted; UART and CAN identity match source 5cfa0bf / services-a |
+| Physical HIL | 9/9 PASS; unchanged gates cover receive/decode/stale recovery, unknown ID, DLC rejection, burst load, periodic timing, NVM under load and dynamic publication |
+| Burst observation | Native RX 1051, native drop delta 0; Domain path RX/dispatched 1015; no new gate-counted errors/overflow/reset |
+| Periodic observation | 50 ms mean 49.9935, maximum absolute jitter 0.9420 ms; 100 ms mean 99.9878, jitter 1.0740 ms; zero observed long gaps |
+| Handover | RUNNING/NORMAL; update IDLE, maintenance off; EEPROM DURABLE, dirty 0, RAM/durable revision 60, brightness restored to 10; UART/CAN released |
+
+Periodic numbers describe one measured window, not a vehicle tolerance or worst-case guarantee. Lifetime CAN errors include intervals without a Host ACK endpoint; HIL assertions use unchanged window deltas. UI flush progress was observed, but no visual/touch acceptance or photograph is claimed. New calibration/profile mappings remain opt-in synthetic tests, not real-controller calibration. Power-loss, multi-bus and private Product integration are NOT_RUN.
+
+| Artifact | SHA256 |
+|---|---|
+| Full build-a image, not installed as a whole | 276fb0dc4fcba9e92ab7ffa132cf09de2d076990a1c0a6b2aa0731956c427426 |
+| Built d13x_os.itb | 9137f6a0178b12fc2282e6469d84e8b589e815499f27b035b79c6276bc2d8fcd |
+| Installed package-a/ota.cpio | 3ce1457a2d318c2cebb8c00d248961bc4d9c9470b12821e5f419aa95c750eb70 |
+| Restored SDK .config | 2494d4e32238755e8fe44f9bfc02cb034be6b2d1780fa2e87cc9ef653c3cf241 |
+
+Evidence root is evidence/services/: build-a, package-a, install-a, hil/20260928T171051Z-dd46a0a2 and handover. sha256.json indexes raw UART/CAN, JUnit, configuration, image and JSON records. HIL image_sha256 denotes the actually installed CPIO package, not the full image. OTA changed the OS slot through the existing native auto-confirm path; bootloader and trust policy were not changed.
+
+SDK identity is 57777e0b5d027e030de1daf0799f0c05102953d9-dirty-378865321b7708a1; its patch/status and exact dependency pins are archived. LVGL is 9.6.0, lvgl-aic dfdd4c0c07b6d09a438ca8a0627b3deeb3b0e918. Recursive dependency inventory exposes an inherited iso14229 documentation submodule with missing .gitmodules mapping; partial error and nonrecursive pins are retained, not silently repaired. Native capture includes 71 actual incremental compilation commands, not a complete target database. ELF text/data/bss are 1083436/12716/214624 bytes. Existing SDK probe/pywin32 warnings remain in the raw build log. This does not establish complete target analyzer or current-head Linux CI acceptance.

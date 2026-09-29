@@ -40,3 +40,22 @@ TAD-001 属于 Tool Applicability Decision，不是 MISRA deviation。范围为 
 ## 工具链证据
 
 每次构建记录实际 target GCC/Xuantie、Host GCC、Clang、clang-tidy、Cppcheck、Python 版本。ASan、UBSan、libFuzzer 是编译器运行时能力，不是正式 MISRA 检查器。记录实际 SCons target 的 defines、includes、march、mabi、优化及语言模式，Host 编译数据库不足以替代。版本漂移或 target 分析缺口在交付报告中保持可见。
+
+## 维护门禁变更记录
+
+GCR-002（2026-09-28）：仅增强 `tools/check_architecture.py`、`tools/check_runtime_ownership.py` 和 CMake 测试目标。相对双引号 include 先从源码目录解析，再查已知根；Demo 协议 include 使用 Product 根及规范化允许路径。所有权扫描拒绝缺失、重复或倒置锚点。保留原有禁用调用、扫描范围和依赖规则。临时目录反例通过 CTest 和 pytest 运行真实 CLI 入口。这些词法检查不证明传递调用所有权、宏展开 include 或无竞争。
+
+名为 `test-*`/`test_*` 的 C 测试目标及已有 SDO 测试 peer 显式取消 NDEBUG，生产目标保留构建类型标志。编译期检查和故意失败的断言表达式见证在 Debug 与 Release 校验实施。本次增加检查而非豁免，不改变生产契约。负责人：维护者；实现证据见维护计划，人工评审待处理。编译器、测试命名、include 根或扫描函数布局变化时重新评审。不批准 TAD、不增加屏蔽、不降低 HIL 阈值。
+
+GCR-003（2026-09-28）：在 host 工作流增加 Release/无界面加 update 的 CTest 及原生生命周期故障注入测试。保留现有 Debug、消毒器、模糊、生成源码与硬件门禁。明确的手写源码分析扩展将保留原范围，并在证据中注明原生桩假设。所有者：维护者；待人工审阅。所有者布局、资源初始化顺序、工具链或目标包含配置变化时复审。不授予抑制或安全策略批准。
+
+本次扩展加入 `tools/analyze_handwritten.py`，并在保留原范围的前提下把 Clang 头文件报告扩至 diagnostics/platform/protocols。CI 中七份明确源码由两个分析器检查；原生执行采用可追溯且关闭 OTA 的宿主桩，不冒充目标来源。范围证据包含源码/配置散列和工具命令/版本。通用固件的 Product 实现 include 及参考 UI 导入运行时内部均有架构/所有权反例。Shell 桩保留导出函数引用，使宿主分析看到相同使用关系，未通过抑制第一方警告绕过 unused-function 发现。
+
+
+GCR-004（2026-09-29）：显式手写分析加入无头 Demo 展示、运行时标定及诊断分类，保留原范围。Product 渲染器 include 排除 runtime/传输内部，负向夹具拒绝 Demo 屏幕解释 Domain 及投影依赖渲染/OS 类型。词法检查补充评审。不增加抑制、不改 HIL 阈值、不批准健康策略。负责人：维护者；待人工评审；Product include 布局或分析上下文变化时复审。
+
+GCR-005（2026-09-29）：参考 UI 词法检查新增拒绝远端 key/work/reply/result 类型，负向夹具覆盖四种形式。保留原范围与阈值。仅约束示例边界，不是宏展开或传递类型分析。待维护者评审；无抑制或生产策略批准。
+
+GCR-006（2026-09-29）：在既有 800×480 画布内增大 Demo UI 字号和间距，仅使用固定版本 LVGL 字体及仓库内中文子集。保持四页 Product 组合、展示边界、翻译标签和控件语义不变。字体生成、屏幕几何或视觉验收变化时复核；不引入客户素材或私有 Product 规则。
+
+GCR-007（2026-09-29）：在既有分析列表新增手写 Demo PDO 编码器，并增加 Product C/DBC 和实物 PDO 测试。不删除范围、不增加抑制、不降低 HIL 断言。PDO 是维护者要求的 Product 合成线协议行为；Core 和调度契约不变。实际产品映射和策略仍须人工评审。

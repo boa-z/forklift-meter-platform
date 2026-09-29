@@ -68,7 +68,7 @@ typedef struct
     const char *backend;
     uint32_t state, last_error, last_result, depth;
     bool dirty, degraded, imperial;
-    uint32_t language, brightness;
+    uint32_t language, brightness, configured_can_rate;
     uint64_t ram_revision, inflight_revision, durable_revision;
 } meter_diag_storage_t;
 /** @brief 一次统一查询结果；所有 unavailable 模块保持零值。 */

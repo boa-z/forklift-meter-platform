@@ -1,6 +1,7 @@
 #define LOG_TAG "meter.board"
 #define LOG_LVL LOG_LVL_INFO
 #include "platform/rtthread/meter_board_port.h"
+#include "platform/rtthread/meter_board_settings.h"
 #include "lv_aic_display.h"
 #include "lv_aic_indev.h"
 #include "lvgl_aic.h"
@@ -95,8 +96,9 @@ static bool board_can_open(void *ctx, meter_bus_role_t bus)
         ulog_e("meter.can", "cannot open %s", names[bus]);
         return false;
     }
-    /* 公开测试总线为 500 kbit/s，周期发送合成台架数据，不发送车辆控制命令。 */
-    if (rt_device_control(dev, RT_CAN_CMD_SET_BAUD, (void *)CAN500kBaud) != RT_EOK ||
+    /* 速率来自启动时的不可变配置；周期发送仍是公开合成台架数据。 */
+    uint32_t bitrate = meter_board_can_bitrate();
+    if (rt_device_control(dev, RT_CAN_CMD_SET_BAUD, (void *)(uintptr_t)bitrate) != RT_EOK ||
         rt_device_control(dev, RT_DEVICE_CTRL_SET_INT, NULL) != RT_EOK)
     {
         meter_diagnostics_can(diag, bus, METER_CAN_RX_ERROR, board_now(NULL));
@@ -111,8 +113,9 @@ static bool board_can_open(void *ctx, meter_bus_role_t bus)
     }
     can_devices[bus] = dev;
     d->open = true;
-    d->bitrate = 500000;
-    ulog_i("meter.can", "%s opened at 500000 bit/s (public synthetic test bus)", names[bus]);
+    d->bitrate = bitrate;
+    ulog_i("meter.can", "%s opened at %lu bit/s (public synthetic test bus)", names[bus],
+           (unsigned long)bitrate);
     return true;
 }
 bool meter_board_can_raw_read(void *ctx, meter_can_frame_t *frame)

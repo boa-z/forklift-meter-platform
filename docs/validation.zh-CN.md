@@ -53,3 +53,30 @@ Catalog 调整字段顺序以消除 padding finding；生成代码与仓库内�
 ## 先前停机验证
 
 固件 runtime-production-j（368eed1c346ec87912d4b2c40d366ca0cd1f915f）在下载 4096 bytes、设置待持久化时执行协作停机，2.768 s 后 Update ABORTED、NVM durable revision 23、CAN 关闭、UI 释放且新设置被拒绝。重启恢复亮度 70，再由测试恢复 75。证据：evidence/runtime-production/shutdown-j3。此结果属于该历史镜像，不重新标记为 dynamic-tx-e 的完整停机故障矩阵验证。
+
+## Application 服务实板验证
+
+源码 5cfa0bfeefa7e97dccb56319986af7704673a9bf，固件 services-a，且只包含一个 Demo Product。已在连接的实板测试，公开身份 reference-board，COM11 与 PCAN_USBBUS1，500 kbit/s；SDK 交接记录明确实际板型。记录 20260928T171051Z-dd46a0a2 对应 UTC 9 月 28 日 / 本地 9 月 29 日。这是新实板证据，不复用旧 dynamic-tx-e 结果。
+
+| 检查 | 结果 / 范围 |
+|---|---|
+| 原生 SCons 构建 | PASS；Xuantie GCC 10.2.0 V2.6.1、SDK Python 3.8.10；原配置逐字节恢复 |
+| 构建期组合 | 链接 Demo composition 和 projection；未选入 Reference-B/Mixed 源码；其他 Product 仍独立 Host 构建 |
+| 既有 CAN OTA | 验证 1102848 字节包，激活并重启；UART 与 CAN 身份匹配源码 5cfa0bf / services-a |
+| 物理 HIL | 9/9 PASS；原门槛覆盖接收/解码/过期恢复、未知 ID、DLC 拒绝、突发负载、周期时序、负载下 NVM 及动态发布 |
+| 突发观测 | 原生 RX 1051、原生 drop 增量 0；Domain 路径 RX/派发 1015；门槛统计无新增错误/溢出/重置 |
+| 周期观测 | 50 ms 均值 49.9935、最大绝对抖动 0.9420 ms；100 ms 均值 99.9878、抖动 1.0740 ms；未观察到长间隙 |
+| 交接 | RUNNING/NORMAL；update IDLE、维护关闭；EEPROM DURABLE、dirty 0、RAM/耐久 revision 60、亮度恢复 10；UART/CAN 已释放 |
+
+周期数据只是一个测量窗口，不是车辆容差或最坏情况保证。CAN 生命周期错误包括无 Host ACK 端点的间隔；HIL 仍按原窗口增量断言。观察到 UI flush 进展，但不宣称视觉/触摸验收或照片。新增标定/profile 映射仍是可选合成测试，不是真实控制器标定。掉电、多总线及私有 Product 集成均 NOT_RUN。
+
+| 产物 | SHA256 |
+|---|---|
+| 完整 build-a image，未整包烧录 | 276fb0dc4fcba9e92ab7ffa132cf09de2d076990a1c0a6b2aa0731956c427426 |
+| 构建 d13x_os.itb | 9137f6a0178b12fc2282e6469d84e8b589e815499f27b035b79c6276bc2d8fcd |
+| 实际安装 package-a/ota.cpio | 3ce1457a2d318c2cebb8c00d248961bc4d9c9470b12821e5f419aa95c750eb70 |
+| 恢复的 SDK .config | 2494d4e32238755e8fe44f9bfc02cb034be6b2d1780fa2e87cc9ef653c3cf241 |
+
+证据根为 evidence/services/：build-a、package-a、install-a、hil/20260928T171051Z-dd46a0a2 和 handover。sha256.json 索引原始 UART/CAN、JUnit、配置、镜像及 JSON。HIL image_sha256 指实际安装 CPIO 包，不是完整 image。OTA 经既有 native auto-confirm 路径更换 OS 槽；未改变 bootloader 和信任策略。
+
+SDK 身份为 57777e0b5d027e030de1daf0799f0c05102953d9-dirty-378865321b7708a1，已归档补丁/状态及精确依赖。LVGL 9.6.0，lvgl-aic dfdd4c0c07b6d09a438ca8a0627b3deeb3b0e918。递归依赖清单暴露既有 iso14229 文档子模块缺失 .gitmodules 映射；保留部分输出/错误和非递归 pin，未静默修复。目标捕获包含 71 条实际增量编译命令，不是完整目标数据库。ELF text/data/bss 为 1083436/12716/214624 字节。SDK 原有探测/pywin32 警告保留在原始构建日志中。不因此宣称完整目标分析器或当前 HEAD Linux CI 验收。

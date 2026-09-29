@@ -4,11 +4,11 @@
 
 App owns RAM settings and the NVM revision service. The RT-Thread worker owns EEPROM/file I/O and its slot cache. Commands/results use native single-entry message queues; only one immutable payload is in flight. An additional pending buffer retains newer settings. The SDL host uses the same record/service/backend code in a dedicated thread. Neither worker reads live Core. No storage I/O occurs in a UI action callback.
 
-Reference-Demo explicitly declares namespace 0x444D, record type 1, schema 2, 500 ms debounce and a 3000 ms maximum unsaved interval. Its synthetic local parameters plus language, units and brightness form one complete replacement record. External Products must opt in with their own namespace/schema and local-authority policy; remote ECU parameters must not be made authoritative by copying this policy. Storage revision is independent of telemetry/Domain revision. Equal payloads do not increment it.
+Reference-Demo explicitly declares namespace 0x444D, record type 1, schema 3, 500 ms debounce and a 3000 ms maximum unsaved interval. Its synthetic local parameters plus language, units, brightness and restart-effective CAN rate form one complete replacement record. External Products must opt in with their own namespace/schema and local-authority policy; remote ECU parameters must not be made authoritative by copying this policy. Storage revision is independent of telemetry/Domain revision. Equal payloads do not increment it.
 
 ## Encoding and commit
 
-FMP2 is little endian. The MSP2 payload uses stable 32-bit encoded parameter IDs (restricted to the Domain uint16 range) and IEEE binary32 values, not catalog positions. Missing, repeated, unknown or out-of-range values reject the whole payload. The inner FNV checksum detects buffer corruption; it is not authentication. The outer CRC uses the pinned CANopenNode CRC-16/XMODEM implementation (polynomial 0x1021, initial 0, standard check 0x31C3). Header and payload are chained, not XORed independent CRCs. Golden bytes and single-byte corruption checks are in test_meter_record.c.
+FMP2 is little endian. The MSP3 payload uses stable 32-bit encoded parameter IDs (restricted to the Domain uint16 range) and IEEE binary32 values, not catalog positions. Missing, repeated, unknown or out-of-range values reject the whole payload. The inner FNV checksum detects buffer corruption; it is not authentication. The outer CRC uses the pinned CANopenNode CRC-16/XMODEM implementation (polynomial 0x1021, initial 0, standard check 0x31C3). Header and payload are chained, not XORed independent CRCs. Golden bytes and single-byte corruption checks are in test_meter_record.c.
 
 | Offset | Size | Field |
 |---|---|---|
@@ -22,7 +22,7 @@ FMP2 is little endian. The MSP2 payload uses stable 32-bit encoded parameter IDs
 | 22 | 4 | Payload length |
 | 26 | 2 | CRC of bytes 0–25 followed by payload |
 | 28 | 4 | Reserved, must be zero |
-| 32 | variable | MSP2 payload |
+| 32 | variable | MSP3 payload |
 | tail | 16 | Sequence, payload length, CRC and complemented CRC |
 
 Each slot also has a separate commit page holding a copy of the bound 16-byte seal. Commit invalidates this seal, syncs and reads back; writes the complete body, syncs and reads back; writes the bound seal, syncs and reads back. Only then does the active slot change. The last valid slot is never written. Scan distinguishes EMPTY (all 0xFF), VALID, CORRUPT, INCOMPATIBLE, I/O failure and conflicting equal sequences. One damaged and one valid slot yields degraded recovery. Unknown schemas prohibit automatic overwrite. No legacy migration, implicit format, silent medium fallback or sequence wrap is provided.
@@ -84,3 +84,12 @@ Cold power-cycle recovery is PASS after the user removed and restored power: fir
 Historical failures remain recorded: the earlier byte-transport image (SHA256 0cf247370a4c9ba344435919a8df0b1f144d5eb70042b1f70a23ba96c2ef887e) failed initialization readback at 0x003C and rescan at 0x0089. The experimental SDK I2C repair was fully reverted and its image withdrawn. The current application-only settling and read retry path passes the scoped board tests above; it is not a claim that the SDK controller implementation was repaired.
 
 For commissioning an old layout, export a backup and obtain layout authorization before meter_settings initialize CONFIRM. It requires no valid slot and a successful previous I/O. Writes, sync and readback run in the NVM worker; a valid slot cannot be erased. Collect meter_settings result, then verify DURABLE with meter storage; queue acceptance is not completion.
+
+
+## Board settings and format boundary
+
+MSP3 bytes 0..3 hold magic, 4/5/6 hold units/brightness/language, 7 holds the CAN rate selector (0=125k, 1=250k, 2=500k), 8..11 hold parameter count, ID/value entries start at 12, and the last four bytes hold FNV. Only MSP3 is supported. Demo declares FMP2 schema 3; no legacy reader or migration is provided, as requested by the maintainer. Old/corrupt records are rejected atomically and remain write-blocked until explicit initialization. Initializing the development-board allocation was authorized; automatic erase on boot is not introduced.
+
+Reference-board startup waits for the initial NVM read before latching the common rate for both CAN devices. Runtime changes save only and do not reconfigure controllers. Corrupt records retain the default 500k and write-block policy. configured_can_rate in meter storage is the next-boot configuration; bitrate in meter can is the opened controller rate. Before restarting confirm dirty=0 and ram_revision=durable_revision.
+
+App applies brightness immediately through the Board PWM adapter and saves it through the same NVM service. Register-readback failure logs an error and retries; RAM acceptance proves neither successful backlight control nor storage durability. meter_settings product id value queues a diagnostic intent for the App Product callback, including administrator authorization; the generic port does not interpret Product-private IDs.

@@ -55,7 +55,9 @@ static void redraw(meter_gauge_t *g)
                        g->config.unit, 1, g->language);
     lv_label_set_text_static(g->value, g->text);
     lv_obj_align(g->value, LV_ALIGN_BOTTOM_MID, 0, -26);
-    snprintf(g->validity, sizeof(g->validity), "%s", meter_i18n_state(g->state));
+    /* 未收到数据时读数已显示占位符，不重复占用状态文字区域。 */
+    snprintf(g->validity, sizeof(g->validity), "%s",
+             g->state == METER_VALUE_UNKNOWN ? "" : meter_i18n_state(g->state));
     lv_label_set_text_static(g->state_label, g->validity);
     lv_obj_align(g->state_label, LV_ALIGN_BOTTOM_MID, 0, -7);
 }

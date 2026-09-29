@@ -26,7 +26,8 @@ def main(argv=None):
     for field in ("product", "hardware", "version", "os-file"):
         command.add_argument("--" + field, required=True)
     command.add_argument("--candidate-capacity", type=int, required=True)
-    command.add_argument("--pad-os-to", type=int, choices=(1, 4096), default=1)
+    # reference-board AIC OTA 后端按 4 KiB 写入候选分区；默认值必须满足该板级契约。
+    command.add_argument("--pad-os-to", type=int, choices=(1, 4096), default=4096)
     command.add_argument("--cpio", default="cpio")
     command.add_argument("--mkenvimage", default="mkenvimage")
     sub.add_parser("info", aliases=["probe"])

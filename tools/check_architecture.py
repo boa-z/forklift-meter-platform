@@ -1,32 +1,46 @@
 #!/usr/bin/env python3
 """强制校验第一方源码的依赖方向，而不只是记录约定。"""
 from pathlib import Path
+import argparse
 import json
 import re
-ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
+ROOT = parser.parse_args().root.resolve()
 RULES = {
     'contracts': ('contracts/',),
+    'products/demo/ui': ('contracts/', 'products/demo/ui/', 'products/demo/application/', 'products/demo/generated/', 'ui/common/'),
+    'products/demo/application': ('contracts/', 'products/demo/application/', 'products/demo/generated/'),
+    'products/demo/services': ('contracts/', 'runtime/', 'products/demo/services/', 'products/demo/application/', 'products/demo/generated/'),
     'core': ('contracts/', 'core/', 'diagnostics/'),
     'diagnostics': ('contracts/', 'diagnostics/'),
     'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
     # 产品协议解析的是产品身份，而这些身份现在位于自动生成的目录中，不再放在公共域头文件里。
-    'products/demo/protocol': ('contracts/', 'protocols/common/', 'protocol/', 'generated/'),
+    'products/demo/protocol': ('contracts/', 'protocols/common/', 'products/demo/protocol/', 'products/demo/generated/'),
     'ui': ('contracts/', 'ui/', 'generated/'),
+    'examples/parameter-workflow/ui': ('contracts/', 'examples/parameter-workflow/ui/'),
 }
 errors=[]
 for area, allowed in RULES.items():
     for file in (ROOT/area).rglob('*'):
         if file.suffix not in ('.c','.h'): continue
         text=file.read_text(encoding='utf-8')
-        for include in re.findall(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]',text,re.M):
-            candidate=(ROOT/include).resolve()
+        for delimiter, include in re.findall(r'^\s*#\s*include\s*([<"])([^>"]+)[>"]',text,re.M):
+            # Quoted includes search beside the source first, matching C lookup.
+            # Product-local roots are known for the selected Demo protocol scope.
+            search_roots = [file.parent] if delimiter == '"' else []
+            search_roots.append(ROOT)
+            if area in ('products/demo/protocol', 'products/demo/application', 'products/demo/ui', 'products/demo/services'):
+                search_roots.append(ROOT / 'products/demo')
+            candidate = next(((base / include).resolve() for base in search_roots
+                              if (base / include).is_file()), (ROOT / include).resolve())
             if candidate.is_file():
                 if not candidate.is_relative_to(ROOT) or not candidate.relative_to(ROOT).as_posix().startswith(allowed):
-                    errors.append(f'{file.relative_to(ROOT)} -> {include}')
+                    errors.append(f'{file.relative_to(ROOT).as_posix()} -> {include}')
             if area in ('core','contracts','diagnostics') and re.search(r'lvgl|rtthread|rtdevice|ulog|finsh|uart|ArtInChip|aic_|(^|/)CO_|CANopen',include,re.I): errors.append(f'{area} imports {include}')
             if (area.startswith('protocols') or area.endswith('/protocol')) and ('ui/' in include or 'lvgl' in include): errors.append(f'{area} imports {include}')
-            if area=='ui' and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
+            if area in ('ui', 'products/demo/ui') and re.search(r'rtthread|rtdevice|aic_drv|aic_hal|protocols/|platform/',include,re.I): errors.append(f'UI imports {include}')
         if area=='core' and re.search(r'needle_angle|animation_progress|lv_anim',text): errors.append(f'Presentation state in {file.name}')
 # 诊断数据层不持有输出后端；公共层不能绕过平台直接使用日志或 Shell。
 for area in ('diagnostics', 'contracts', 'core', 'runtime', 'protocols/common', 'ui/common'):
@@ -109,5 +123,20 @@ cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
 for deps in re.findall(r'target_link_libraries\(meter_core\s+([^)]*)\)',cmake,re.S):
     if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts','meter_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')
+# Demo screens render Product values; projection is independently host compilable.
+for file in (ROOT/'products/demo/ui').glob('*.c'):
+    if file.name in ('dashboard.c', 'monitor.c', 'faults.c', 'settings.c', 'demo_ui.c'):
+        if re.search(r'meter_snapshot_(?:read|parameter|fault)|meter_demo_catalog|snapshot->', file.read_text(encoding='utf-8')):
+            errors.append(f'{file.relative_to(ROOT)} interprets Domain in a renderer')
+for file in (ROOT/'products/demo/application').glob('*'):
+    if file.suffix in ('.c', '.h') and re.search(r'lvgl|lv_obj_t|rtthread', file.read_text(encoding='utf-8'), re.I):
+        # 注释可提及禁止的依赖；此处只检查实际包含的头文件及类型。
+        if re.search(r'^\s*#\s*include.*(?:lvgl|rtthread)|\blv_obj_t\b', file.read_text(encoding='utf-8'), re.M):
+            errors.append(f'{file.relative_to(ROOT)} imports rendering or OS types')
+# 参考 UI 仅交换 Product 字段及展示值，不暴露远端地址或工作项。
+for file in (ROOT/'examples/parameter-workflow/ui').rglob('*'):
+    if file.suffix in ('.c', '.h') and re.search(
+            r'\bmeter_parameter_(?:key|work|reply|result)_t\b', file.read_text(encoding='utf-8')):
+        errors.append(f'{file.relative_to(ROOT).as_posix()} exposes remote transaction details to UI')
 if errors: raise SystemExit('\n'.join(errors))
 print('Architecture and selected source closure PASS')

@@ -83,6 +83,7 @@ bool meter_core_init(meter_core_t *core, const meter_catalog_t *catalog, const m
     for (size_t i = 0; i < catalog->fault_count; ++i)
         core->snapshot.faults[i] = (meter_fault_state_t){catalog->faults[i].id, false};
     core->snapshot.brightness = 80;
+    core->snapshot.can_rate = METER_CAN_RATE_500K;
     return true;
 }
 static bool apply_value(meter_core_t *core, const meter_update_t *update, bool arbitrate)
@@ -254,4 +255,19 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
 const meter_snapshot_t *meter_core_snapshot(const meter_core_t *core)
 {
     return core ? &core->snapshot : NULL;
+}
+
+bool meter_core_profile(meter_core_t *core, bool confirmed, uint16_t family, uint64_t capabilities)
+{
+    if (!core || (confirmed && family == 0u) || (!confirmed && (family != 0u || capabilities != 0u)))
+        return false;
+    const meter_profile_t current = core->snapshot.profile;
+    if (current.confirmed == confirmed && current.family == family && current.capabilities == capabilities)
+        return true;
+    if (current.generation == UINT32_MAX)
+        return false;
+    const meter_profile_t next = {current.generation + 1u, family, capabilities, confirmed};
+    core->snapshot.profile = next;
+    ++core->snapshot.revision;
+    return true;
 }

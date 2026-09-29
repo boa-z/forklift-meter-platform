@@ -16,6 +16,52 @@ lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int w, int h)
     demo_theme_panel(p);
     return p;
 }
+bool demo_pager_select(demo_pager_t *pager, unsigned page)
+{
+    if (page >= pager->count)
+        return false;
+    pager->current = page;
+    /* 页码使用 LVGL 自有字符串，不能借用实时读数的静态缓冲区。 */
+    lv_label_set_text_fmt(pager->indicator, "%u/%u", page + 1, pager->count);
+    lv_obj_center(pager->indicator);
+    lv_obj_set_state(pager->previous, LV_STATE_DISABLED, page == 0);
+    lv_obj_set_state(pager->next, LV_STATE_DISABLED, page + 1 == pager->count);
+    return true;
+}
+unsigned demo_pager_target(const demo_pager_t *pager, lv_event_t *event)
+{
+    lv_obj_t *target = lv_event_get_target_obj(event);
+    if (target == pager->previous && pager->current > 0)
+        return pager->current - 1;
+    if (target == pager->next && pager->current + 1 < pager->count)
+        return pager->current + 1;
+    return pager->current;
+}
+void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count, lv_event_cb_t callback,
+                       void *context)
+{
+    /* 翻页属于当前 Tab 的内容区，固定在右侧左上角，不占用底部导航空间。 */
+    /* 页码靠近内容区右侧，左右箭头仍保留独立的大触摸区。 */
+    lv_obj_t *bar = demo_panel(parent, 600, 8, 184, 44);
+    pager->count = count;
+    pager->previous = lv_button_create(bar);
+    pager->next = lv_button_create(bar);
+    lv_obj_t *buttons[] = {pager->previous, pager->next};
+    const char *labels[] = {"<", ">"};
+    for (unsigned i = 0; i < 2; ++i)
+    {
+        demo_theme_button(buttons[i]);
+        lv_obj_set_pos(buttons[i], i == 0 ? 0 : 128, 0);
+        lv_obj_set_size(buttons[i], 56, 44);
+        lv_obj_set_style_bg_opa(buttons[i], LV_OPA_TRANSP, 0);
+        lv_obj_set_style_opa(buttons[i], LV_OPA_40, LV_STATE_DISABLED);
+        lv_obj_t *label = meter_text(buttons[i], 0, 0, labels[i], &lv_font_montserrat_24, 0xedf5f8);
+        lv_obj_center(label);
+        lv_obj_add_event_cb(buttons[i], callback, LV_EVENT_CLICKED, context);
+    }
+    pager->indicator = meter_text(bar, 0, 0, "", &lv_font_montserrat_20, 0xedf5f8);
+    (void)demo_pager_select(pager, 0);
+}
 void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
 {
     demo_ui_t *u = lv_malloc(sizeof(*u));
@@ -28,16 +74,21 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     lv_obj_remove_style_all(u->root);
     lv_obj_set_pos(u->root, 0, 0);
     lv_obj_set_size(u->root, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(u->root, lv_color_hex(0x091a25), 0);
+    lv_obj_set_style_bg_color(u->root, lv_color_hex(0x07090b), 0);
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
     demo_theme_panel(u->root);
-    /* The display canvas fills the rectangular screen; only cards are rounded. */
+    /* 显示画布铺满矩形屏幕，仅卡片保留圆角。 */
     lv_obj_set_style_radius(u->root, 0, 0);
-    demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24, 0x5de5ca);
-    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE, &lv_font_montserrat_12, 0x9cb5c4);
-    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING, &lv_font_montserrat_12, 0xf3ba65);
-    u->clock = meter_text(u->root, 714, 18, "00:00", &lv_font_montserrat_14, 0xe9f2f5);
+    demo_text(u, u->root, 22, 14, DEMO_TXT_FIELD, &lv_font_montserrat_24, 0xff8a00);
+    demo_text(u, u->root, 111, 19, DEMO_TXT_REFERENCE, &lv_font_montserrat_16, 0xa5afb8);
+    u->connection = demo_text(u, u->root, 491, 17, DEMO_TXT_WAITING, &lv_font_montserrat_16, 0xffa600);
+    u->clock = meter_text(u->root, 714, 17, "00:00", &lv_font_montserrat_16, 0xf1f4f5);
+    lv_obj_t *header_rule = lv_obj_create(u->root);
+    lv_obj_remove_style_all(header_rule);
+    lv_obj_set_pos(header_rule, 16, 51);
+    lv_obj_set_size(header_rule, 768, 1);
+    lv_obj_set_style_bg_color(header_rule, lv_color_hex(0x36414a), 0);
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
         u->pages[i] = lv_obj_create(u->root);
@@ -47,12 +98,15 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
         lv_obj_set_scrollable(u->pages[i], false);
         demo_theme_panel(u->pages[i]);
         lv_obj_set_style_radius(u->pages[i], 0, 0);
+        lv_obj_set_style_bg_color(u->pages[i], lv_color_hex(0x07090b), 0);
     }
     demo_dashboard_create(u);
     demo_monitor_create(u);
     demo_faults_create(u);
     demo_settings_create(u);
     demo_navigation_create(u);
+    lv_obj_move_foreground(u->parameter_editor);
+    lv_obj_move_foreground(u->password_editor);
     demo_navigation_show(u, 0);
     meter_update_widget_create(&u->update_widget, u->root);
     return u;
@@ -61,27 +115,18 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
 {
     demo_ui_t *u = context;
     (void)elapsed;
-    u->snapshot = *snapshot;
-    if (!u->language_presented || u->presented_language != snapshot->language)
+    demo_presentation_build(snapshot, &u->view);
+    if (!u->language_presented || u->presented_language != u->view.language)
     {
-        lv_translation_set_language(meter_i18n_language_code(snapshot->language));
+        lv_translation_set_language(meter_i18n_language_code(u->view.language));
         u->language_presented = true;
-        u->presented_language = snapshot->language;
+        u->presented_language = u->view.language;
     }
-    bool stale = false;
-    for (size_t i = 0; i < snapshot->catalog->signal_count; ++i)
-        if (snapshot->signals[i].state == METER_VALUE_STALE)
-            stale = true;
-    demo_text_id_t state = DEMO_TXT_CONNECTED;
-    if (!snapshot->connected)
-        state = DEMO_TXT_OFFLINE;
-    else if (stale)
-        state = DEMO_TXT_STALE;
-    else if (meter_snapshot_read(snapshot, METER_SPEED).state == METER_VALUE_UNKNOWN)
-        state = DEMO_TXT_WAITING;
+    const demo_text_id_t states[] = {DEMO_TXT_CONNECTED, DEMO_TXT_OFFLINE, DEMO_TXT_STALE, DEMO_TXT_WAITING};
+    demo_text_id_t state = states[u->view.link];
     strcpy(u->connection_text, demo_i18n_text(state));
     lv_label_set_text_static(u->connection, u->connection_text);
-    meter_i18n_apply_font(u->connection, snapshot->language, METER_FONT_LABEL);
+    meter_i18n_apply_font(u->connection, u->view.language, METER_FONT_LABEL);
     uint32_t sec = lv_tick_get() / 1000;
     lv_snprintf(u->clock_text, sizeof(u->clock_text), "%02u:%02u", (unsigned)(sec / 60 % 60),
                 (unsigned)(sec % 60));
@@ -90,7 +135,7 @@ void demo_ui_present(void *context, const meter_snapshot_t *snapshot, uint32_t e
     demo_monitor_update(u);
     demo_faults_update(u);
     demo_settings_update(u);
-    lv_obj_set_style_opa(u->pages[u->page], (lv_opa_t)(80 + snapshot->brightness * 175 / 100), 0);
+    /* 亮度由板级背光应用，UI 保持原始对比度。 */
 }
 void demo_ui_destroy(void *context)
 {
@@ -103,6 +148,21 @@ void demo_ui_destroy(void *context)
 unsigned demo_ui_active_page(const void *context)
 {
     return ((const demo_ui_t *)context)->page;
+}
+unsigned demo_ui_active_subpage(const void *context)
+{
+    const demo_ui_t *u = context;
+    switch (u->page)
+    {
+    case DEMO_MONITOR:
+        return u->monitor_pager.current;
+    case DEMO_FAULTS:
+        return u->fault_pager.current;
+    case DEMO_SETTINGS:
+        return u->settings_pager.current;
+    default:
+        return 0;
+    }
 }
 
 static void present_update(void *context, const meter_update_view_t *view, meter_language_t language,

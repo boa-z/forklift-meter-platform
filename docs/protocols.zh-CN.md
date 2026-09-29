@@ -85,3 +85,22 @@ mixed-domain 保留 DBC 回放/stale 测试。mixed-canopen 使用上游宿主�
 ### 实板边界
 
 Reference-Mixed 的 Product/UI、PDO/SDO 和启动服务通过 Host 测试；单总线 Demo 实板结果不代表 Mixed 双总线验证。实际固件需选择相应 Product，并验证 CAN1、传输线程与硬件接线。
+
+
+## Demo 仪表发送 PDO
+
+单一 Demo Product 新增两路公开合成标准 CAN0 数据帧，周期 100 ms、DLC 8、小端。仅发送定义位于 `products/demo/protocol/can/demo_tx.dbc`；接收 `demo.dbc`、其生成适配器和路由不变。这些示例不实现 CANopen NMT、SYNC、心跳、可配置 PDO 映射或对象字典，不代表客户协议或车辆控制指令。
+
+| 帧 | 字节 / 位 | 含义 |
+|---|---|---|
+| 0x381 demo_tpdo_motion | 0–1 / 2–3 / 4–5 / 6 | 车速 0.01 km/h / 起升高度 0.001 m / 载荷 kg / SOC 百分比 |
+| 0x381 demo_tpdo_motion | 字节 7 位 0 / 位 1–7 | 整组 fresh / 7 位序号 |
+| 0x481 demo_tpdo_status | 字节 0 位 0–4 | 座椅占用 / 制动有效 / 空挡 / 充电 / 警告 |
+| 0x481 demo_tpdo_status | 字节 1 位 0 / 字节 2 / 字节 3 | 整组 fresh / 8 位序号 / 布局版本 1 |
+| 0x481 demo_tpdo_status | 字节 4–7 | Runtime 会话代数，不是固件版本或持久化计数 |
+
+未使用位归零。运动组依赖车速、SOC、高度和载荷；状态组依赖五个布尔源值。App 保留源时间戳。任一源不可用、越界或年龄 >= 500 ms 时整组失效（Domain 过期策略可能更早失效）。失效组发送零测量值/状态位与 fresh=0；合法零值仍发送 fresh=1。接收者必须先检查 fresh。计数与布局/会话元数据在失效时仍有效。归一化布尔输入只接受精确 0 或 1。浮点数先检查范围，再缩放并向零截断，与既有车速编码一致。
+
+两路新增帧均为普通流量，升级维护模式停发。序号模 128/256 回绕，只在本机驱动成功完成后推进，不代表远端确认；Runtime 代数变化时重新开始。计数或状态位不构成安全保证。既有 0x3C0、0x2F0 的载荷、依赖、周期和提交策略不变。所有帧共用既有发布 revision；新增 PDO 的语义变更也可能推进旧帧携带的 revision。
+
+`demo-pdo` 检查源有效性、线协议黄金向量、合法零值、新鲜度边界、采样时间、驱动完成与静态预算。`demo-pdo-dbc` 使用 cantools 解码真实 C 输出。实物 `test_demo_instrument_pdo` 通过 PCAN 和发送 DBC 检查载荷、输入丢失/恢复和线序号；Host 通过不能证明板端发送。实际 Product 仍须独立确认映射和策略。

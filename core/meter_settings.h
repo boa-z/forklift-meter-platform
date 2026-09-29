@@ -1,7 +1,7 @@
 #ifndef METER_SETTINGS_H
 #define METER_SETTINGS_H
 #include "core/meter_core.h"
-/** @brief MSP2：12 字节头、按稳定 ID 编码的参数项与 4 字节缓冲校验。 */
+/** @brief MSP3：12 字节头含速率选择、稳定 ID 参数项与 4 字节校验；不迁移旧格式。 */
 #define METER_SETTINGS_OVERHEAD 16u
 #define METER_SETTINGS_ENTRY_SIZE 8u
 /** @brief 返回产品完整偏好记录的编码容量；不支持的浮点表示或参数数返回零。 */

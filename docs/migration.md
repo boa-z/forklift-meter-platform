@@ -4,7 +4,7 @@
 
 This repository starts with a clean Git history. Its application code, example protocol, catalogs and UI are original reference implementations created from functional requirements. No proprietary product source, assets, capture, document, object dictionary or Git history is imported.
 
-## Sequence
+## Original extraction sequence
 1. Establish independent contracts, bounded protocol runtime, callback routing and product composition.
 2. Add a synthetic demo protocol and small generated domain catalogs.
 3. Compose an original four-page LVGL 9.6 UI from reusable instruments.
@@ -19,12 +19,12 @@ Private inventory and donor baselines remain outside this repository. Existing p
 | contracts | Original | Values, frames, profiles, snapshots and persistence interface |
 | core | Original | Single-writer business state and domain validation |
 | protocols/common | Original | Bus + frame-format + identifier route lookup |
-| protocols/demo | Original | Invented five-message example protocol |
-| runtime | Original | Fixed queue, budgets, generation and diagnostics |
+| products/demo/protocol and products/demo/generated/can | Original | Synthetic DBC source, domain mapping and generated codec/adapter |
+| runtime | Original | Portable routing, batches, requests, lifecycle and periodic TX helpers |
 | products/demo | Original | Capability, binding, routes, UI and policy composition |
 | ui/common | Original | Instruments, formatting, translation runtime and presentation primitives, without product wording |
-| ui/products/demo | Original | Product-owned pages, navigation, translation pack and font subset |
+| products/demo/ui and products/demo/assets | Original | Product-owned pages, navigation, translation pack and font subset |
 | platform | Original | Host and RT-Thread adapters |
 | LVGL / lvgl-aic | Pinned public upstream | Rendering and board adaptation |
 
-CANopen and path-gauge are optional staged dependencies, not active implementation claims. Production protocols, maintenance objects, external connectivity and firmware update are outside this reference scope.
+The original extraction has since gained standalone CANopenNode SDO in Reference-Mixed and optional CAN firmware update. See [protocols](protocols.md) and [update integration](can-update.md) for current implementation and limits. Full CANopen NMT/Heartbeat, customer protocols and product qualification are not established by these reference implementations. Current hardening and integration gaps are tracked in the [maintenance plan](maintenance-plan.md).

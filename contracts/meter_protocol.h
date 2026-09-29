@@ -43,7 +43,7 @@ typedef struct
 } meter_protocol_event_t;
 typedef bool (*meter_protocol_event_sink_t)(void *context, const meter_protocol_event_t *event);
 /**
- * @brief adapter 所需的统一协议服务，回调运行在 protocol/app owner 上下文。
+ * @brief adapter 所需的统一协议服务；生产回调仅运行在 Protocol owner，Host 驱动须串行调用。
  *
  * update/update_context 写入持续 Domain 信号；event/event_context 投递瞬时事件，
  * 两者上下文相互独立，adapter 不得混用。tx 为板级发送端口，仅在回调期间有效。

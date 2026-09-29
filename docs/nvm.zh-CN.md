@@ -4,11 +4,11 @@
 
 App 独占 RAM 设置与 NVM 版本服务。RT-Thread worker 独占 EEPROM/文件 I/O 与槽缓存。原生单项消息队列传递请求和结果，同一时刻只有一个不可变在途副本；另一个 pending 缓冲保存较新设置。SDL Host 在独立线程中使用相同记录、服务与后端代码。worker 不读取活动 Core，UI 动作回调不做存储 I/O。
 
-Reference-Demo 明确声明 namespace 0x444D、record type 1、schema 2、500 ms 防抖和 3000 ms 最大未保存窗口。其合成本机参数与语言、单位、亮度组成完整替代记录。External Product 必须选择自己的 namespace/schema 和本机权威策略，不能照搬后把远端 ECU 参数变成本机权威。存储版本独立于遥测/Domain revision，内容不变不增版。
+Reference-Demo 明确声明 namespace 0x444D、record type 1、schema 3、500 ms 防抖和 3000 ms 最大未保存窗口。其合成本机参数与语言、单位、亮度及待重启 CAN 速率组成完整替代记录。External Product 必须选择自己的 namespace/schema 和本机权威策略，不能照搬后把远端 ECU 参数变成本机权威。存储版本独立于遥测/Domain revision，内容不变不增版。
 
 ## 编码与提交
 
-FMP2 使用小端。MSP2 payload 按稳定参数 ID 编码为 32 位（限制在 Domain uint16 范围），数值为 IEEE binary32，不依赖目录顺序。缺项、重复、未知身份或越界值导致整体拒绝。内层 FNV 校验仅检测缓冲损坏，不是认证。外层 CRC 复用固定 CANopenNode 的 CRC-16/XMODEM（多项式 0x1021，初值 0，标准 check 0x31C3）。header 与 payload 连续计算，不再异或两段独立 CRC。test_meter_record.c 包含黄金字节与逐字节损坏验证。
+FMP2 使用小端。MSP3 payload 按稳定参数 ID 编码为 32 位（限制在 Domain uint16 范围），数值为 IEEE binary32，不依赖目录顺序。缺项、重复、未知身份或越界值导致整体拒绝。内层 FNV 校验仅检测缓冲损坏，不是认证。外层 CRC 复用固定 CANopenNode 的 CRC-16/XMODEM（多项式 0x1021，初值 0，标准 check 0x31C3）。header 与 payload 连续计算，不再异或两段独立 CRC。test_meter_record.c 包含黄金字节与逐字节损坏验证。
 
 | 偏移 | 长度 | 字段 |
 |---|---|---|
@@ -22,7 +22,7 @@ FMP2 使用小端。MSP2 payload 按稳定参数 ID 编码为 32 位（限制在
 | 22 | 4 | Payload 长度 |
 | 26 | 2 | 头 0–25 字节接 payload 的 CRC |
 | 28 | 4 | 保留，必须为零 |
-| 32 | 可变 | MSP2 payload |
+| 32 | 可变 | MSP3 payload |
 | 尾部 | 16 | 序号、长度、CRC 与 CRC 反码 |
 
 每槽另有独立提交页，保存绑定的 16 字节 seal 副本。提交顺序为使 seal 失效并同步读回，写完整 body 并同步读回，最后写 seal 并同步读回，成功后才能切换活动槽。不写最后有效槽。扫描区分 EMPTY（全 0xFF）、VALID、CORRUPT、INCOMPATIBLE、I/O 错误和同代次内容冲突。一坏一好降级恢复；未知 schema 禁止自动覆盖。不迁移旧格式、不隐式格式化、不静默切换介质、不允许 sequence 回绕。
@@ -84,3 +84,12 @@ Host 覆盖复用非活动槽时每一字节中断、身份/schema/CRC/seal 损�
 保留历史失败：早期字节 transport 镜像（SHA256 0cf247370a4c9ba344435919a8df0b1f144d5eb70042b1f70a23ba96c2ef887e）初始化读回在 0x003C 失败，重扫在 0x0089 失败。实验性 SDK I2C 修复已完整撤回，对应镜像已撤销。当前应用层间隔和读重试通过上述限定范围板测，不宣称修复了 SDK 控制器实现。
 
 首次部署遇到旧布局时，先导出备份，经布局授权后执行 meter_settings initialize CONFIRM。只有无有效槽、且上次 I/O 成功才允许；写入、同步和读回都在 NVM worker，拒绝清除有效槽。之后领取 meter_settings result，通过 meter storage 核对 DURABLE，初始化排队不等于完成。
+
+
+## 板级设置与格式边界
+
+MSP3 的字节 0..3 为魔数，4/5/6 为单位/亮度/语言，7 为 CAN 速率选择（0=125k、1=250k、2=500k），8..11 为参数数量，12 起为 ID/值项，尾部 4 字节为 FNV 校验。仅支持 MSP3，Demo 声明 FMP2 schema 3；按维护者要求不实现旧记录读取或迁移。旧版/损坏记录整体拒绝，必须显式初始化后才可写入。本次开发板设置区已获初始化授权，不引入启动自动擦除。
+
+参考板启动先等待 NVM 首次读取，才锁存两个 CAN 设备共用的速率；运行中修改只保存，不重配控制器。损坏记录沿用默认 500k 和写入阻止策略。meter storage 的 configured_can_rate 为待重启配置，meter can 的 bitrate 才是实际已打开速率。重启前确认 dirty=0、ram_revision=durable_revision。
+
+亮度由 App 调用 Board PWM adapter 即时应用，并经同一 NVM 服务保存；寄存器读回失败会打印错误并重试，RAM 接受不代表背光成功或介质持久化。meter_settings product id value 将诊断意图送给 App 的 Product 回调，仍校验管理员授权，通用端口不解释 Product 私有 ID。

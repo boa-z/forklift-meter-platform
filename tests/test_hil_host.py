@@ -170,7 +170,9 @@ def test_virtual_hil_is_skip_not_physical_pass(tmp_path):
     assert result.returncode == 0, result.stdout+result.stderr
     metadata = json.loads(next(tmp_path.glob('*/metadata.json')).read_text())
     assert metadata['status'] == 'HIL_NOT_RUN'
-    assert len([t for t in metadata['tests'] if t['outcome'] == 'skipped']) == 9
+    skipped = [t for t in metadata['tests'] if t['outcome'] == 'skipped']
+    assert len(skipped) == 10
+    assert any(t['name'].endswith('::test_demo_instrument_pdo') for t in skipped)
     assert not any(metadata['coverage'].values())
     assert next(tmp_path.glob('*/junit.xml')).exists()
 

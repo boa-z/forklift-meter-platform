@@ -31,7 +31,7 @@ void meter_execution_ui_diagnostics(const meter_diagnostics_t *diagnostics);
 bool meter_execution_can_submit(const meter_can_frame_t *frame, bool urgent);
 /** @brief App/诊断提交停止意图；异步处理，超时不回收在途资源。 */
 void meter_execution_stop(void);
-/** @brief UI 查询所有后台 owner 已停止，可安全销毁显示对象。 */
+/** @brief 最终停机状态，包含 UI 已释放资源并确认；UI 释放许可应查询下一个接口。 */
 bool meter_execution_stopped(void);
 /** @brief UI 查询其他 owner 已结束后是否可以释放 LVGL；此时尚未对外宣告 STOPPED。 */
 bool meter_execution_ui_shutdown_requested(void);

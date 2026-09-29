@@ -1,5 +1,6 @@
 #ifndef METER_DOMAIN_H
 #define METER_DOMAIN_H
+#include "contracts/meter_profile.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -22,6 +23,13 @@ typedef enum
     METER_LANGUAGE_EN = 0,
     METER_LANGUAGE_ZH = 1
 } meter_language_t;
+/** @brief 本机 CAN 速率选择；持久化取值固定，两个参考板总线共用，重启生效。 */
+typedef enum
+{
+    METER_CAN_RATE_125K = 0,
+    METER_CAN_RATE_250K = 1,
+    METER_CAN_RATE_500K = 2
+} meter_can_rate_t;
 /**
  * @brief 信号与来源身份，产品词汇表中的 16 位句柄。
  *
@@ -60,7 +68,7 @@ typedef struct
 typedef bool (*meter_source_policy_fn_t)(void *context, meter_signal_id_t signal,
                                          const meter_value_t *incoming, const meter_value_t *current);
 /**
- * @brief 可写参数定义。
+ * @brief 本地权威 Settings 定义；不是远端 owner-qualified Parameter 描述符。
  *
  * min、max、initial 使用该参数自身单位，三者必须有限且 initial 落在 [min, max] 内，
  * 范围由产品目录给出，平台不做单位假设。
@@ -144,6 +152,8 @@ typedef struct
     bool imperial;
     meter_language_t language;
     uint8_t brightness;
+    meter_can_rate_t can_rate; /* 已配置值，不代表当前运行中的控制器速率。 */
+    meter_profile_t profile; /* 与 Domain 值一起在同一发布锁内复制。 */
 } meter_snapshot_t;
 /** @brief 未声明身份的统一返回值：UNKNOWN 且数值与时间戳为零。 */
 static inline meter_value_t meter_value_unknown(void)
@@ -217,13 +227,15 @@ static inline bool meter_snapshot_fault_set(meter_snapshot_t *snapshot, uint16_t
     }
     return true;
 }
-/** @brief UI 动作类别。METER_ACTION_PARAMETER 使用 id，其余类别忽略 id。 */
+/** @brief UI 本地设置意图。METER_ACTION_PARAMETER 使用本地 id，不派发远端事务。其余类别忽略 id。 */
 typedef enum
 {
     METER_ACTION_UNITS,
     METER_ACTION_BRIGHTNESS,
     METER_ACTION_PARAMETER,
-    METER_ACTION_LANGUAGE
+    METER_ACTION_LANGUAGE,
+    /* 可选 Product 语义意图；沿用有界动作队列，不解释为本机参数编号。 */
+    METER_ACTION_PRODUCT
 } meter_action_kind_t;
 /** @brief UI 发起的动作；value 的含义由 kind 决定，参数动作使用参数自身单位。 */
 typedef struct
@@ -235,8 +247,8 @@ typedef struct
 /**
  * @brief UI 提交语义意图的动作回调，在 UI 线程执行。
  *
- * 生产端返回 true 仅表示 QUEUED，不代表 APPLIED；最终以 App 结果/快照为准。返回 false 表示未接纳。实现若需持久化，只投递请求，不得在 UI 线程
- * 等待介质写入完成。
+ * 生产端返回 true 仅表示 QUEUED，不代表 APPLIED；最终以 App 结果/快照为准。返回 false
+ * 表示未接纳。实现若需持久化，只投递请求，不得在 UI 线程 等待介质写入完成。
  */
 typedef bool (*meter_action_send_t)(void *context, const meter_action_t *action);
 /** @brief 动作回调与其不透明上下文，由产品 UI 在创建时持有。 */

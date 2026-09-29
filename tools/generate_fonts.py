@@ -39,6 +39,8 @@ def main():
     config_path = ROOT / 'assets/font-config.json'
     config = json.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
     text = (PLATFORM / 'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8') + (ROOT / config.get('translations', 'ui/demo_i18n.c')).read_text(encoding='utf-8')
+    # 只从可执行字符串和翻译表提取字符，中文说明性注释不应改变字体资产。
+    text = re.sub(r'/\*.*?\*/|//[^\r\n]*', '', text, flags=re.S)
     symbols = ''.join(sorted({c for c in text if ord(c) > 127}))
     manifest_path = ROOT / 'assets/fonts.json'
     head = subprocess.check_output(['git', '-C', str(PLATFORM / 'third_party/lvgl'), 'rev-parse', 'HEAD'], text=True).strip()

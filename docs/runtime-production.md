@@ -37,7 +37,7 @@ Each bus has 16 ordinary and 16 urgent TX slots; at most four urgent frames prec
 
 ## Modes and deadlines
 
-App owns STARTUP, NORMAL, DEGRADED, UPDATE_MAINTENANCE and SHUTDOWN. Product supplies the capability matrix. Batch/event/TX rejection enters DEGRADED; one second without another rejection permits recovery. This is a reference policy, not a safety guarantee. Mode changes advance generation, stale old Domain signals and reset Protocol sessions and Product workflow. Returning from OTA requires ending the explicit maintenance request; Abort does not override a technician's maintenance selection.
+App owns STARTUP, NORMAL, DEGRADED, UPDATE_MAINTENANCE and SHUTDOWN. Product supplies the capability matrix. An increase in the native queue-full counters (`batch_full`, `event_full`, `tx_full`) selects DEGRADED when maintenance is not selected; one second without another queue rejection permits recovery. Semantic batch validation and TX publication failures increment `batch_rejected`, which is not part of that overload calculation. Changing this boundary requires the product-policy review recorded as D-01 in the [maintainer assessment](maintainability.md). This is a reference policy, not a safety guarantee. Mode changes advance generation, stale old Domain signals and reset Protocol sessions and Product workflow. Returning from OTA requires ending the explicit maintenance request; Abort does not override a technician's maintenance selection.
 
 Reference-Demo sends synthetic CAN0 0x3C0 every 50 ms and 0x2F0 every 100 ms. Only 0x3C0 is critical in maintenance. These public bench frames are not vehicle control. Deadlines advance from their previous planned value. Late runnables skip missed periods without catch-up bursts. Mode changes explicitly rearm phase. Mixed TPDO uses the same helper. Wire spacing still depends on queue and driver latency and requires PCAN measurement.
 
@@ -45,7 +45,7 @@ Dynamic values, sample/publish time, semantic revision, generation, pending repl
 
 ## Lifecycle and diagnostics
 
-INIT prepares static IPC and snapshots. App starts NVM/Update and TX before Protocol opens CAN. READY becomes RUNNING only after all configured buses open. Settings wait for NVM restore. Startup failure enters FAILED then cooperative STOPPING.
+INIT prepares static IPC and snapshots. App starts NVM/Update and TX before Protocol opens CAN. READY becomes RUNNING only after all configured buses open. Settings wait for NVM restore. Failures observed by the running App enter FAILED then cooperative STOPPING. Pre-App partial initialization instead returns failure while retaining earlier native objects; App-thread startup failure leaves initialized/FAILED without an App to coordinate stop. Neither path has a proven rollback/retry contract; see D-03 in the maintenance plan.
 
 The meter_exec stop command rejects new business/TX, cancels queued work, stops Protocol processing, requests Update stop, and flushes NVM to a durable revision. In-flight blocking I/O returns normally. App waits for all owner acknowledgements before unbinding RX and closing CAN; UI releases LVGL last. After five seconds STOPPING reports overdue, without killing or freeing workers. STOPPED requires reboot to restart; static IPC is retained until reboot. A failed durability barrier deliberately prevents a successful STOPPED claim.
 
@@ -60,3 +60,13 @@ Windows Host, target build and physical HIL are reported separately with SHA-bou
 Product may declare command completion at APPLIED, TX_COMPLETED or REMOTE_CONFIRMED; the default requires the remote response. A transmit-only command retains TX_COMPLETED as its final result and does not later become a false timeout. Session adoption resets adapters and publishes the same generation as App even while telemetry is suppressed.
 
 Actual analyzer coverage, pending human approval of Annex K TAD-001 and required-check gaps are maintained in [governance status](compliance/status.md). The advisory exception is not an approved MISRA deviation.
+
+## Build-time Product selection
+
+Each firmware image contains exactly one Product, selected by the singular `METER_PRODUCT_ROOT` environment variable in SCons. The default is `products/demo`; relative selections resolve from the application root, and external package roots are supported. Use separate build/output directories for different Products. Host CMake likewise selects one Product per configuration. Multiple independently tested Products never imply multiple Products in one firmware or runtime switching.
+
+The selected `product/sources.json` supplies the unique firmware composition implementation. It owns independent static Domain/publication/diagnostic/UI storage and the Product locale setup callback through `contracts/meter_firmware.h`. Generic startup knows only that contract. Demo retains its original store capacities and locale initialization order; Reference-B has separate signal-only storage. Inspect the selected source closure with `tools/firmware_product.py`; unsupported feature closures and missing/escaping/duplicate sources fail the build selection.
+
+Demo and Reference-B have independent host compile/link/test evidence for this boundary. Reference-Mixed's SDO firmware closure is not enabled. Any real Product still requires target memory/display/CAN adaptation, confirmed protocol/authentication descriptors and board acceptance. The reference parameter Application in `examples/parameter-workflow` is test-only; it adds no Product to an image and changes no native IPC, worker or timing contract.
+
+Demo PDO addition: four periodic slots and ten semantic values fit the existing board budgets of eight slots and sixteen values. No queue capacity, owner, worker or scheduler period changes. The two new ordinary 100 ms frames add 20 frames/second; bus loading and existing 50/100 ms traffic must be measured together. See [protocol definitions](protocols.md) for payload/freshness and the shared-revision implication.

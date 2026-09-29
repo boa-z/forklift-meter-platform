@@ -105,7 +105,7 @@ int main(void)
     lv_obj_send_event(ui->language_button, LV_EVENT_CLICKED, NULL);
     demo_ui_present(ui, &core.snapshot, 16);
     CHECK(core.snapshot.language == METER_LANGUAGE_EN && ui->action_failed);
-    CHECK(!strcmp(lv_label_get_text(ui->setting_status), demo_i18n_text(DEMO_TXT_SETTINGS_ERROR)));
+    CHECK(!strcmp(lv_label_get_text(ui->setting_status), demo_i18n_text(DEMO_TXT_ACCESS_DENIED)));
     CHECK(check_glyphs(ui->root) == 0);
     demo_ui_destroy(ui);
     meter_host_close();

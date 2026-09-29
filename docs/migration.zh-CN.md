@@ -4,7 +4,7 @@
 
 本仓库以干净历史为起点。其应用代码、示例协议、目录和 UI 均为根据功能需求创建的原创参考实现。未导入任何专有产品源码、资源、捕获文件、文档、对象字典或 Git 历史。
 
-## 顺序
+## 初始提取顺序
 1. 建立独立的 contracts、有界协议运行时、回调路由和产品组合。
 2. 添加合成 Demo 协议和小型生成的域目录。
 3. 使用可复用仪表组合原创的四页 LVGL 9.6 UI。
@@ -19,12 +19,12 @@
 | contracts | Original | 值、帧、配置文件、快照和持久化接口 |
 | core | Original | 单写者业务状态和域校验 |
 | protocols/common | Original | 总线 + 帧格式 + 标识符路由查找 |
-| protocols/demo | Original | 虚构的五消息示例协议 |
-| runtime | Original | 固定队列、预算、代数和诊断 |
+| products/demo/protocol and products/demo/generated/can | Original | 合成 DBC 源文件、域映射和生成的编解码器/适配器 |
+| runtime | Original | 可移植路由、批次、请求、生命周期和周期 TX 助手 |
 | products/demo | Original | 能力、绑定、路由、UI 和策略组合 |
 | ui/common | Original | 仪表、格式化、翻译运行时和呈现原语，不含产品文案 |
-| ui/products/demo | Original | 属主页面、导航、翻译包和字体子集 |
+| products/demo/ui and products/demo/assets | Original | 属主页面、导航、翻译包和字体子集 |
 | platform | Original | 主机和 RT-Thread 适配器 |
 | LVGL / lvgl-aic | Pinned public upstream | 渲染和单板适配 |
 
-CANopen 和 path-gauge 为可选的分阶段依赖，而非有效实现声明。生产协议、维护对象、外部连接和固件更新不在本参考范围内。
+初始提取后已增加 Reference-Mixed 中的独立 CANopenNode SDO 和可选 CAN 固件升级。当前实现与限制见[协议](protocols.zh-CN.md)及[升级集成](can-update.zh-CN.md)。这些参考实现并未证明完整 CANopen NMT/Heartbeat、客户协议或产品合格性。当前加固和集成缺口记录在[维护计划](maintenance-plan.zh-CN.md)。

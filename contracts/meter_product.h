@@ -47,6 +47,7 @@ typedef struct
 } meter_resource_profile_t;
 typedef struct
 {
+    /* Static Product policy, not credentials or an expiring meter_authorization_t grant. */
     bool local_settings;
     bool vehicle_control;
 } meter_auth_profile_t;
@@ -55,7 +56,7 @@ typedef struct
     void *(*create)(void *parent, const meter_ui_actions_t *actions);
     void (*present)(void *ui, const meter_snapshot_t *snapshot, uint32_t elapsed_ms);
     void (*destroy)(void *ui);
-    /** @brief 可选只读升级展示，由 App/UI owner 调用，不触发下载或激活。 */
+    /** @brief 可选只读升级展示，由 UI owner 调用，不触发下载或激活。 */
     void (*present_update)(void *ui, const meter_update_view_t *view, meter_language_t language);
 } meter_ui_factory_t;
 /** @brief Product 本机设置记录策略；未绑定时平台不启用持久化。 */
@@ -102,6 +103,10 @@ typedef struct
     void (*app_run)(uint32_t now_ms, const meter_command_port_t *commands);
     /** @brief 可选命令完成条件；纯函数，返回 APPLIED/TX_COMPLETED/REMOTE_CONFIRMED，默认要求远端确认。 */
     meter_command_stage_t (*command_completion)(const meter_command_t *command);
+    /** @brief App owner 内的可选设置入口：普通动作返回准入，PRODUCT 动作返回已处理。
+     * snapshot 仅在回调内可修改，发生变化须递增 revision；不得保留指针、阻塞或操作设备。
+     * 未经回调处理的 PRODUCT 动作拒绝。队列接纳与 RAM 应用都不代表 NVM 已持久化。 */
+    bool (*local_action)(meter_snapshot_t *snapshot, const meter_action_t *action, uint32_t now_ms);
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

@@ -37,7 +37,7 @@ App 只有一个保留命令/结果信用，身份由 generation 和不复用的
 
 ## 模式与期限
 
-App 独占 STARTUP、NORMAL、DEGRADED、UPDATE_MAINTENANCE、SHUTDOWN，Product 提供能力矩阵。批次/事件/TX 拒绝后进入 DEGRADED，连续一秒无新增拒绝可恢复。这是参考策略而非安全保证。模式变化推进 generation、将旧 Domain 信号标 stale、复位协议会话和产品工作流。OTA 返回普通模式需结束显式维护请求；Abort 不覆盖操作者的维护选择。
+App 独占 STARTUP、NORMAL、DEGRADED、UPDATE_MAINTENANCE、SHUTDOWN，Product 提供能力矩阵。原生队列满计数器（`batch_full`、`event_full`、`tx_full`）增加时，在未选择维护模式的情况下选择 DEGRADED；连续一秒无新增队列拒绝可恢复。语义批次校验和 TX 发布失败增加 `batch_rejected`，但它不参与过载计算。改变此边界需按[维护者评估](maintainability.zh-CN.md) 中 D-01 进行产品策略评审。这是参考策略而非安全保证。模式变化推进 generation、将旧 Domain 信号标 stale、复位协议会话和产品工作流。OTA 返回普通模式需结束显式维护请求；Abort 不覆盖操作者的维护选择。
 
 Reference-Demo 在 CAN0 每 50 ms 发送合成 0x3C0，每 100 ms 发送 0x2F0。维护模式仅保留关键 0x3C0。它们是公开台架数据，不是车辆控制。期限从上次计划值推进；迟到时跳过错过周期，不补发突发。模式切换显式重置相位。Mixed TPDO 也使用该 helper。线上间隔仍受队列和驱动延迟影响，必须 PCAN 实测。
 
@@ -45,7 +45,7 @@ Reference-Demo 在 CAN0 每 50 ms 发送合成 0x3C0，每 100 ms 发送 0x2F0�
 
 ## 生命周期与诊断
 
-INIT 初始化静态 IPC 和快照。App 启动 NVM/Update 及 TX 后，Protocol 才打开 CAN。全部配置总线打开后 READY 转 RUNNING。设置等待 NVM restore 完成。启动失败进入 FAILED 后协作式 STOPPING。
+INIT 初始化静态 IPC 和快照。App 启动 NVM/Update 及 TX 后，Protocol 才打开 CAN。全部配置总线打开后 READY 转 RUNNING。设置等待 NVM restore 完成。启动失败进入 FAILED 后协作式 STOPPING。 App 运行后观察到的启动失败才进入协作停机；App 前的部分初始化失败会返回并保留已创建原生对象，App 线程启动失败则停留 initialized/FAILED 且没有 App 协调停机。两条路径均无已证明的回滚/重试契约，见维护计划 D-03。
 
 meter_exec stop 拒绝新业务/TX、取消排队工作、停止 Protocol 处理、请求 Update 退出、将 NVM flush 到 durable revision。在途阻塞 I/O 自然返回。App 等全部 owner 确认后解绑 RX、关闭 CAN，UI 最后释放 LVGL。STOPPING 超五秒报告 overdue，不强杀或释放 worker。STOPPED 后需重启，静态 IPC 保留到重启。durability barrier 失败时故意不宣称 STOPPED。
 
@@ -60,3 +60,13 @@ Windows Host、Target build、实板 HIL 分别报告并绑定 SHA 证据。配�
 Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，默认要求远端响应。仅发送命令保留 TX_COMPLETED 终态，不会随后被误报为超时。采用 App 会话代次时复位 Adapter，并立即同步诊断代次，维护期间暂停遥测也不会显示旧代次。
 
 分析器的真实覆盖范围、Annex K TAD-001 待人工批准状态及 required checks 缺口统一维护在[治理状态](compliance/status.zh-CN.md)，不将 advisory 例外视作已批准的 MISRA deviation。
+
+## 编译期 Product 选择
+
+每个实际固件镜像仅包含一个 Product，由 SCons 的单一 `METER_PRODUCT_ROOT` 环境变量选择。默认 `products/demo`，相对选择以应用根目录解析，也支持外部包根目录。不同 Product 使用独立构建/输出目录。宿主 CMake 每个配置同样仅选择一个 Product。多个独立验证的 Product 不代表同一固件包含多个 Product，也不支持运行时切换。
+
+所选 `product/sources.json` 提供唯一固件组合实现，通过 `contracts/meter_firmware.h` 所有独立静态 Domain/发布/诊断/UI 存储及 Product 本地化初始化。通用启动只了解此契约。Demo 保留原存储容量与本地化初始化顺序，Reference-B 使用独立纯信号存储。用 `tools/firmware_product.py` 查看选中源码闭包，不支持的特性闭包或缺失/越界/重复源码将使构建选择失败。
+
+Demo 与 Reference-B 对此边界分别有宿主编译/链接/测试证据。Reference-Mixed 的 SDO 固件闭包未启用。真实 Product 仍须目标内存/显示/CAN 适配、确认协议/认证描述符及实板验收。`examples/parameter-workflow` 的参考参数 App 仅用于测试，不给镜像增加 Product，也不改变原生 IPC、工作线程或时序契约。
+
+Demo PDO 新增后使用四个周期槽和十个语义值，仍在既有八槽、十六值板级预算内。不改变队列容量、owner、线程或调度周期。两路新增普通 100 ms 帧增加每秒 20 帧；须同时测量总线负载与既有 50/100 ms 流量。载荷、新鲜度和共享 revision 影响见[协议定义](protocols.zh-CN.md)。

@@ -1,7 +1,8 @@
 {
   "protocol": [
     "generated/can/demo.c",
-    "generated/can/demo_adapter.c"
+    "generated/can/demo_adapter.c",
+    "protocol/can/demo_pdo.c"
   ],
   "catalog": [
     "generated/demo_catalog.c"
@@ -37,5 +38,11 @@
     "sim/main.c",
     "sim/synthetic.c"
   ],
-  "firmware": []
+  "firmware": [
+    "product/firmware.c"
+  ],
+  "application": [
+    "application/presentation.c",
+    "services/settings_app.c"
+  ]
 }

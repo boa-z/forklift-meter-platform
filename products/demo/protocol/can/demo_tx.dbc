@@ -1,0 +1,24 @@
+VERSION "synthetic-demo-pdo-1"
+NS_ :
+BS_:
+BU_: Meter Observer
+BO_ 897 demo_tpdo_motion: 8 Meter
+ SG_ speed : 0|16@1+ (0.01,0) [0|655] "km/h" Observer
+ SG_ height : 16|16@1+ (0.001,0) [0|6] "m" Observer
+ SG_ load : 32|16@1+ (1,0) [0|1500] "kg" Observer
+ SG_ soc : 48|8@1+ (1,0) [0|100] "%" Observer
+ SG_ fresh : 56|1@1+ (1,0) [0|1] "" Observer
+ SG_ sequence : 57|7@1+ (1,0) [0|127] "" Observer
+BO_ 1153 demo_tpdo_status: 8 Meter
+ SG_ seat : 0|1@1+ (1,0) [0|1] "" Observer
+ SG_ brake : 1|1@1+ (1,0) [0|1] "" Observer
+ SG_ neutral : 2|1@1+ (1,0) [0|1] "" Observer
+ SG_ charging : 3|1@1+ (1,0) [0|1] "" Observer
+ SG_ warning : 4|1@1+ (1,0) [0|1] "" Observer
+ SG_ fresh : 8|1@1+ (1,0) [0|1] "" Observer
+ SG_ sequence : 16|8@1+ (1,0) [0|255] "" Observer
+ SG_ layout_version : 24|8@1+ (1,0) [1|1] "" Observer
+ SG_ generation : 32|32@1+ (1,0) [1|4294967295] "" Observer
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_ "GenMsgCycleTime" BO_ 897 100;
+BA_ "GenMsgCycleTime" BO_ 1153 100;

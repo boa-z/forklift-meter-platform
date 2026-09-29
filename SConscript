@@ -15,8 +15,11 @@ Env.Append(CPPDEFINES=[
     'LV_FONT_MONTSERRAT_20=1',
     'LV_FONT_MONTSERRAT_24=1',
 ])
-product = os.path.join(cwd, 'products', 'demo')
-manifest = json.load(open(os.path.join(product, 'product', 'sources.json'), encoding='utf-8'))
+selection_spec = importlib.util.spec_from_file_location('meter_firmware_product', os.path.join(cwd, 'tools', 'firmware_product.py'))
+selection = importlib.util.module_from_spec(selection_spec)
+selection_spec.loader.exec_module(selection)
+product, product_sources = selection.select(cwd, os.environ.get('METER_PRODUCT_ROOT'))
+product = str(product)
 platform_manifest = json.load(open(os.path.join(cwd, 'cmake', 'sources.json'), encoding='utf-8'))
 identity_spec = importlib.util.spec_from_file_location('meter_build_identity', os.path.join(cwd,'tools','build_identity.py'))
 identity = importlib.util.module_from_spec(identity_spec)
@@ -27,13 +30,13 @@ board_id = os.environ.get('METER_BOARD_ID', 'reference-board')
 identity.generate(cwd, AIC_ROOT, board_id, os.path.join(identity_dir,'meter_build_identity.h'))
 common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_board_port.c', 'platform/rtthread/meter_nvm_port.c',
+          'platform/rtthread/meter_board_settings.c',
           'platform/rtthread/meter_eeprom_i2c.c',
           'third_party/CANopenNode/301/crc16-ccitt.c', 'storage/meter_file.c', 'platform/common/meter_diag_commands.c',
           'platform/rtthread/debug/meter_debug_console.c', 'platform/rtthread/debug/meter_debug_log.c']
 common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protocol_common', 'ui_math', 'ui_common')
            for p in platform_manifest[group]]
-sources = common + [os.path.join(product, p) for group in ('catalog','protocol','product','ui','ui_binding','firmware')
-                    for p in manifest.get(group, [])]
+sources = common + [str(path) for path in product_sources]
 sources = [os.path.join(cwd, p) if not os.path.isabs(p) else p for p in sources]
 lvgl = os.path.join(AIC_ROOT, 'packages', 'custom', 'lvgl-aic')
 group = DefineGroup('FORKLIFT-METER-PLATFORM', sources,

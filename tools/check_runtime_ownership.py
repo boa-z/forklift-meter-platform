@@ -1,15 +1,30 @@
 """生产路径所有权门禁；不替代并发/HIL 验证。"""
 from pathlib import Path
+import argparse
 import re
 
-ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
+ROOT = parser.parse_args().root.resolve()
 errors = []
 main = (ROOT / 'main.c').read_text(encoding='utf-8')
+for include in re.findall(r'^\s*#\s*include\s*"([^"]+)"', main, re.M):
+    if not include.startswith(('contracts/', 'platform/', 'ui/common/')) and include not in (
+            'meter_build_identity.h', 'meter_update_build.h'):
+        errors.append(f'Firmware entry imports Product implementation: {include}')
 for forbidden in ('meter_rtthread_adapter_poll', 'meter_core_action(', 'meter_board_update_poll(', 'meter_board_nvm_poll(', 'meter_debug_lock('):
     if forbidden in main:
         errors.append(f'UI owner calls {forbidden}')
 port = (ROOT / 'platform/rtthread/meter_execution_port.c').read_text(encoding='utf-8')
-protocol = port.split('static void protocol_entry(', 1)[1].split('static void set_mode(', 1)[0]
+start_anchor = 'static void protocol_entry('
+end_anchor = 'static void set_mode('
+if port.count(start_anchor) != 1 or port.count(end_anchor) != 1:
+    raise SystemExit('Ownership scan requires exactly one protocol_entry and set_mode anchor')
+start = port.index(start_anchor)
+end = port.index(end_anchor)
+if end <= start:
+    raise SystemExit('Ownership scan anchors are out of order')
+protocol = port[start:end]
 for forbidden in ('meter_core_', 'lv_', 'meter_board_nvm_', 'meter_aic_update_', 'rt_device_write'):
     if forbidden in protocol:
         errors.append(f'Protocol owner calls {forbidden}')

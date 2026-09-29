@@ -6,10 +6,9 @@
 #include "platform/rtthread/debug/meter_debug_console.h"
 #include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_execution_port.h"
-#include "product/demo_storage.h"
-#include "product/product.h"
+#include "contracts/meter_firmware.h"
+#include "contracts/meter_product.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
-#include "ui/demo_i18n.h"
 #include <lvgl.h>
 #include <rtthread.h>
 #include <ulog.h>
@@ -27,15 +26,17 @@
 #define METER_STRING(x) METER_STRING_IMPL(x)
 
 static meter_core_t core;
-static demo_domain_store_t domain_store, presentation_store, diagnostic_store, ui_store;
 static meter_diagnostics_t diagnostics, ui_diagnostics;
 static meter_build_info_t identity;
 static void meter_thread(void *parameter)
 {
     (void)parameter;
     const meter_product_t *product = meter_product_get();
-    meter_core_storage_t bound = demo_domain_bind(&domain_store);
-    meter_core_storage_t ui_bound = demo_domain_bind(&ui_store);
+    meter_firmware_composition_t composition;
+    if (!meter_firmware_compose(&composition) || !composition.locale_init)
+    { LOG_E("Product composition failed"); return; }
+    meter_core_storage_t bound = composition.domain;
+    meter_core_storage_t ui_bound = composition.ui;
     meter_snapshot_t snapshot = {0};
     meter_diagnostics_init(&diagnostics);
     meter_diagnostics_init(&ui_diagnostics);
@@ -51,7 +52,7 @@ static void meter_thread(void *parameter)
     lv_init();
     meter_debug_lvgl_log_init();
     meter_rtthread_board_port_t board = meter_board_port(&ui_diagnostics);
-    if (!meter_i18n_init() || !demo_i18n_init() || !meter_core_init(&core, product->catalog, &bound) ||
+    if (!meter_i18n_init() || !composition.locale_init() || !meter_core_init(&core, product->catalog, &bound) ||
         !board.display_init(board.context) || !board.touch_init(board.context))
     { LOG_E("UI/core startup failed"); return; }
     lv_obj_t *screen = lv_screen_active();
@@ -62,8 +63,8 @@ static void meter_thread(void *parameter)
     void *ui = product->ui->create(screen, &actions);
     if (!ui) { LOG_E("UI allocation failed"); meter_board_close(&ui_diagnostics); lv_deinit(); return; }
     meter_execution_config_t config = {.product = product, .core = &core,
-        .published_storage = demo_domain_bind(&presentation_store),
-        .diagnostic_storage = demo_domain_bind(&diagnostic_store), .public_diagnostics = &diagnostics};
+        .published_storage = composition.presentation,
+        .diagnostic_storage = composition.diagnostic, .public_diagnostics = &diagnostics};
     if (!meter_execution_start(&config)) { LOG_E("runtime startup failed"); product->ui->destroy(ui); meter_board_close(&ui_diagnostics); lv_deinit(); return; }
     LOG_I("product=%s; runtime=production; UI/Protocol/App owners separated", product->id);
     uint32_t previous = meter_board_now_ms();

@@ -274,6 +274,7 @@ void meter_board_nvm_poll(uint32_t now, meter_diag_storage_t *status)
     port.diag.last_result = (uint32_t)port.service.last_result;
     port.diag.language = (uint32_t)port.core->snapshot.language;
     port.diag.brightness = port.core->snapshot.brightness;
+    port.diag.configured_can_rate = (uint32_t)port.core->snapshot.can_rate;
     port.diag.imperial = port.core->snapshot.imperial;
     if (status)
         *status = port.diag;
@@ -336,7 +337,9 @@ static void process_command(uint32_t now)
         result.applied =
             product->auth->local_settings &&
             (command.action.kind != METER_ACTION_PARAMETER || product->capabilities->parameter_write) &&
-            meter_core_action(port.core, &command.action);
+            (command.action.kind == METER_ACTION_PRODUCT
+                ? product->local_action && product->local_action(&port.core->snapshot, &command.action, now)
+                : meter_core_action(port.core, &command.action));
         if (result.applied)
             (void)meter_board_nvm_changed(now);
         result.target = port.service.ram_revision;
@@ -388,6 +391,19 @@ static int meter_settings(int argc, char **argv)
         command.kind = 3u;
         command.action = (meter_action_t){METER_ACTION_UNITS, 0u, !strcmp(argv[2], "imperial") ? 1.0f : 0.0f};
     }
+    else if (argc == 4 && !strcmp(argv[1], "product"))
+    {
+        char *end;
+        unsigned long id = strtoul(argv[2], &end, 10);
+        if (!*argv[2] || *end || id > UINT16_MAX)
+            return -RT_EINVAL;
+        float value = strtof(argv[3], &end);
+        if (!*argv[3] || *end)
+            return -RT_EINVAL;
+        /* 诊断入口也经过 Product 授权；通用端口不识别 Demo 密码或参数编号。 */
+        command.kind = 3u;
+        command.action = (meter_action_t){METER_ACTION_PRODUCT, (uint16_t)id, value};
+    }
     else if (argc == 3 && !strcmp(argv[1], "brightness"))
     {
         char *end;
@@ -400,7 +416,7 @@ static int meter_settings(int argc, char **argv)
     else
     {
         rt_kprintf("meter_settings initialize CONFIRM|save|retry|result|language en/zh|units "
-                   "metric/imperial|brightness 10..100\n");
+                   "metric/imperial|brightness 10..100|product id value\n");
         return -RT_EINVAL;
     }
     if (rt_sem_take(&command_credit, 0) != RT_EOK)

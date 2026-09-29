@@ -18,5 +18,5 @@
   "host": [
     "sim/main.c"
   ],
-  "firmware": []
+  "firmware": ["product/firmware.c"]
 }

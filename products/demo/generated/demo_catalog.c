@@ -15,6 +15,17 @@ static const meter_signal_def_t signals[] = {
     {.id = 12, .key = "vehicle.neutral", .unit = "", .stale_ms = 1500},
     {.id = 13, .key = "energy.charging", .unit = "", .stale_ms = 1500},
     {.id = 14, .key = "vehicle.warning", .unit = "", .stale_ms = 1500},
+    {.id = 100, .key = "demo.settings.access_role", .unit = "", .stale_ms = 0},
+    {.id = 101, .key = "demo.settings.access_result", .unit = "", .stale_ms = 0},
+    {.id = 102, .key = "demo.settings.remote_result", .unit = "", .stale_ms = 0},
+    {.id = 103, .key = "demo.settings.admin_can", .unit = "", .stale_ms = 0},
+    {.id = 104, .key = "demo.settings.admin_hours", .unit = "", .stale_ms = 0},
+    {.id = 105, .key = "demo.settings.admin_speed", .unit = "", .stale_ms = 0},
+    {.id = 106, .key = "demo.settings.admin_memory", .unit = "", .stale_ms = 0},
+    {.id = 107, .key = "demo.settings.remote_speed", .unit = "", .stale_ms = 0},
+    {.id = 108, .key = "demo.settings.remote_ramp", .unit = "", .stale_ms = 0},
+    {.id = 109, .key = "demo.settings.remote_lift", .unit = "", .stale_ms = 0},
+    {.id = 110, .key = "demo.settings.remote_regen", .unit = "", .stale_ms = 0},
 };
 static const meter_parameter_def_t parameters[] = {
     {.id = 1, .key = "max_speed", .unit = "km/h", .min = 5.0f, .max = 50.0f, .initial = 25.0f},
