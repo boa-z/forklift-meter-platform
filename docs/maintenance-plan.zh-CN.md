@@ -407,6 +407,10 @@ Demo 监控、故障和设置内容统一采用每页五行的排版目标：条
 执行顺序：完成格式拒绝、授权、PWM 失败/读回与延迟启动测试；运行 Debug/Release 和实板构建；OTA 验证身份、亮度保存及 CAN 重启生效；最后按功能整理当前分支历史，保留可恢复的旧引用并验证源码树一致。旧实板证据不得归属到重写后的提交。本批实板验证当前为 NOT_RUN。
 
 
+### 功能提交整理
+
+持久化设置变更在已验收 OTA 基线 `97ab6e3` 之后保留为三个可审查提交：`0695484` 包含 MSP3、App 授权、NVM/启动顺序、PWM3 适配和测试；`99f6e7a` 只包含未知值 UI 修正及控件测试；`9af4db2` 只包含中英文板验记录。SDK 父仓库通过 `37dc8839` 固定 Framework `9af4db2`。提交已经按功能整理，不需要混合目的压缩。
+
 ### 板验：持久化设置与真实背光
 
 候选 `demo-settings-20260929` 由 Framework `99f6e7a`、SDK `6ec2d080` 构建；OS SHA256 为 `cb7cd580be8fb8d6eb14f3e687f1ee579ac01402fe9dcc4a023eb8a4889307a1`，大小 1,110,016 字节；OTA 包 SHA256 为 `37ea0ee8466cfbd44712d252f35c4955a0b53053dc2e48bc28ffdf9bfc8d552f`，大小 1,111,040 字节。Host 包完整性及 Debug/Release 测试通过。COM11/PCAN_USBBUS1 传输、激活和重启完成；重启后身份为 `demo-settings-20260929`、`reference-demo/reference-board`，状态 `READY`，NVM `ram_revision=10 durable_revision=10 dirty=0`，配置 CAN 速率索引 2，实际打开 `can0 bitrate=500000`。因 MSP3 明确不迁移旧记录，已显式初始化开发板旧设置区。板端报告原生 CAN 发送拒绝（当前无车辆发送端/终端匹配），记录为总线条件，不判定为波特率或 NVM 失败。UART、OTA 事件及存储/诊断日志位于 `evidence/ota/demo-settings-20260929/`。SDL 未知状态中英文截图位于 `evidence/adaptation/ui-board-settings/`，均显示 `--` 且没有重复的未知文字。
