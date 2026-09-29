@@ -2,12 +2,12 @@
 void demo_faults_create(demo_ui_t *u)
 {
     lv_obj_t *p = u->pages[DEMO_FAULTS];
-    demo_text(u, p, 24, 4, DEMO_TXT_ADVISORIES, &lv_font_montserrat_20, 0xedf5f8);
-    demo_text(u, p, 24, 33, DEMO_TXT_FAULT_SUBTITLE, &lv_font_montserrat_12, 0x8ba9bb);
+    demo_text(u, p, 24, 4, DEMO_TXT_ADVISORIES, &lv_font_montserrat_24, 0xedf5f8);
+    demo_text(u, p, 24, 33, DEMO_TXT_FAULT_SUBTITLE, &lv_font_montserrat_16, 0x8ba9bb);
     for (size_t i = 0; i < DEMO_FAULT_SLOTS; ++i)
     {
-        lv_obj_t *r = demo_panel(p, 16, 58 + (int)i * 30, 768, 27);
-        u->fault_rows[i] = meter_text(r, 12, 6, "", &lv_font_montserrat_12, 0x9cb5c4);
+        lv_obj_t *r = demo_panel(p, 16, 58 + (int)i * 34, 768, 31);
+        u->fault_rows[i] = meter_text(r, 12, 5, "", &lv_font_montserrat_16, 0x9cb5c4);
     }
 }
 void demo_faults_update(demo_ui_t *u)

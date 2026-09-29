@@ -32,12 +32,12 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     lv_obj_set_style_bg_opa(u->root, 255, 0);
     lv_obj_set_scrollable(u->root, false);
     demo_theme_panel(u->root);
-    /* The display canvas fills the rectangular screen; only cards are rounded. */
+    /* 显示画布铺满矩形屏幕，仅卡片保留圆角。 */
     lv_obj_set_style_radius(u->root, 0, 0);
     demo_text(u, u->root, 22, 15, DEMO_TXT_FIELD, &lv_font_montserrat_24, 0x5de5ca);
-    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE, &lv_font_montserrat_12, 0x9cb5c4);
-    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING, &lv_font_montserrat_12, 0xf3ba65);
-    u->clock = meter_text(u->root, 714, 18, "00:00", &lv_font_montserrat_14, 0xe9f2f5);
+    demo_text(u, u->root, 111, 20, DEMO_TXT_REFERENCE, &lv_font_montserrat_16, 0x9cb5c4);
+    u->connection = demo_text(u, u->root, 491, 18, DEMO_TXT_WAITING, &lv_font_montserrat_16, 0xf3ba65);
+    u->clock = meter_text(u->root, 714, 18, "00:00", &lv_font_montserrat_16, 0xe9f2f5);
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {
         u->pages[i] = lv_obj_create(u->root);

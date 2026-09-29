@@ -255,12 +255,12 @@ _Static_assert(sizeof(translations) / sizeof(translations[0]) == DEMO_TXT_COUNT 
                "demo translation count");
 #define DEMO_MONITOR_COUNT (DEMO_TXT_FAULT_0 - DEMO_TXT_MONITOR_0)
 #define DEMO_FAULT_COUNT (DEMO_TXT_COUNT - DEMO_TXT_FAULT_0)
-/* English already matches the runtime fallback, so only Chinese needs the checked-in subset. */
+/* 英文沿用运行时回退字体，中文使用仓库内固定的子集字体。 */
 const lv_font_t *demo_font_resolve(meter_language_t language, meter_font_role_t role)
 {
     if (language != METER_LANGUAGE_ZH)
         return NULL;
-    return role == METER_FONT_VALUE ? &meter_demo_cjk_20 : &meter_demo_cjk_14;
+    return role == METER_FONT_VALUE ? &meter_demo_cjk_20 : &meter_demo_cjk_20;
 }
 bool demo_i18n_init(void)
 {

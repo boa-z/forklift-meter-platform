@@ -3,15 +3,15 @@
 void demo_monitor_create(demo_ui_t *u)
 {
     lv_obj_t *p = u->pages[DEMO_MONITOR];
-    demo_text(u, p, 24, 4, DEMO_TXT_LIVE_TELEMETRY, &lv_font_montserrat_20, 0xedf5f8);
-    demo_text(u, p, 24, 33, DEMO_TXT_TELEMETRY_SUBTITLE, &lv_font_montserrat_12, 0x8ba9bb);
+    demo_text(u, p, 24, 4, DEMO_TXT_LIVE_TELEMETRY, &lv_font_montserrat_24, 0xedf5f8);
+    demo_text(u, p, 24, 33, DEMO_TXT_TELEMETRY_SUBTITLE, &lv_font_montserrat_16, 0x8ba9bb);
     for (size_t i = 0; i < DEMO_MONITOR_SLOTS; ++i)
     {
         int col = (int)(i / 7), row = (int)(i % 7);
-        lv_obj_t *r = demo_panel(p, 16 + col * 390, 61 + row * 42, 378, 37);
+        lv_obj_t *r = demo_panel(p, 16 + col * 390, 61 + row * 44, 378, 40);
         u->monitor_labels[i] =
-            meter_text(r, 10, 10, demo_i18n_monitor_label(i), &lv_font_montserrat_12, 0x9cb5c4);
-        u->monitor_values[i] = meter_text(r, 182, 10, "--", &lv_font_montserrat_12, 0x5de5ca);
+            meter_text(r, 10, 10, demo_i18n_monitor_label(i), &lv_font_montserrat_16, 0x9cb5c4);
+        u->monitor_values[i] = meter_text(r, 182, 10, "--", &lv_font_montserrat_16, 0x5de5ca);
     }
 }
 void demo_monitor_update(demo_ui_t *u)
