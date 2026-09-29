@@ -257,3 +257,5 @@ The new `services/settings_app.c` owns authorization and parameter service state
 
 Host evidence: Debug Demo rebuilt after catalog/font regeneration; `demo-settings-app`, `ui-pagination`, `i18n-ui`, `sdl-smoke`, firmware composition, architecture and public-clean checks pass. Captured SDL pages are stored under `evidence/adaptation/settings-captures/`. The images are host evidence; touch behavior, rendered screen quality and keyboard interaction on the target board remain pending until the next OTA window.
 
+
+Board validation 2026-09-29: OTA candidate demo-ui-auth-20260929 package SHA256 835DD979FB9E520D6E8BA6CF97B214D28484CD5B0962F8FF967A31EC32F4CD64; native build PASS, package preflight PASS, physical HIL 9/9 PASS on COM11/PCAN_USBBUS1. Before identity was demo-ui-20260929; after reboot the board reported demo-ui-auth-20260929, reference-demo/reference-board, CAN 500000, domain signals=25 parameters=10 faults=10, UI present/flush advancing, storage READY. Raw UART/CAN evidence is under evidence/ota/demo-ui-auth-20260929/board2/. Touch keyboard, PIN entry and rendered page visual acceptance were not exercised in this OTA batch.

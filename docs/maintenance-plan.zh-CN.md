@@ -256,3 +256,5 @@ Demo 现在把页面明确分成参数监控和控制器参数设置两项功能
 
 主机证据：重新生成目录和字体后，Debug Demo 的 `demo-settings-app`、`ui-pagination`、`i18n-ui`、`sdl-smoke`、固件组合、架构和 public-clean 检查通过。SDL 截图保存在 `evidence/adaptation/settings-captures/`。截图仅是主机证据；目标开发板的触摸操作、实屏效果和键盘交互需要下一个 OTA 窗口验证。
 
+
+实板验证 2026-09-29：OTA 候选 demo-ui-auth-20260929，包 SHA256 835DD979FB9E520D6E8BA6CF97B214D28484CD5B0962F8FF967A31EC32F4CD64；原生构建通过、包预检通过，COM11/PCAN_USBBUS1 实体 HIL 9/9 通过。升级前为 demo-ui-20260929，重启后上报 demo-ui-auth-20260929、reference-demo/reference-board、CAN 500000，领域信号 25、参数 10、故障 10，UI present/flush 持续增长，存储 READY。原始 UART/CAN 证据在 evidence/ota/demo-ui-auth-20260929/board2/。本批次未执行触摸键盘、密码输入和实屏视觉验收。
