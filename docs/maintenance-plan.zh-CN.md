@@ -267,3 +267,9 @@ Demo 现在把页面明确分成参数监控和控制器参数设置两项功能
 顺序：以确定性 Product 测试保护精确载荷、新鲜度、计数器与调度行为；增加实物 CAN 接收/恢复检查；构建单一 Demo 固件，通过现有 OTA 安装，保存身份、哈希和原始日志。不扩大当前静态 TX 预算。保留源采样时间，显式标记过期数据。结果回填本节；目标屏幕视觉验收与 CAN/HIL 验收分别记录。
 
 Host 验证：Demo Debug 87/87 CTest、Release/headless + update 83/83 CTest、Python 工具 115/115、十一份显式手写源码 Cppcheck 均通过。证据位于 evidence/adaptation/，前缀为 demo-pdo、pdo-release、pdo-python-retry 和 pdo-analysis。首次 Release 构建暴露解释器查找晚于身份生成目标；小范围 CMake 修复在构造命令前解析 Python，也覆盖非测试构建。首次 Python 失败还暴露新增 HIL 清单数量及本地 inspector/工具路径缺失；清单现包含第十项 PDO 测试，完整重跑使用既有真实 inspector/cpio/mkenvimage。未降低任何门槛。固件与实物证据另行记录。
+
+### Demo PDO 实板结果
+
+候选 `demo-pdo-20260929` 由 framework 495175f 构建，并通过现有 CAN OTA 路径安装。包 SHA256 为 `65e1e55b9ae3c29f91ec9f58a567e0db6f93657e29745f0ff46554fcaf06b45c`；目标 OS 镜像 SHA256 为 `30b952a1aa9e4098f619dbf89828245bdf0d7e75702f58d24d8a937d50fd22ca`。COM11 和 PCAN_USBBUS1 重启身份为 product `reference-demo`、board `reference-board`、固件 `demo-pdo-20260929`、platform `495175f`。实物 HIL 10/10 通过，包含 `test_demo_instrument_pdo`；XML、UART、CAN ASC 和逐项采集位于 `evidence/ota/demo-pdo-20260929/`。构建报告记录 SDK 固定到 6560f24d 和配置恢复。
+
+Host 截图显示黑底 800x480 主界面，中文字体和绿色/红色状态对比已放大，底部导航分离。它仍是 Host 渲染证据；HIL 不代表触控手感和目标屏视觉验收。
