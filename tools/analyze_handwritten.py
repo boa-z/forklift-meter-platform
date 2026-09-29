@@ -46,6 +46,8 @@ def main():
                 includes += ['-I', str(ROOT / 'tests/stubs/execution'), '-UMETER_ENABLE_CAN_UPDATE']
             if board_settings:
                 includes += ['-I', str(ROOT / 'tests/stubs/board_settings')]
+            if relative == 'products/demo/application/presentation.c':
+                includes += ['-I', str(ROOT / 'tests/stubs/handwritten')]
             command = ([executable, '--enable=warning,performance,portability', '--error-exitcode=1', '--std=c11']
                        + includes + [str(source)] if tool == 'cppcheck' else
                        [executable, str(source), '--', '-std=c11'] + includes)

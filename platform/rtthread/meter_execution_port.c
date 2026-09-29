@@ -37,13 +37,13 @@ typedef struct { uint32_t generation; meter_can_frame_t frame; meter_request_id_
 typedef struct { meter_request_id_t id; meter_command_t command; uint32_t timeout_ms; } command_message_t;
 typedef struct
 {
+    size_t periodic_cursor;
     struct rt_messagequeue ordinary, urgent;
     struct rt_semaphore wake;
     rt_ubase_t ordinary_pool[POOL_WORDS(tx_message_t, 16u)], urgent_pool[POOL_WORDS(tx_message_t, 16u)];
     struct rt_thread thread;
     rt_ubase_t stack[2048u / sizeof(rt_ubase_t)];
     unsigned bus;
-    size_t periodic_cursor;
     bool prefer_periodic;
 } tx_owner_t;
 static meter_execution_config_t config;
@@ -59,12 +59,12 @@ static uint32_t tx_acquired_ms;
 /* 此槽是短锁保护的原生线程间 mailbox，每项最多一个 pending/inflight/result。 */
 typedef struct
 {
-    bool ready, inflight, result_ready;
-    meter_periodic_message_t message;
     meter_periodic_result_t result;
-    meter_periodic_message_t first_message;
     meter_periodic_result_t first_result;
+    meter_periodic_message_t message;
+    meter_periodic_message_t first_message;
     uint32_t replaced, expired, queue_max_ms, scheduler_max_ms, driver_max_ms;
+    bool ready, inflight, result_ready;
 } periodic_slot_t;
 static periodic_slot_t periodic_slots[METER_BOARD_PERIODIC_SLOTS];
 static struct rt_mutex tx_publication_lock;
