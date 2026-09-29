@@ -2,7 +2,7 @@
 #define DEMO_PRESENTATION_H
 #include "contracts/meter_domain.h"
 #include "generated/demo_catalog.h"
-/* Product-owned values. No borrowed mutable snapshot arrays, LVGL or runtime state. */
+/* Product 所有的展示值，不借用可变快照数组，不包含 LVGL 或运行时状态。 */
 typedef struct
 {
     float value;
@@ -42,8 +42,8 @@ typedef struct
     demo_monitor_view_t monitors[DEMO_MONITOR_SLOTS];
     demo_fault_view_t faults[DEMO_FAULT_SLOTS];
 } demo_presentation_t;
-/* Pure projection of an already-consistent snapshot. Product catalog is immutable.
- * Call on the receiving owner's copied snapshot; no second publication system. */
+/* 对已有一致快照做纯投影；Product 目录不可变。
+ * 在接收所有者的快照副本上调用，不建立第二套发布机制。 */
 void demo_presentation_build(const meter_snapshot_t *snapshot, demo_presentation_t *out);
 meter_action_t demo_speed_limit_intent(float value);
 #endif

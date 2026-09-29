@@ -72,7 +72,7 @@ static void denied_source(void)
     assert(f.service.view.outcome == METER_CALIBRATION_SOURCE_UNAVAILABLE);
     setup(&f);
     f.sample.timestamp_ms = 2;
-    begin(&f); /* Future timestamp is not fresh. */
+    begin(&f); /* 未来时间戳不属于新鲜测量。 */
     assert(f.service.view.outcome == METER_CALIBRATION_SOURCE_UNAVAILABLE);
     setup(&f);
     assert(meter_calibration_begin(&f.service, &mapping, &f.snapshot, 6, 99, true, &f.auth, 1));
@@ -91,7 +91,7 @@ static void successful_readback(void)
     fixture_t f;
     setup(&f);
     begin(&f);
-    f.sample.value = 90; /* Captured value remains the user's selected measurement. */
+    f.sample.value = 90; /* 采集值保持为用户选定时的测量值。 */
     meter_parameter_work_t write = take(&f, 2);
     assert(write.value == 12);
     reply(&f, write, METER_PARAMETER_REPLY_OK, 12, 3);
@@ -203,7 +203,7 @@ static void lifetime_boundaries(void)
     work = take(&f, 2);
     meter_calibration_step(&f.service, &f.snapshot.profile, true, &f.auth, 5);
     assert(f.service.view.write_result.outcome == METER_PARAMETER_PERMISSION_LOST);
-    assert(f.service.view.effect_unknown); /* Same grant expires; no revoke/regrant. */
+    assert(f.service.view.effect_unknown); /* 原授权自然到期，未执行撤销或重新授权。 */
 
     setup(&f);
     begin(&f);

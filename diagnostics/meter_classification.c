@@ -14,7 +14,7 @@ meter_event_class_t meter_parameter_classify(meter_parameter_outcome_t outcome)
         return METER_EVENT_TRANSACTION_TIMEOUT;
     case METER_PARAMETER_TRANSPORT_FAILED:
         return METER_EVENT_TRANSPORT_FAILURE;
-    /* A malformed remote response is transport evidence, not proof of a local invariant failure. */
+    /* 畸形远端回复是传输侧证据，不能据此认定本地不变量遭到破坏。 */
     case METER_PARAMETER_INVALID_REPLY:
         return METER_EVENT_TRANSPORT_FAILURE;
     default:

@@ -42,7 +42,7 @@ int main(void)
     assert(meter_profile_matches(&view.profile, core.snapshot.profile.generation));
     assert(meter_core_profile(&core, true, 2, 0));
     assert(!meter_profile_matches(&core.snapshot.profile, view.profile.generation));
-    /* Rebuild from the copied current snapshot; no old family can masquerade as current. */
+    /* 根据当前快照副本重新构建，防止旧系列配置被当作当前配置。 */
     demo_presentation_build(&core.snapshot, &view);
     assert(view.profile.family == 2 && view.profile.capabilities == 0);
     return 0;

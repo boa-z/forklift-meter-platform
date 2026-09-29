@@ -2,8 +2,8 @@
 #define METER_CALIBRATION_VIEW_H
 #include "contracts/meter_domain.h"
 #include "contracts/meter_parameter.h"
-/* One App-owned capture/write/optional-readback, not a workflow engine.
- * Product supplies engineering-unit mapping, prerequisites and all transaction policy. */
+/* App 所有的一次采集、写入及可选回读流程，不是通用工作流引擎。
+ * Product 提供工程单位映射、前置条件及全部事务策略。 */
 typedef struct
 {
     meter_signal_id_t source;
@@ -35,7 +35,7 @@ typedef struct
     uint32_t profile_generation;
     uint64_t token;
     meter_calibration_phase_t phase;
-    meter_calibration_outcome_t outcome; /* Meaningful only at DONE. */
+    meter_calibration_outcome_t outcome; /* 仅在 DONE 时有效。 */
     meter_parameter_admission_t admission;
     bool has_write_result, has_read_result, effect_unknown;
     meter_parameter_result_t write_result, read_result;

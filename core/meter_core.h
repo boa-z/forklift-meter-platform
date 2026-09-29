@@ -47,11 +47,10 @@ bool meter_core_parameter(meter_core_t *core, uint16_t id, float value);
 const meter_snapshot_t *meter_core_snapshot(const meter_core_t *core);
 /** @brief 绑定诊断及公共 Domain 视图；目录/存储/诊断实例须覆盖绑定期，owner 线程调用。 */
 void meter_core_bind_diagnostics(meter_core_t *core, meter_diagnostics_t *diag);
-/** App-only opt-in publication. Unknown requires family/capabilities zero; confirmed
- * requires nonzero family. A semantic change increments profile generation and snapshot
- * revision. Reject exhaustion instead of wrapping. Returns false without mutation.
- * This does not reinterpret/invalidate signals, cancel work or change health. Product App
- * must invalidate dependent values/catalogs before publishing its next snapshot. No
- * concurrent reader may borrow live core state; use the existing locked snapshot copy. */
+/** 仅 App 可显式启用的配置发布。未知配置要求系列和能力均为零，已确认配置
+ * 要求系列非零。语义变化推进配置代数及快照修订号；耗尽时拒绝回绕，返回
+ * false 且不修改状态。本接口不重新解释或失效信号，不取消任务或改变健康状态。
+ * Product App 必须在发布下一份快照前使相关值及目录失效。并发读取者不得借用
+ * 活动 core 状态，必须使用已有的加锁快照复制。 */
 bool meter_core_profile(meter_core_t *core, bool confirmed, uint16_t family, uint64_t capabilities);
 #endif

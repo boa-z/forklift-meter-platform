@@ -12,7 +12,7 @@ static void finish(meter_calibration_t *service, meter_calibration_outcome_t out
     service->view.phase = METER_CALIBRATION_DONE;
     service->view.outcome = outcome;
 }
-/* Retain both stages: successful write remains observable even if readback fails. */
+/* 保留两个阶段的结果：即使回读失败，仍能观察到写入已成功。 */
 static void retain(meter_calibration_t *service, const meter_parameter_result_t *result)
 {
     if (service->view.phase == METER_CALIBRATION_WRITING)

@@ -3,8 +3,8 @@
 #include <assert.h>
 static const meter_signal_def_t signals[] = {{"sample", "V", 100, 1}};
 static const meter_catalog_t catalog = {.signals = signals, .signal_count = 1};
-/* Synthetic Product adaptation: raw identity/feature positions end here.
- * These values describe no customer controller or wire protocol. */
+/* 合成 Product 适配：原始身份及功能位在此完成转换。
+ * 这些值不描述任何客户控制器或线上协议。 */
 static bool publish_reference_profile(meter_core_t *core, unsigned identity, unsigned raw_features)
 {
     if (identity != 0xA1u)

@@ -145,7 +145,7 @@ typedef struct
     bool imperial;
     meter_language_t language;
     uint8_t brightness;
-    meter_profile_t profile; /* Copied with the same publication lock as Domain values. */
+    meter_profile_t profile; /* 与 Domain 值一起在同一发布锁内复制。 */
 } meter_snapshot_t;
 /** @brief 未声明身份的统一返回值：UNKNOWN 且数值与时间戳为零。 */
 static inline meter_value_t meter_value_unknown(void)

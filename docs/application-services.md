@@ -67,3 +67,5 @@ D-05 remains PENDING approval of semantics and actual device endurance evidence.
 ## Identity provider assessment
 
 Immutable firmware/build metadata and dynamic controller identity have different lifetimes. A future small read-only Product identity view should carry typed source, availability, generation and bounded text/value storage; diagnostics/UI/maintenance can copy it. Update retains its trusted compatibility checks. Do not unify SDO, CAN or firmware metadata wire representations. No shared provider is added yet: confirm first Product consumers and profile invalidation policy before adding another public contract. D-07 records this remaining integration decision.
+
+First-party explanatory code comments use Chinese. API identifiers, units and tool directives retain their original spelling; third-party notices remain intact. Documents continue to use the existing English/Chinese pairs. The adaptation follow-up translates the new presentation/profile/calibration/classification contract comments without changing executable code.
