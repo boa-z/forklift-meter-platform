@@ -22,55 +22,75 @@ static void action(lv_event_t *e)
     }
     u->action_failed = !u->actions.send || !u->actions.send(u->actions.context, &a);
 }
+void demo_settings_show_page(demo_ui_t *u, unsigned page)
+{
+    if (!demo_pager_select(&u->settings_pager, page))
+        return;
+    for (unsigned i = 0; i < 2; ++i)
+        lv_obj_set_hidden(u->settings_cards[i], i != page);
+}
+static void turn_page(lv_event_t *event)
+{
+    demo_ui_t *u = lv_event_get_user_data(event);
+    demo_settings_show_page(u, demo_pager_target(&u->settings_pager, event));
+}
 void demo_settings_create(demo_ui_t *u)
 {
     lv_obj_t *p = u->pages[DEMO_SETTINGS];
     demo_text(u, p, 24, 4, DEMO_TXT_LOCAL_PREFERENCES, &lv_font_montserrat_24, 0xedf5f8);
     demo_text(u, p, 24, 33, DEMO_TXT_SETTINGS_SUBTITLE, &lv_font_montserrat_20, 0x8ba9bb);
-    lv_obj_t *card = demo_panel(p, 16, 66, 768, 273);
-    demo_text(u, card, 22, 20, DEMO_TXT_SPEED_UNITS, &lv_font_montserrat_20, 0xe4eff5);
-    demo_text(u, card, 22, 72, DEMO_TXT_LANGUAGE, &lv_font_montserrat_20, 0xe4eff5);
+    for (unsigned i = 0; i < 2; ++i)
+        u->settings_cards[i] = demo_panel(p, 16, 66, 768, 206);
+    lv_obj_t *card = u->settings_cards[0];
+    demo_text(u, card, 22, 32, DEMO_TXT_SPEED_UNITS, &lv_font_montserrat_20, 0xe4eff5);
+    demo_text(u, card, 22, 114, DEMO_TXT_LANGUAGE, &lv_font_montserrat_20, 0xe4eff5);
     u->language_button = lv_button_create(card);
     demo_theme_button(u->language_button);
-    lv_obj_set_pos(u->language_button, 471, 69);
-    lv_obj_set_size(u->language_button, 250, 28);
+    lv_obj_set_pos(u->language_button, 471, 102);
+    lv_obj_set_size(u->language_button, 250, 48);
     lv_obj_t *language_label = lv_label_create(u->language_button);
     lv_label_set_text(language_label, demo_i18n_text(DEMO_TXT_CHINESE));
     lv_obj_center(language_label);
     lv_obj_add_event_cb(u->language_button, action, LV_EVENT_CLICKED, u);
     u->unit_button = lv_button_create(card);
     demo_theme_button(u->unit_button);
-    lv_obj_set_pos(u->unit_button, 471, 12);
-    lv_obj_set_size(u->unit_button, 250, 43);
+    lv_obj_set_pos(u->unit_button, 471, 20);
+    lv_obj_set_size(u->unit_button, 250, 48);
     lv_obj_set_style_bg_color(u->unit_button, lv_color_hex(0x255448), 0);
     lv_obj_t *label = lv_label_create(u->unit_button);
     lv_label_set_text(label, demo_i18n_text(DEMO_TXT_METRIC));
     lv_obj_center(label);
     lv_obj_add_event_cb(u->unit_button, action, LV_EVENT_CLICKED, u);
-    demo_text(u, card, 22, 124, DEMO_TXT_BRIGHTNESS, &lv_font_montserrat_20, 0xe4eff5);
+    card = u->settings_cards[1];
+    demo_text(u, card, 22, 32, DEMO_TXT_BRIGHTNESS, &lv_font_montserrat_20, 0xe4eff5);
     u->brightness = lv_slider_create(card);
     demo_theme_slider(u->brightness);
-    lv_obj_set_pos(u->brightness, 412, 131);
+    lv_obj_set_pos(u->brightness, 412, 39);
     lv_obj_set_size(u->brightness, 300, 10);
     lv_slider_set_range(u->brightness, 10, 100);
     lv_slider_set_value(u->brightness, 80, LV_ANIM_OFF);
     lv_obj_add_event_cb(u->brightness, action, LV_EVENT_RELEASED, u);
-    demo_text(u, card, 22, 184, DEMO_TXT_SPEED_LIMIT, &lv_font_montserrat_20, 0xe4eff5);
+    demo_text(u, card, 22, 114, DEMO_TXT_SPEED_LIMIT, &lv_font_montserrat_20, 0xe4eff5);
     u->limit = lv_slider_create(card);
     demo_theme_slider(u->limit);
-    lv_obj_set_pos(u->limit, 412, 191);
+    lv_obj_set_pos(u->limit, 412, 121);
     lv_obj_set_size(u->limit, 300, 10);
     lv_slider_set_range(u->limit, 5, 50);
     lv_slider_set_value(u->limit, 25, LV_ANIM_OFF);
     lv_obj_add_event_cb(u->limit, action, LV_EVENT_RELEASED, u);
-    demo_text(u, card, 22, 242, DEMO_TXT_LIMITS_NOTE, &lv_font_montserrat_20, 0x8ba9bb);
-    u->setting_status = demo_text(u, p, 24, 350, DEMO_TXT_SETTINGS_OK, &lv_font_montserrat_20, 0x8ba9bb);
+    demo_text(u, card, 22, 172, DEMO_TXT_LIMITS_NOTE, &lv_font_montserrat_20, 0x8ba9bb);
+    u->setting_status = demo_text(u, p, 24, 280, DEMO_TXT_SETTINGS_OK, &lv_font_montserrat_20, 0x8ba9bb);
+    demo_pager_create(p, &u->settings_pager, 2, turn_page, u);
+    demo_settings_show_page(u, 0);
 }
 void demo_settings_update(demo_ui_t *u)
 {
+    const lv_font_t *font = u->view.language == METER_LANGUAGE_EN
+                               ? &lv_font_montserrat_20
+                               : meter_font_get(u->view.language, METER_FONT_LABEL);
     lv_obj_t *label = lv_obj_get_child(u->unit_button, 0);
     lv_label_set_text_static(label, demo_i18n_text(u->view.imperial ? DEMO_TXT_IMPERIAL : DEMO_TXT_METRIC));
-    meter_i18n_apply_font(label, u->view.language, METER_FONT_LABEL);
+    lv_obj_set_style_text_font(label, font, 0);
     lv_label_set_text_static(
         lv_obj_get_child(u->language_button, 0),
         demo_i18n_text(u->view.language == METER_LANGUAGE_EN ? DEMO_TXT_CHINESE : DEMO_TXT_ENGLISH));
@@ -83,5 +103,5 @@ void demo_settings_update(demo_ui_t *u)
     }
     lv_label_set_text_static(
         u->setting_status, demo_i18n_text(u->action_failed ? DEMO_TXT_SETTINGS_ERROR : DEMO_TXT_SETTINGS_OK));
-    meter_i18n_apply_font(u->setting_status, u->view.language, METER_FONT_LABEL);
+    lv_obj_set_style_text_font(u->setting_status, font, 0);
 }

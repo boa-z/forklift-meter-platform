@@ -16,6 +16,50 @@ lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int w, int h)
     demo_theme_panel(p);
     return p;
 }
+bool demo_pager_select(demo_pager_t *pager, unsigned page)
+{
+    if (page >= pager->count)
+        return false;
+    pager->current = page;
+    /* 页码使用 LVGL 自有字符串，不能借用实时读数的静态缓冲区。 */
+    lv_label_set_text_fmt(pager->indicator, "%u / %u", page + 1, pager->count);
+    lv_obj_center(pager->indicator);
+    lv_obj_set_state(pager->previous, LV_STATE_DISABLED, page == 0);
+    lv_obj_set_state(pager->next, LV_STATE_DISABLED, page + 1 == pager->count);
+    return true;
+}
+unsigned demo_pager_target(const demo_pager_t *pager, lv_event_t *event)
+{
+    lv_obj_t *target = lv_event_get_target_obj(event);
+    if (target == pager->previous && pager->current > 0)
+        return pager->current - 1;
+    if (target == pager->next && pager->current + 1 < pager->count)
+        return pager->current + 1;
+    return pager->current;
+}
+void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
+                       lv_event_cb_t callback, void *context)
+{
+    lv_obj_t *bar = demo_panel(parent, 16, 312, 768, 48);
+    pager->count = count;
+    pager->previous = lv_button_create(bar);
+    pager->next = lv_button_create(bar);
+    lv_obj_t *buttons[] = {pager->previous, pager->next};
+    const char *labels[] = {"<", ">"};
+    for (unsigned i = 0; i < 2; ++i)
+    {
+        demo_theme_button(buttons[i]);
+        lv_obj_set_pos(buttons[i], i == 0 ? 4 : 652, 2);
+        lv_obj_set_size(buttons[i], 112, 44);
+        lv_obj_set_style_bg_color(buttons[i], lv_color_hex(0x245b50), 0);
+        lv_obj_set_style_opa(buttons[i], LV_OPA_40, LV_STATE_DISABLED);
+        lv_obj_t *label = meter_text(buttons[i], 0, 0, labels[i], &lv_font_montserrat_24, 0xedf5f8);
+        lv_obj_center(label);
+        lv_obj_add_event_cb(buttons[i], callback, LV_EVENT_CLICKED, context);
+    }
+    pager->indicator = meter_text(bar, 0, 0, "", &lv_font_montserrat_20, 0xedf5f8);
+    (void)demo_pager_select(pager, 0);
+}
 void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
 {
     demo_ui_t *u = lv_malloc(sizeof(*u));
@@ -94,6 +138,17 @@ void demo_ui_destroy(void *context)
 unsigned demo_ui_active_page(const void *context)
 {
     return ((const demo_ui_t *)context)->page;
+}
+unsigned demo_ui_active_subpage(const void *context)
+{
+    const demo_ui_t *u = context;
+    switch (u->page)
+    {
+        case DEMO_MONITOR: return u->monitor_pager.current;
+        case DEMO_FAULTS: return u->fault_pager.current;
+        case DEMO_SETTINGS: return u->settings_pager.current;
+        default: return 0;
+    }
 }
 
 static void present_update(void *context, const meter_update_view_t *view, meter_language_t language,

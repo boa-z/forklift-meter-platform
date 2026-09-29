@@ -240,3 +240,7 @@ The next Product work should supply confirmed mappings/catalogs, capability norm
 The Demo UI now follows the reference 800x480 instrument geometry: a stable 53 px header, 372 px content canvas, and 55 px navigation band. Primary values retain a large value face; product labels, page titles, monitor rows, fault rows and settings controls move to larger text classes. Cards and status rows gain vertical breathing room, while the existing semantic presentation boundary, four-page navigation, translations and widget behavior remain unchanged.
 
 The Chinese resolver uses the checked-in 20 px subset for label and value presentation, so this pass does not add an unreviewed font source or alter the font-generation contract. English uses the available LVGL 16/20/24 px faces. SDL captures and scenario/i18n/fixture tests are the visual and behavioral host evidence; no rendered hardware acceptance is claimed yet.
+
+### Demo UI pagination pass
+
+Monitor, fault and local-settings content now uses explicit two-page presentation within the existing 800x480 canvas. Monitor and fault rows are page-local and inactive rows are hidden; settings separates preference selection from numeric controls. Previous/next controls have disabled end stops and preserve the existing snapshot, action and translation contracts. The new deterministic UI test checks both languages, valid/stale/error values, retained page selection, bounds, end stops and rejected settings actions. This is host evidence only; board visual acceptance remains open.

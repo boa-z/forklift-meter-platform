@@ -34,7 +34,7 @@ static bool action(void *context, const meter_action_t *a)
 }
 int main(int argc, char **argv)
 {
-    unsigned frames = 0, page = 0;
+    unsigned frames = 0, page = 0, subpage = 0;
     bool smoke = false, hidden = false;
     const char *update_preview = NULL;
     unsigned update_percent = 37;
@@ -78,6 +78,14 @@ int main(int argc, char **argv)
             set_language = argv[++i];
         else if (!strcmp(argv[i], "--page") && i + 1 < argc)
             page = (unsigned)strtoul(argv[++i], NULL, 10);
+        else if (!strcmp(argv[i], "--subpage") && i + 1 < argc)
+        {
+            char *end;
+            unsigned long parsed = strtoul(argv[++i], &end, 10);
+            if (*end || end == argv[i] || parsed > 1)
+                return 2;
+            subpage = (unsigned)parsed;
+        }
         else if (!strcmp(argv[i], "--scenario") && i + 1 < argc)
         {
             const char *name = argv[++i];
@@ -99,7 +107,7 @@ int main(int argc, char **argv)
         {
             printf("Usage: meter-demo [--smoke] [--frames N] [--hidden] [--scenario "
                    "normal|warning|stale|offline|error|unknown] [--visual "
-                   "min|mid|max] [--capture image.bmp] [--page 0..3] [--settings "
+                   "min|mid|max] [--capture image.bmp] [--page 0..3] [--subpage 0..1] [--settings "
                    "file] [--set-units metric|imperial] [--set-language english|chinese] "
                    "[--update-preview "
                    "idle|download|transferred|verify|ready|durable|activate|activated|confirmed|aborted|"
@@ -107,7 +115,8 @@ int main(int argc, char **argv)
             return !strcmp(argv[i], "--help") ? 0 : 2;
         }
     }
-    if (page > 3 || (visual && strcmp(visual, "min") && strcmp(visual, "mid") && strcmp(visual, "max")) ||
+    if ((subpage && (!page || smoke)) || page > 3 ||
+        (visual && strcmp(visual, "min") && strcmp(visual, "mid") && strcmp(visual, "max")) ||
         (set_units && strcmp(set_units, "metric") && strcmp(set_units, "imperial")) ||
         (set_language && strcmp(set_language, "english") && strcmp(set_language, "chinese")))
         return 2;
@@ -190,6 +199,8 @@ int main(int argc, char **argv)
         uint32_t now = n * 16;
         if (page && (n == 4 || n == 7))
             meter_host_click(100 + (int)page * 195, 450, n == 4);
+        if (subpage && (n == 12 || n == 15))
+            meter_host_click(724, 388, n == 12);
         if (smoke)
         {
             if (n == 20 || n == 23)
@@ -278,13 +289,14 @@ int main(int argc, char **argv)
            "\"dispatched\":%u,\"decode_failed\":%u,\"overflow\":%u,\"faults\":%u,"
            "\"fault_ids\":[%s],"
            "\"speed_state\":%u,\"speed\":%.2f,\"imperial\":%s,\"language\":\"%s\",\"page\":%u,\"ge_"
-           "hits\":null,\"sw_fallbacks\":null}\n",
+           "hits\":null,\"sw_fallbacks\":null,\"subpage\":%u}\n",
            pass ? "PASS" : "FAIL", completed, (unsigned)objects,
            (unsigned)meter_ui_object_count(lv_screen_active()), (unsigned)heap_peak,
            completed ? sum_us / completed : 0, max_us, (unsigned)runtime.diagnostics.dispatched,
            (unsigned)runtime.diagnostics.decode_failed, (unsigned)runtime.diagnostics.overflow, active_faults,
            fault_ids, (unsigned)speed.state, (double)speed.value, core.snapshot.imperial ? "true" : "false",
-           core.snapshot.language == METER_LANGUAGE_ZH ? "zh-CN" : "en", demo_ui_active_page(ui));
+           core.snapshot.language == METER_LANGUAGE_ZH ? "zh-CN" : "en", demo_ui_active_page(ui),
+           demo_ui_active_subpage(ui));
     product->ui->destroy(ui);
     bool durable = meter_host_nvm_close(nvm, 5000u);
     meter_host_close();

@@ -16,6 +16,17 @@ enum
     DEMO_SETTINGS,
     DEMO_PAGE_COUNT
 };
+enum
+{
+    DEMO_MONITORS_PER_PAGE = 8,
+    DEMO_FAULTS_PER_PAGE = 5
+};
+/* 翻页只属于 Demo 展示层，不改变快照内容或向 App 发送动作。 */
+typedef struct
+{
+    lv_obj_t *previous, *next, *indicator;
+    unsigned current, count;
+} demo_pager_t;
 typedef struct
 {
     lv_obj_t *root, *pages[DEMO_PAGE_COUNT], *nav[DEMO_PAGE_COUNT], *nav_labels[DEMO_PAGE_COUNT], *connection,
@@ -32,6 +43,8 @@ typedef struct
     lv_obj_t *monitor_labels[DEMO_MONITOR_SLOTS], *monitor_values[DEMO_MONITOR_SLOTS],
         *fault_rows[DEMO_FAULT_SLOTS];
     lv_obj_t *unit_button, *language_button, *brightness, *limit, *setting_status;
+    lv_obj_t *settings_cards[2];
+    demo_pager_t monitor_pager, fault_pager, settings_pager;
     char monitor_text[DEMO_MONITOR_SLOTS][64], fault_text[DEMO_FAULT_SLOTS][100];
     char clock_text[32], connection_text[48];
     bool action_failed;
@@ -41,14 +54,21 @@ typedef struct
 lv_obj_t *demo_text(demo_ui_t *ui, lv_obj_t *parent, int x, int y, demo_text_id_t id, const lv_font_t *font,
                     uint32_t color);
 lv_obj_t *demo_panel(lv_obj_t *parent, int x, int y, int width, int height);
+void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
+                       lv_event_cb_t callback, void *context);
+bool demo_pager_select(demo_pager_t *pager, unsigned page);
+unsigned demo_pager_target(const demo_pager_t *pager, lv_event_t *event);
 void demo_dashboard_create(demo_ui_t *ui);
 void demo_dashboard_update(demo_ui_t *ui);
 void demo_monitor_create(demo_ui_t *ui);
 void demo_monitor_update(demo_ui_t *ui);
+void demo_monitor_show_page(demo_ui_t *ui, unsigned page);
 void demo_faults_create(demo_ui_t *ui);
 void demo_faults_update(demo_ui_t *ui);
+void demo_faults_show_page(demo_ui_t *ui, unsigned page);
 void demo_settings_create(demo_ui_t *ui);
 void demo_settings_update(demo_ui_t *ui);
+void demo_settings_show_page(demo_ui_t *ui, unsigned page);
 void demo_navigation_create(demo_ui_t *ui);
 void demo_navigation_show(demo_ui_t *ui, unsigned page);
 #endif
