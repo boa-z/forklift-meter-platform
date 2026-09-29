@@ -8,6 +8,8 @@ SConscript 选择 Product manifest 和显式源文件，External Product 使用 
 
 ## 构建与验证
 
+封装拒绝选择其他 SDK 应用的配置。使用 --config 提供私有板级完整配置、--product-root 选择外部 Product、--board-id 设置公开别名。成功或失败后均恢复原始 .config 与生成配置头。报告记录 Product revision/源文件 hash，并在接收产物前逐一核对链接 map 中的选定源文件。私有 Product 的报告和二进制必须保存在私有仓库中。
+
 从 Framework 根目录运行 tools/ota/build_board.py，提供 --sdk-root、--version、--output，必要时用 --python 指定 SDK 解释器。封装保存镜像、ELF/map、源码身份、配置及实际 verbose 编译命令，并恢复原配置。打包与激活见 [CAN 升级](can-update.zh-CN.md)。增量命令记录不等同完整 target compilation database。
 
 测试前预约开发板并释放其他 UART/PCAN owner。保存镜像 SHA256、包 hash、SDK/Framework 身份、升级前后 meter info、原始 UART/CAN 和测试结果。构建或 Host 通过不能代表显示、触摸、物理 CAN、持久化或升级验收。已测结果与限制统一见[验证记录](validation.zh-CN.md)；源码变化后需重新构建才能声明新的固件身份。
