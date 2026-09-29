@@ -310,3 +310,7 @@ Demo 密码编辑页参考 参考项目 参考产品页面，在现有 800x480 �
 设置页现在更接近参考叉车仪表布局：保留一个标题、四项分类栏和一个聚焦内容面板。移除说明性副标题、Demo 凭据/会话标题以及管理员长锁定提示。用户设置只保留四个可操作行；密码页保留用户/管理员入口、登录状态和退出登录；管理员授权前使用紧凑警示图标，授权后显示设置项。现有权限、本地 Settings 所有权和控制器 Parameter 行为不变。
 
 主机截图位于 `evidence/adaptation/ui-settings-compact-3/`。四个设置页和密码流程继续由 `ui-pagination`、`demo-settings-app`、`i18n-ui` 和 `sdl-smoke` 覆盖；Debug 全量测试 87/87 通过。本批次不宣称目标屏幕视觉结果。
+
+### Demo 设置页紧凑化 OTA 结果
+
+候选 `demo-ui-settings-20260929` 由 Framework `09c50cd` 和 SDK `9187a19d` 构建。OS 镜像 SHA256 为 `8255dce099b1ab912fb3dd205d3250007fdd51d1e62b6af7ac8fc687a56bdcea`；CAN OTA 包 SHA256 为 `ee1a54e1ece8bc84b7105a3f26c87c004c53ddf366f0964e0ac05cf078cab8b6`。主机预检通过；在 COM11/PCAN_USBBUS1 上完成维护准入、下载、激活和重启，开发板接收 1,106,944 字节且队列拒绝为零。重启探针报告 `reference-demo/reference-board`、版本 `demo-ui-settings-20260929`、platform `09c50cd188ade20b27ef6921c49f1f8ed4ccdc02`、SDK `9187a19df878ce1ebeb1f4af05992290b1871411`、状态 `IDLE`、错误 `0`。原始证据位于 `evidence/ota/demo-ui-settings-20260929/`。本次未采集目标屏幕照片。
