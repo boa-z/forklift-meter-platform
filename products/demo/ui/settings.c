@@ -33,8 +33,31 @@ static void password_open(lv_event_t *event)
     lv_obj_set_hidden(u->admin_password, !u->password_admin);
     lv_obj_t *field = u->password_admin ? u->admin_password : u->user_password;
     lv_textarea_set_text(field, "");
-    lv_keyboard_set_textarea(u->password_keyboard, field);
     lv_obj_set_hidden(u->password_editor, false);
+}
+static void password_submit(lv_event_t *event);
+static void password_back(lv_event_t *event)
+{
+    demo_ui_t *u = lv_event_get_user_data(event);
+    (void)event;
+    demo_editors_close(u);
+}
+static void password_keypad(lv_event_t *event)
+{
+    demo_ui_t *u = lv_event_get_user_data(event);
+    if (lv_event_get_code(event) != LV_EVENT_VALUE_CHANGED)
+        return;
+    lv_obj_t *field = u->password_admin ? u->admin_password : u->user_password;
+    const char *key = lv_buttonmatrix_get_button_text(
+        lv_event_get_target_obj(event), lv_buttonmatrix_get_selected_button(lv_event_get_target_obj(event)));
+    if (!key)
+        return;
+    if (!strcmp(key, LV_SYMBOL_BACKSPACE))
+        lv_textarea_delete_char(field);
+    else if (!strcmp(key, LV_SYMBOL_OK))
+        password_submit(event);
+    else if (strlen(key) == 1u && key[0] >= '0' && key[0] <= '9' && strlen(lv_textarea_get_text(field)) < 4u)
+        lv_textarea_add_text(field, key);
 }
 static void password_submit(lv_event_t *event)
 {
@@ -52,8 +75,9 @@ static void password_submit(lv_event_t *event)
         valid = text[i] >= '0' && text[i] <= '9';
     if (valid)
     {
-        meter_action_t intent = demo_settings_intent(u->password_admin ? DEMO_INTENT_ADMIN_LOGIN : DEMO_INTENT_USER_LOGIN,
-                                                      (float)strtoul(text, NULL, 10));
+        meter_action_t intent =
+            demo_settings_intent(u->password_admin ? DEMO_INTENT_ADMIN_LOGIN : DEMO_INTENT_USER_LOGIN,
+                                 (float)strtoul(text, NULL, 10));
         u->action_failed = !u->actions.send || !u->actions.send(u->actions.context, &intent);
     }
     else
@@ -93,8 +117,8 @@ static void turn_page(lv_event_t *event)
     demo_ui_t *u = lv_event_get_user_data(event);
     demo_settings_show_page(u, demo_pager_target(&u->settings_pager, event));
 }
-static lv_obj_t *settings_button(demo_ui_t *u, lv_obj_t *parent, int x, int y,
-                                 demo_text_id_t text, lv_event_cb_t callback)
+static lv_obj_t *settings_button(demo_ui_t *u, lv_obj_t *parent, int x, int y, demo_text_id_t text,
+                                 lv_event_cb_t callback)
 {
     lv_obj_t *button = lv_button_create(parent);
     demo_theme_button(button);
@@ -113,7 +137,8 @@ void demo_settings_create(demo_ui_t *u)
     for (unsigned i = 0; i < 4; ++i)
         u->settings_cards[i] = demo_panel(p, 16, 66, 768, 240);
     lv_obj_t *card = u->settings_cards[0];
-    const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS, DEMO_TXT_SPEED_LIMIT};
+    const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS,
+                                     DEMO_TXT_SPEED_LIMIT};
     for (unsigned i = 0; i < 4; ++i)
         demo_text(u, card, 22, 18 + (int)i * 57, labels[i], &lv_font_montserrat_20, 0xe4eff5);
     u->unit_button = settings_button(u, card, 442, 8, DEMO_TXT_METRIC, action);
@@ -137,9 +162,47 @@ void demo_settings_create(demo_ui_t *u)
     u->password_status = meter_text(card, 22, 136, "", &lv_font_montserrat_20, 0x5de5ca);
     u->logout_button = settings_button(u, card, 432, 126, DEMO_TXT_SIGN_OUT, logout);
     demo_text(u, card, 22, 194, DEMO_TXT_DEMO_SESSION, &lv_font_montserrat_20, 0x9cb5c4);
-    u->password_editor = demo_panel(u->root, 40, 88, 720, 310);
+    /* 参考杭叉密码页：左侧设置导航，右侧标题、输入框和 3x4 数字键盘。 */
+    u->password_editor = lv_obj_create(u->root);
+    lv_obj_remove_style_all(u->password_editor);
+    lv_obj_set_pos(u->password_editor, 0, 53);
+    lv_obj_set_size(u->password_editor, 800, 372);
+    lv_obj_set_style_bg_color(u->password_editor, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(u->password_editor, LV_OPA_COVER, 0);
-    u->password_editor_title = demo_text(u, u->password_editor, 22, 20, DEMO_TXT_ENTER_PIN, &lv_font_montserrat_24, 0xedf5f8);
+    lv_obj_set_scrollable(u->password_editor, false);
+    lv_obj_t *side = lv_obj_create(u->password_editor);
+    lv_obj_remove_style_all(side);
+    lv_obj_set_pos(side, 0, 0);
+    lv_obj_set_size(side, 286, 372);
+    lv_obj_set_style_bg_color(side, lv_color_hex(0x202832), 0);
+    lv_obj_set_style_bg_opa(side, LV_OPA_COVER, 0);
+    lv_obj_t *side_title = meter_text(side, 22, 30, "", &lv_font_montserrat_24, 0xedf5f8);
+    lv_label_set_text(side_title, demo_i18n_text(DEMO_TXT_SETTINGS));
+    lv_obj_t *side_system = lv_button_create(side);
+    demo_theme_button(side_system);
+    lv_obj_set_pos(side_system, 12, 58);
+    lv_obj_set_size(side_system, 262, 58);
+    lv_obj_t *system_label =
+        demo_text(u, side_system, 18, 0, DEMO_TXT_USER_SETTINGS, &lv_font_montserrat_20, 0xedf5f8);
+    lv_obj_center(system_label);
+    lv_obj_t *side_advanced = lv_button_create(side);
+    demo_theme_button(side_advanced);
+    lv_obj_set_pos(side_advanced, 12, 126);
+    lv_obj_set_size(side_advanced, 262, 58);
+    lv_obj_set_style_bg_color(side_advanced, lv_color_hex(0x008f4c), 0);
+    lv_obj_t *side_label =
+        demo_text(u, side_advanced, 18, 0, DEMO_TXT_ADMIN_SETTINGS, &lv_font_montserrat_20, 0xffffff);
+    lv_obj_center(side_label);
+    u->password_editor_title =
+        demo_text(u, u->password_editor, 320, 16, DEMO_TXT_ENTER_PIN, &lv_font_montserrat_24, 0xedf5f8);
+    lv_obj_t *back = lv_button_create(u->password_editor);
+    demo_theme_button(back);
+    lv_obj_set_pos(back, 710, 10);
+    lv_obj_set_size(back, 70, 42);
+    lv_obj_set_style_bg_opa(back, LV_OPA_TRANSP, 0);
+    lv_obj_t *back_label = meter_text(back, 0, 0, LV_SYMBOL_LEFT, &lv_font_montserrat_24, 0xedf5f8);
+    lv_obj_center(back_label);
+    lv_obj_add_event_cb(back, password_back, LV_EVENT_CLICKED, u);
     u->user_password = lv_textarea_create(u->password_editor);
     u->admin_password = lv_textarea_create(u->password_editor);
     lv_obj_t *fields[] = {u->user_password, u->admin_password};
@@ -150,35 +213,45 @@ void demo_settings_create(demo_ui_t *u)
         lv_textarea_set_password_show_time(fields[i], 0);
         lv_textarea_set_accepted_chars(fields[i], "0123456789");
         lv_textarea_set_max_length(fields[i], 4);
-        lv_obj_set_pos(fields[i], 22, 76);
-        lv_obj_set_size(fields[i], 278, 54);
+        lv_obj_set_pos(fields[i], 320, 56);
+        lv_obj_set_size(fields[i], 400, 58);
+        lv_obj_set_style_text_align(fields[i], LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_set_style_text_font(fields[i], &lv_font_montserrat_24, 0);
     }
-    u->password_keyboard = lv_keyboard_create(u->password_editor);
+    u->password_keyboard = lv_buttonmatrix_create(u->password_editor);
     demo_theme_keyboard(u->password_keyboard);
-    lv_keyboard_set_mode(u->password_keyboard, LV_KEYBOARD_MODE_NUMBER);
-    lv_obj_set_pos(u->password_keyboard, 326, 60);
-    lv_obj_set_size(u->password_keyboard, 370, 230);
+    static const char *const password_map[] = {
+        "1", "2",          "3", "\n", "4", "5", "6", "\n", "7", "8", "9", "\n", LV_SYMBOL_BACKSPACE,
+        "0", LV_SYMBOL_OK, ""};
+    lv_buttonmatrix_set_map(u->password_keyboard, password_map);
+    lv_obj_set_pos(u->password_keyboard, 320, 126);
+    lv_obj_set_size(u->password_keyboard, 400, 230);
+    lv_obj_add_event_cb(u->password_keyboard, password_keypad, LV_EVENT_VALUE_CHANGED, u);
     lv_obj_add_event_cb(u->password_keyboard, password_submit, LV_EVENT_READY, u);
     lv_obj_add_event_cb(u->password_keyboard, password_submit, LV_EVENT_CANCEL, u);
     card = u->settings_cards[2];
     u->admin_locked = demo_text(u, card, 22, 92, DEMO_TXT_ADMIN_LOCKED, &lv_font_montserrat_24, 0xf3ba65);
-    const demo_text_id_t admin_ids[] = {DEMO_TXT_CAN_RATE, DEMO_TXT_HOUR_METER, DEMO_TXT_SPEED_DISPLAY, DEMO_TXT_MODE_MEMORY};
+    const demo_text_id_t admin_ids[] = {DEMO_TXT_CAN_RATE, DEMO_TXT_HOUR_METER, DEMO_TXT_SPEED_DISPLAY,
+                                        DEMO_TXT_MODE_MEMORY};
     for (unsigned i = 0; i < DEMO_ADMIN_COUNT; ++i)
     {
         u->admin_items[i] = settings_button(u, card, 12, 6 + (int)i * 58, admin_ids[i], admin_change);
         lv_obj_set_width(u->admin_items[i], 744);
         lv_obj_t *label = lv_obj_get_child(u->admin_items[i], 0);
         lv_obj_align(label, LV_ALIGN_LEFT_MID, 12, 0);
-        u->admin_value_labels[i] = meter_text(u->admin_items[i], 490, 12, "", &lv_font_montserrat_20, 0x5de5ca);
+        u->admin_value_labels[i] =
+            meter_text(u->admin_items[i], 490, 12, "", &lv_font_montserrat_20, 0x5de5ca);
         lv_obj_set_hidden(u->admin_items[i], true);
     }
     card = u->settings_cards[3];
-    const demo_text_id_t version_ids[] = {DEMO_TXT_FIRMWARE, DEMO_TXT_PRODUCT, DEMO_TXT_FRAMEWORK, DEMO_TXT_INSTRUMENT_VERSION};
+    const demo_text_id_t version_ids[] = {DEMO_TXT_FIRMWARE, DEMO_TXT_PRODUCT, DEMO_TXT_FRAMEWORK,
+                                          DEMO_TXT_INSTRUMENT_VERSION};
     for (unsigned i = 0; i < 4; ++i)
     {
-        u->version_labels[i] = i == 3
-            ? meter_text(card, 22, 18 + (int)i * 57, "LVGL", &lv_font_montserrat_20, 0x9cb5c4)
-            : demo_text(u, card, 22, 18 + (int)i * 57, version_ids[i], &lv_font_montserrat_20, 0x9cb5c4);
+        u->version_labels[i] =
+            i == 3
+                ? meter_text(card, 22, 18 + (int)i * 57, "LVGL", &lv_font_montserrat_20, 0x9cb5c4)
+                : demo_text(u, card, 22, 18 + (int)i * 57, version_ids[i], &lv_font_montserrat_20, 0x9cb5c4);
         u->version_values[i] = meter_text(card, 370, 18 + (int)i * 57, "", &lv_font_montserrat_20, 0x5de5ca);
     }
     lv_label_set_text(u->version_labels[3], "LVGL");
@@ -188,20 +261,28 @@ void demo_settings_create(demo_ui_t *u)
 }
 void demo_settings_update(demo_ui_t *u)
 {
-    const lv_font_t *font = u->view.language == METER_LANGUAGE_EN ? &lv_font_montserrat_20
-                                    : meter_font_get(u->view.language, METER_FONT_LABEL);
-    const demo_text_id_t titles[] = {DEMO_TXT_USER_SETTINGS, DEMO_TXT_PASSWORD, DEMO_TXT_ADMIN_SETTINGS, DEMO_TXT_INSTRUMENT_VERSION};
+    const lv_font_t *font = u->view.language == METER_LANGUAGE_EN
+                                ? &lv_font_montserrat_20
+                                : meter_font_get(u->view.language, METER_FONT_LABEL);
+    const demo_text_id_t titles[] = {DEMO_TXT_USER_SETTINGS, DEMO_TXT_PASSWORD, DEMO_TXT_ADMIN_SETTINGS,
+                                     DEMO_TXT_INSTRUMENT_VERSION};
     lv_label_set_text(u->settings_title, demo_i18n_text(titles[u->settings_pager.current]));
-    lv_label_set_text(u->settings_note, demo_i18n_text(u->settings_pager.current == 2 ? DEMO_TXT_ADMIN_NOTE : DEMO_TXT_SETTINGS_OK));
-    lv_label_set_text(lv_obj_get_child(u->unit_button, 0), demo_i18n_text(u->view.imperial ? DEMO_TXT_IMPERIAL : DEMO_TXT_METRIC));
-    lv_label_set_text(lv_obj_get_child(u->language_button, 0), demo_i18n_text(u->view.language == METER_LANGUAGE_EN ? DEMO_TXT_CHINESE : DEMO_TXT_ENGLISH));
+    lv_label_set_text(
+        u->settings_note,
+        demo_i18n_text(u->settings_pager.current == 2 ? DEMO_TXT_ADMIN_NOTE : DEMO_TXT_SETTINGS_OK));
+    lv_label_set_text(lv_obj_get_child(u->unit_button, 0),
+                      demo_i18n_text(u->view.imperial ? DEMO_TXT_IMPERIAL : DEMO_TXT_METRIC));
+    lv_label_set_text(
+        lv_obj_get_child(u->language_button, 0),
+        demo_i18n_text(u->view.language == METER_LANGUAGE_EN ? DEMO_TXT_CHINESE : DEMO_TXT_ENGLISH));
     if (!lv_obj_has_state(u->brightness, LV_STATE_PRESSED))
         lv_slider_set_value(u->brightness, u->view.brightness, LV_ANIM_OFF);
     if (u->view.limit_available && !lv_obj_has_state(u->limit, LV_STATE_PRESSED))
         lv_slider_set_value(u->limit, (int)u->view.limit, LV_ANIM_OFF);
     lv_label_set_text(u->setting_status, u->action_failed ? demo_i18n_text(DEMO_TXT_ACCESS_DENIED) : "");
-    demo_text_id_t access = u->view.admin_authorized ? DEMO_TXT_ACCESS_ADMIN
-        : u->view.user_authorized ? DEMO_TXT_ACCESS_USER : demo_i18n_feedback(u->view.auth_feedback);
+    demo_text_id_t access = u->view.admin_authorized  ? DEMO_TXT_ACCESS_ADMIN
+                            : u->view.user_authorized ? DEMO_TXT_ACCESS_USER
+                                                      : demo_i18n_feedback(u->view.auth_feedback);
     lv_label_set_text(u->password_status, demo_i18n_text(access));
     lv_obj_set_hidden(u->admin_locked, u->view.admin_authorized);
     const char *rates[] = {"125 kbit/s", "250 kbit/s", "500 kbit/s"};
@@ -209,19 +290,25 @@ void demo_settings_update(demo_ui_t *u)
     {
         lv_obj_set_hidden(u->admin_items[i], !u->view.admin_authorized);
         unsigned value = u->view.admin_values[i];
-        const char *text = i == 0 ? rates[value < 3 ? value : 0]
-            : i == 1 ? demo_i18n_text(value ? DEMO_TXT_POWER_MODE : DEMO_TXT_WORK_MODE)
-            : i == 2 ? (value ? "1 km/h" : "0.1 km/h")
-            : demo_i18n_text(value ? DEMO_TXT_REMEMBER : DEMO_TXT_RESET_MODE);
+        const char *text = i == 0   ? rates[value < 3 ? value : 0]
+                           : i == 1 ? demo_i18n_text(value ? DEMO_TXT_POWER_MODE : DEMO_TXT_WORK_MODE)
+                           : i == 2 ? (value ? "1 km/h" : "0.1 km/h")
+                                    : demo_i18n_text(value ? DEMO_TXT_REMEMBER : DEMO_TXT_RESET_MODE);
         lv_label_set_text(u->admin_value_labels[i], text);
     }
-    lv_label_set_text(u->version_values[0], u->view.firmware_version ? u->view.firmware_version : demo_i18n_text(DEMO_TXT_HOST_BUILD));
+    lv_label_set_text(u->version_values[0], u->view.firmware_version ? u->view.firmware_version
+                                                                     : demo_i18n_text(DEMO_TXT_HOST_BUILD));
     lv_label_set_text(u->version_values[1], "reference-demo");
     lv_label_set_text_fmt(u->version_values[2], "%.8s%s", u->view.framework_revision,
                           strstr(u->view.framework_revision, "dirty") ? " *" : "");
-    lv_label_set_text_fmt(u->version_values[3], "%d.%d.%d", LVGL_VERSION_MAJOR, LVGL_VERSION_MINOR, LVGL_VERSION_PATCH);
-    lv_obj_t *dynamic[] = {u->settings_title, u->settings_note, u->password_status, u->setting_status,
-        lv_obj_get_child(u->unit_button, 0), lv_obj_get_child(u->language_button, 0)};
+    lv_label_set_text_fmt(u->version_values[3], "%d.%d.%d", LVGL_VERSION_MAJOR, LVGL_VERSION_MINOR,
+                          LVGL_VERSION_PATCH);
+    lv_obj_t *dynamic[] = {u->settings_title,
+                           u->settings_note,
+                           u->password_status,
+                           u->setting_status,
+                           lv_obj_get_child(u->unit_button, 0),
+                           lv_obj_get_child(u->language_button, 0)};
     for (unsigned i = 0; i < sizeof(dynamic) / sizeof(dynamic[0]); ++i)
         lv_obj_set_style_text_font(dynamic[i], font, 0);
     for (unsigned i = 0; i < 4; ++i)

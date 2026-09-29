@@ -1,12 +1,20 @@
-#include "services/settings_app.h"
 #include "core/meter_core.h"
 #include "platform/host/host_platform.h"
+#include "services/settings_app.h"
 #include "ui/demo_internal.h"
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(condition) do { if (!(condition)) { fprintf(stderr, "line %d: %s\n", __LINE__, #condition); return 1; } } while (0)
+#define CHECK(condition)                                                                                     \
+    do                                                                                                       \
+    {                                                                                                        \
+        if (!(condition))                                                                                    \
+        {                                                                                                    \
+            fprintf(stderr, "line %d: %s\n", __LINE__, #condition);                                          \
+            return 1;                                                                                        \
+        }                                                                                                    \
+    } while (0)
 
 static unsigned actions_sent;
 static bool accept = true;
@@ -34,8 +42,8 @@ static int check_layout(lv_obj_t *parent)
         {
             fprintf(stderr, "overflow %s: (%d,%d)-(%d,%d) in (%d,%d)-(%d,%d)\n",
                     lv_obj_check_type(child, &lv_label_class) ? lv_label_get_text(child) : "widget",
-                    (int)area.x1, (int)area.y1, (int)area.x2, (int)area.y2,
-                    (int)bounds.x1, (int)bounds.y1, (int)bounds.x2, (int)bounds.y2);
+                    (int)area.x1, (int)area.y1, (int)area.x2, (int)area.y2, (int)bounds.x1, (int)bounds.y1,
+                    (int)bounds.x2, (int)bounds.y2);
             return 1;
         }
         CHECK(check_layout(child) == 0);
@@ -72,7 +80,8 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
         {
             CHECK(!strcmp(lv_label_get_text(label), ui->fault_text[i]));
             CHECK(strstr(lv_label_get_text(label), demo_i18n_fault_description(i)));
-            CHECK(strstr(lv_label_get_text(label), demo_i18n_text(ui->view.faults[i].active ? DEMO_TXT_ACTIVE : DEMO_TXT_CLEAR)));
+            CHECK(strstr(lv_label_get_text(label),
+                         demo_i18n_text(ui->view.faults[i].active ? DEMO_TXT_ACTIVE : DEMO_TXT_CLEAR)));
         }
     }
     return 0;
@@ -83,7 +92,8 @@ int main(int argc, char **argv)
     meter_value_t signals[DEMO_SIGNAL_SLOTS];
     float parameters[DEMO_PARAMETER_SLOTS];
     meter_fault_state_t faults[DEMO_FAULT_SLOTS];
-    meter_core_storage_t storage = {signals, DEMO_SIGNAL_SLOTS, parameters, DEMO_PARAMETER_SLOTS, faults, DEMO_FAULT_SLOTS};
+    meter_core_storage_t storage = {signals, DEMO_SIGNAL_SLOTS, parameters, DEMO_PARAMETER_SLOTS,
+                                    faults,  DEMO_FAULT_SLOTS};
     CHECK(meter_core_init(&core, &meter_demo_catalog, &storage));
     lv_init();
     CHECK(meter_i18n_init() && demo_i18n_init() && meter_host_open(true));
@@ -141,7 +151,8 @@ int main(int argc, char **argv)
                     if (argc == 2 && round < 2 && state == METER_VALUE_VALID)
                     {
                         char path[1024];
-                        snprintf(path, sizeof(path), "%s/page-%u-%u-%s.bmp", argv[1], page, subpage + 1, round ? "zh" : "en");
+                        snprintf(path, sizeof(path), "%s/page-%u-%u-%s.bmp", argv[1], page, subpage + 1,
+                                 round ? "zh" : "en");
                         CHECK(meter_host_capture(path));
                     }
                 }
@@ -159,6 +170,12 @@ int main(int argc, char **argv)
     /* 翻页后的设置仍通过既有动作入口，拒绝状态不能因翻页消失。 */
     demo_settings_show_page(ui, 1);
     lv_obj_send_event(ui->admin_password_button, LV_EVENT_CLICKED, NULL);
+    if (argc == 2)
+    {
+        char password_capture[1024];
+        snprintf(password_capture, sizeof(password_capture), "%s/password-page.bmp", argv[1]);
+        CHECK(meter_host_capture(password_capture));
+    }
     lv_textarea_set_text(ui->admin_password, "0000");
     lv_obj_send_event(ui->password_keyboard, LV_EVENT_READY, NULL);
     demo_settings_publish(&core.snapshot);

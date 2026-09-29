@@ -273,3 +273,7 @@ Host 验证：Demo Debug 87/87 CTest、Release/headless + update 83/83 CTest、P
 候选 `demo-pdo-20260929` 由 framework 495175f 构建，并通过现有 CAN OTA 路径安装。包 SHA256 为 `65e1e55b9ae3c29f91ec9f58a567e0db6f93657e29745f0ff46554fcaf06b45c`；目标 OS 镜像 SHA256 为 `30b952a1aa9e4098f619dbf89828245bdf0d7e75702f58d24d8a937d50fd22ca`。COM11 和 PCAN_USBBUS1 重启身份为 product `reference-demo`、board `reference-board`、固件 `demo-pdo-20260929`、platform `495175f`。实物 HIL 10/10 通过，包含 `test_demo_instrument_pdo`；XML、UART、CAN ASC 和逐项采集位于 `evidence/ota/demo-pdo-20260929/`。构建报告记录 SDK 固定到 6560f24d 和配置恢复。
 
 Host 截图显示黑底 800x480 主界面，中文字体和绿色/红色状态对比已放大，底部导航分离。它仍是 Host 渲染证据；HIL 不代表触控手感和目标屏视觉验收。
+
+### 密码页布局修正
+
+Demo 密码编辑页参考 ZC-202620085 杭叉页面，在现有 800x480 外壳内调整为：左侧系统设置/高级设置双项菜单，右侧标题和返回键，宽四位掩码输入框，以及四行三列数字键盘。键盘改为 Product UI 自有 button matrix，明确处理数字、退格和确认，不再依赖 LVGL 键盘焦点。保留 Demo 黑色主题，同时恢复参考页面的比例和间距。`ui-pagination` 生成 `password-page.bmp` 并继续验证用户/管理员权限路径；针对 Demo 的 UI 测试已通过。目标屏视觉验收仍需单独 OTA 验证。
