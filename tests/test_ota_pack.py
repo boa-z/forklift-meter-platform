@@ -28,7 +28,7 @@ def test_native_pack_roundtrip_without_source_mutation(tmp_path, native_tools):
     output = Path(result["directory"])
     manifest = Manifest.load(output / "ota.manifest.json")
     assert source.read_bytes() == data
-    assert preflight(output / "ota.cpio", manifest, POLICY)["archive"]["os_size"] == len(data)
+    assert preflight(output / "ota.cpio", manifest, POLICY)["archive"]["os_size"] == 4096
     assert result["sha256"] == hashlib.sha256((output / "ota.cpio").read_bytes()).hexdigest()
     with (output / "ota.cpio").open("rb") as stream:
         verified = subprocess.run([native_tools["cpio"], "-i", "--only-verify-crc", "--quiet"],
@@ -74,3 +74,11 @@ def test_explicit_nand_alignment(tmp_path, native_tools):
                                    stdin=stream, capture_output=True, cwd=tmp_path, timeout=10)
     assert extracted.returncode == 0
     assert extracted.stdout == data + bytes([255]) * (4096 - len(data))
+
+
+def test_default_pack_uses_nand_alignment(tmp_path, native_tools):
+    source = tmp_path / "source.itb"
+    source.write_bytes(b"fit" * 701)
+    result = pack(source, tmp_path / "out", "synthetic", "reference-board", "v2", POLICY,
+                  cpio=native_tools["cpio"], mkenvimage=native_tools["mkenvimage"])
+    assert result["archive"]["os_size"] % 4096 == 0

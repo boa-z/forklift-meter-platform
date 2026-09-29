@@ -17,7 +17,7 @@ def _tool(value):
     return str(Path(found).resolve())
 
 
-def pack(os_image, destination, product, hardware, version, policy, *, cpio="cpio", mkenvimage="mkenvimage", pad_os_to=1):
+def pack(os_image, destination, product, hardware, version, policy, *, cpio="cpio", mkenvimage="mkenvimage", pad_os_to=4096):
     """固定工作副本、两遍成包确定长度，最后校验后才发布结果。"""
     if not isinstance(policy, PackagePolicy):
         raise UpdateError("explicit package policy is required")
