@@ -135,6 +135,8 @@ meter_library(meter_product_data product product)
 # Optional Product Application layer is compiled independently of LVGL.
 string(JSON application_count ERROR_VARIABLE application_error LENGTH "${product_manifest}" application)
 if(NOT application_error AND application_count GREATER 0)
+    # 身份头属于构建产物；首次配置及非测试构建也必须先解析解释器。
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     meter_library(meter_product_application application product)
     target_link_libraries(meter_product_application PUBLIC meter_catalog meter_runtime)
     add_custom_target(meter-host-identity
