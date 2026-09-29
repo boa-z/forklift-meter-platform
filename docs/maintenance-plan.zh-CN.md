@@ -304,3 +304,9 @@ Demo 密码编辑页参考 参考项目 参考产品页面，在现有 800x480 �
 ### Demo 仪表底栏 OTA 结果
 
 候选 `demo-ui-footer-20260929` 由 Framework `ca5a02b` 和 SDK `b082da95` 构建。OS 镜像 SHA256 为 `b97a3e575db697646c1d4d3f25eb10100435f78c3737ce91d54ce7e92e44f067`；CAN OTA 包 SHA256 为 `3f914781193537a4b140358eda672ad8f62c0a6b231a82786adc61469fe1b5af`。主机预检通过；在 COM11/PCAN_USBBUS1 上完成维护准入、下载、激活和重启，开发板接收 1,106,944 字节且队列拒绝为零。重启探针报告 `reference-demo/reference-board`、版本 `demo-ui-footer-20260929`、platform `ca5a02bd940b3a5575d29796323044bafc3a9b57`、SDK `b082da95f8bdd646951d38badf22117e961922f6`、状态 `IDLE`、错误 `0`。原始证据位于 `evidence/ota/demo-ui-footer-20260929/`。本次未采集目标屏幕照片，因此视觉验收仍以主机截图和板端身份/启动验证为边界。
+
+### Demo 设置页紧凑化
+
+设置页现在更接近参考叉车仪表布局：保留一个标题、四项分类栏和一个聚焦内容面板。移除说明性副标题、Demo 凭据/会话标题以及管理员长锁定提示。用户设置只保留四个可操作行；密码页保留用户/管理员入口、登录状态和退出登录；管理员授权前使用紧凑警示图标，授权后显示设置项。现有权限、本地 Settings 所有权和控制器 Parameter 行为不变。
+
+主机截图位于 `evidence/adaptation/ui-settings-compact-3/`。四个设置页和密码流程继续由 `ui-pagination`、`demo-settings-app`、`i18n-ui` 和 `sdl-smoke` 覆盖；Debug 全量测试 87/87 通过。本批次不宣称目标屏幕视觉结果。

@@ -305,3 +305,9 @@ Deterministic presentation and pagination tests cover counter validity, continuo
 ### Demo instrument footer OTA result
 
 Candidate `demo-ui-footer-20260929` was built from framework `ca5a02b` and SDK `b082da95`. The OS image SHA256 is `b97a3e575db697646c1d4d3f25eb10100435f78c3737ce91d54ce7e92e44f067`; the CAN OTA package SHA256 is `3f914781193537a4b140358eda672ad8f62c0a6b231a82786adc61469fe1b5af`. Host preflight passed. Maintenance admission, download, activation and reboot completed on COM11/PCAN_USBBUS1; the board accepted 1,106,944 bytes with zero queue rejects. Post-reboot probe reported `reference-demo/reference-board`, version `demo-ui-footer-20260929`, platform `ca5a02bd940b3a5575d29796323044bafc3a9b57`, SDK `b082da95f8bdd646951d38badf22117e961922f6`, state `IDLE`, error `0`. Raw evidence is under `evidence/ota/demo-ui-footer-20260929/`. No target-panel photograph was captured, so visual acceptance remains host capture plus board identity/boot verification.
+
+### Demo settings screen compact pass
+
+The settings page now follows the reference forklift composition more closely: one title, a four-item category rail, and one focused content panel. Explanatory note text, demo credential/session headings and the long administrator lock sentence were removed from the screen. User settings retain only four actionable rows; password access retains the two entry actions, login state and sign-out; administrator protection uses a compact warning icon until authorization is granted. Existing authorization, local Settings ownership and controller Parameter behavior are unchanged.
+
+Host captures are under `evidence/adaptation/ui-settings-compact-3/`. The four settings pages and password flow remain covered by `ui-pagination`, `demo-settings-app`, `i18n-ui` and `sdl-smoke`; the full Debug suite passes 87/87. No target-panel visual result is claimed in this batch.

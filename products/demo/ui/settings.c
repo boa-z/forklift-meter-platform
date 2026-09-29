@@ -142,8 +142,9 @@ static lv_obj_t *settings_button(demo_ui_t *u, lv_obj_t *parent, int x, int y, d
 void demo_settings_create(demo_ui_t *u)
 {
     lv_obj_t *p = u->pages[DEMO_SETTINGS];
-    u->settings_title = meter_text(p, 24, 4, "", &lv_font_montserrat_24, 0xedf5f8);
+    u->settings_title = meter_text(p, 24, 8, "", &lv_font_montserrat_24, 0xedf5f8);
     u->settings_note = meter_text(p, 24, 34, "", &lv_font_montserrat_20, 0x8ba9bb);
+    lv_obj_set_hidden(u->settings_note, true);
     u->settings_rail = demo_panel(p, 16, 66, 184, 240);
     const demo_text_id_t menu_ids[] = {DEMO_TXT_USER_SETTINGS, DEMO_TXT_PASSWORD, DEMO_TXT_ADMIN_SETTINGS,
                                        DEMO_TXT_INSTRUMENT_VERSION};
@@ -165,7 +166,7 @@ void demo_settings_create(demo_ui_t *u)
     const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS,
                                      DEMO_TXT_SPEED_LIMIT};
     for (unsigned i = 0; i < 4; ++i)
-        demo_text(u, card, 22, 18 + (int)i * 57, labels[i], &lv_font_montserrat_20, 0xe4eff5);
+        demo_text(u, card, 22, 18 + (int)i * 57, labels[i], &lv_font_montserrat_16, 0xe4eff5);
     u->unit_button = settings_button(u, card, 290, 8, DEMO_TXT_METRIC, action);
     u->language_button = settings_button(u, card, 290, 65, DEMO_TXT_CHINESE, action);
     u->brightness = lv_slider_create(card);
@@ -181,12 +182,10 @@ void demo_settings_create(demo_ui_t *u)
     lv_slider_set_range(u->brightness, 10, 100);
     lv_slider_set_range(u->limit, 5, 50);
     card = u->settings_cards[1];
-    demo_text(u, card, 22, 16, DEMO_TXT_DEMO_CREDENTIALS, &lv_font_montserrat_20, 0x9cb5c4);
-    u->user_password_button = settings_button(u, card, 22, 60, DEMO_TXT_USER_PASSWORD, password_open);
-    u->admin_password_button = settings_button(u, card, 290, 60, DEMO_TXT_ADMIN_PASSWORD, password_open);
-    u->password_status = meter_text(card, 22, 136, "", &lv_font_montserrat_20, 0x5de5ca);
-    u->logout_button = settings_button(u, card, 290, 126, DEMO_TXT_SIGN_OUT, logout);
-    demo_text(u, card, 22, 194, DEMO_TXT_DEMO_SESSION, &lv_font_montserrat_20, 0x9cb5c4);
+    u->user_password_button = settings_button(u, card, 22, 24, DEMO_TXT_USER_PASSWORD, password_open);
+    u->admin_password_button = settings_button(u, card, 290, 24, DEMO_TXT_ADMIN_PASSWORD, password_open);
+    u->password_status = meter_text(card, 22, 92, "", &lv_font_montserrat_20, 0x5de5ca);
+    u->logout_button = settings_button(u, card, 290, 92, DEMO_TXT_SIGN_OUT, logout);
     /* 参考参考产品密码页：左侧设置导航，右侧标题、输入框和 3x4 数字键盘。 */
     u->password_editor = lv_obj_create(u->root);
     lv_obj_remove_style_all(u->password_editor);
@@ -255,7 +254,9 @@ void demo_settings_create(demo_ui_t *u)
     lv_obj_add_event_cb(u->password_keyboard, password_submit, LV_EVENT_READY, u);
     lv_obj_add_event_cb(u->password_keyboard, password_submit, LV_EVENT_CANCEL, u);
     card = u->settings_cards[2];
-    u->admin_locked = demo_text(u, card, 22, 92, DEMO_TXT_ADMIN_LOCKED, &lv_font_montserrat_24, 0xf3ba65);
+    u->admin_locked = meter_text(card, 0, 92, LV_SYMBOL_WARNING, &lv_font_montserrat_24, 0xf3ba65);
+    lv_obj_set_width(u->admin_locked, 544);
+    lv_obj_set_style_text_align(u->admin_locked, LV_TEXT_ALIGN_CENTER, 0);
     const demo_text_id_t admin_ids[] = {DEMO_TXT_CAN_RATE, DEMO_TXT_HOUR_METER, DEMO_TXT_SPEED_DISPLAY,
                                         DEMO_TXT_MODE_MEMORY};
     for (unsigned i = 0; i < DEMO_ADMIN_COUNT; ++i)
