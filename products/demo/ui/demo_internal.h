@@ -51,7 +51,7 @@ typedef struct
     unsigned selected_parameter;
     lv_obj_t *unit_button, *language_button, *brightness, *limit, *setting_status;
     lv_obj_t *settings_title, *settings_note, *settings_rail, *settings_menu[4], *settings_cards[4], *version_labels[4],
-        *version_values[4];
+        *version_values[4], *version_entry, *version_back;
     lv_obj_t *user_password, *admin_password, *user_password_button, *admin_password_button,
         *password_editor, *password_editor_title, *password_keyboard, *password_status, *admin_items[4],
         *admin_value_labels[4], *admin_locked, *logout_button;

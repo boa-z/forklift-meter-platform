@@ -347,3 +347,7 @@ Right-side settings rows, category menus and the password editor now share the D
 ### Flat right-side item lists
 
 Right-side monitor, controller-parameter and settings entries no longer use nested rounded rectangles. Their surfaces are transparent with a single bottom separator, preserving the dark canvas and making the four-row rhythm easier to scan. Category labels use single-line circular scrolling when a translation is longer than its touch target. The four settings categories continue to open as independent pages from the left menu; authorization and editor behavior are unchanged. SDL captures were regenerated under `evidence/adaptation/ui-left-tab-compact/`.
+
+### Settings routing and state presentation
+
+The Demo now exposes two settings routes: User Settings and Administrator Settings. The former includes a clickable instrument-version item that opens the version detail view and returns through its back control. Selecting Administrator Settings while unauthorised opens the administrator PIN editor first; the administrator page is shown only after the existing authorization result permits it. The former standalone Password category was removed. The settings and monitor left rails use filled background regions, while monitor values and labels use white text for stronger contrast. SDL routing captures are under `evidence/adaptation/ui-routing-admin-version/`.

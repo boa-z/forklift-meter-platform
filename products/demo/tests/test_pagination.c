@@ -57,7 +57,8 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
     if (page == DEMO_SETTINGS)
     {
         for (unsigned i = 0; i < 4; ++i)
-            CHECK(lv_obj_is_hidden(ui->settings_cards[i]) == (subpage != i));
+            CHECK(lv_obj_is_hidden(ui->settings_cards[i]) ==
+                   (i != (subpage == 1 ? 2u : 0u)));
         return 0;
     }
     for (size_t i = 0; i < slots; ++i)
@@ -189,7 +190,7 @@ int main(int argc, char **argv)
             {
                 demo_pager_t *pager = pagers[page - DEMO_MONITOR];
                 unsigned expected_count = page == DEMO_SETTINGS
-                    ? 4u
+                    ? 2u
                     : page == DEMO_MONITOR
                         ? (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE
                         : (DEMO_FAULT_SLOTS + DEMO_FAULTS_PER_PAGE - 1) / DEMO_FAULTS_PER_PAGE;

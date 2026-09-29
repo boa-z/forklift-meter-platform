@@ -75,6 +75,14 @@ static void turn_page(lv_event_t *event)
 void demo_monitor_create(demo_ui_t *u)
 {
     lv_obj_t *p = u->pages[DEMO_MONITOR];
+    lv_obj_t *rail = lv_obj_create(p);
+    lv_obj_remove_style_all(rail);
+    lv_obj_set_pos(rail, 0, 0);
+    lv_obj_set_size(rail, 200, 256);
+    lv_obj_set_style_bg_color(rail, lv_color_hex(0x1a242b), 0);
+    lv_obj_set_style_bg_opa(rail, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(rail, 0, 0);
+    lv_obj_set_scrollable(rail, false);
     u->monitor_mode_button = lv_button_create(p);
     u->parameter_mode_button = lv_button_create(p);
     lv_obj_t *modes[] = {u->monitor_mode_button, u->parameter_mode_button};
@@ -102,7 +110,7 @@ void demo_monitor_create(demo_ui_t *u)
         lv_obj_set_pos(r, 200, 18 + (int)row * 58);
         lv_obj_set_size(r, 584, 50);
         demo_theme_list_row(r);
-        u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0x9cb5c4);
+        u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0xedf5f8);
         u->monitor_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0x5de5ca);
         lv_obj_set_width(u->monitor_labels[i], 260);
         lv_label_set_long_mode(u->monitor_labels[i], LV_LABEL_LONG_SCROLL_CIRCULAR);
@@ -120,7 +128,7 @@ void demo_monitor_create(demo_ui_t *u)
         lv_obj_add_event_cb(r, parameter_select, LV_EVENT_CLICKED, u);
         u->parameter_rows[i] = r;
         u->parameter_labels[i] = demo_text(u, r, 18, 0, (demo_text_id_t)(DEMO_TXT_PARAMETER_0 + i),
-                                           &lv_font_montserrat_20, 0x9cb5c4);
+                                           &lv_font_montserrat_20, 0xedf5f8);
         u->parameter_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0x5de5ca);
         lv_obj_set_width(u->parameter_labels[i], 260);
         lv_label_set_long_mode(u->parameter_labels[i], LV_LABEL_LONG_SCROLL_CIRCULAR);
