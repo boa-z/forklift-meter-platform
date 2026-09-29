@@ -49,7 +49,9 @@ static void monitor_mode_select(lv_event_t *event)
 {
     demo_ui_t *u = lv_event_get_user_data(event);
     u->parameter_mode = lv_event_get_target_obj(event) == u->parameter_mode_button;
-    u->monitor_pager.count = u->parameter_mode ? 1 : 2;
+    u->monitor_pager.count = u->parameter_mode
+        ? 1
+        : (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE;
     demo_monitor_show_page(u, 0);
 }
 void demo_monitor_show_page(demo_ui_t *u, unsigned page)
@@ -80,9 +82,12 @@ void demo_monitor_create(demo_ui_t *u)
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_button(modes[i]);
-        lv_obj_set_pos(modes[i], 16 + (int)i * 390, 4);
-        lv_obj_set_size(modes[i], 378, 44);
-        lv_obj_t *label = demo_text(u, modes[i], 0, 0, mode_ids[i], &lv_font_montserrat_24, 0xedf5f8);
+        lv_obj_set_pos(modes[i], 24, 70 + (int)i * 62);
+        lv_obj_set_size(modes[i], 168, 52);
+        lv_obj_set_style_radius(modes[i], 4, 0);
+        lv_obj_t *label = demo_text(u, modes[i], 8, 0, mode_ids[i], &lv_font_montserrat_16, 0xedf5f8);
+        lv_obj_set_width(label, 152);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
         if (i == 0)
             u->monitor_mode_label = label;
         else
@@ -92,25 +97,37 @@ void demo_monitor_create(demo_ui_t *u)
     }
     for (size_t i = 0; i < DEMO_MONITOR_SLOTS; ++i)
     {
-        unsigned slot = (unsigned)i % DEMO_MONITORS_PER_PAGE;
-        int col = (int)(slot / 4), row = (int)(slot % 4);
-        lv_obj_t *r = demo_panel(p, 16 + col * 390, 70 + row * 58, 378, 50);
-        u->monitor_labels[i] = meter_text(r, 12, 2, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0x9cb5c4);
-        u->monitor_values[i] = meter_text(r, 12, 26, "--", &lv_font_montserrat_20, 0x5de5ca);
+        unsigned row = (unsigned)i % DEMO_MONITORS_PER_PAGE;
+        lv_obj_t *r = demo_panel(p, 216, 70 + (int)row * 38, 568, 34);
+        u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_16, 0x9cb5c4);
+        u->monitor_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_20, 0x5de5ca);
+        lv_obj_set_width(u->monitor_labels[i], 250);
+        lv_obj_set_width(u->monitor_values[i], 240);
+        lv_obj_set_style_text_align(u->monitor_values[i], LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_align(u->monitor_labels[i], LV_ALIGN_LEFT_MID, 18, 0);
+        lv_obj_align(u->monitor_values[i], LV_ALIGN_RIGHT_MID, -18, 0);
     }
     for (size_t i = 0; i < DEMO_REMOTE_COUNT; ++i)
     {
         lv_obj_t *r = lv_button_create(p);
         demo_theme_button(r);
-        lv_obj_set_pos(r, 16, 70 + (int)i * 58);
-        lv_obj_set_size(r, 768, 50);
+        lv_obj_set_pos(r, 216, 70 + (int)i * 38);
+        lv_obj_set_size(r, 568, 34);
         lv_obj_add_event_cb(r, parameter_select, LV_EVENT_CLICKED, u);
         u->parameter_rows[i] = r;
-        u->parameter_labels[i] = demo_text(u, r, 18, 12, (demo_text_id_t)(DEMO_TXT_PARAMETER_0 + i),
-                                           &lv_font_montserrat_20, 0x9cb5c4);
-        u->parameter_values[i] = meter_text(r, 610, 12, "--", &lv_font_montserrat_20, 0x5de5ca);
+        u->parameter_labels[i] = demo_text(u, r, 18, 0, (demo_text_id_t)(DEMO_TXT_PARAMETER_0 + i),
+                                           &lv_font_montserrat_16, 0x9cb5c4);
+        u->parameter_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_20, 0x5de5ca);
+        lv_obj_set_width(u->parameter_labels[i], 250);
+        lv_obj_set_width(u->parameter_values[i], 240);
+        lv_obj_set_style_text_align(u->parameter_values[i], LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_align(u->parameter_labels[i], LV_ALIGN_LEFT_MID, 18, 0);
+        lv_obj_align(u->parameter_values[i], LV_ALIGN_RIGHT_MID, -18, 0);
     }
-    u->parameter_status = meter_text(p, 24, 48, "", &lv_font_montserrat_16, 0x5de5ca);
+    u->parameter_status = meter_text(p, 216, 8, "", &lv_font_montserrat_16, 0x5de5ca);
+    lv_obj_set_width(u->parameter_status, 568);
+    lv_obj_set_height(u->parameter_status, 24);
+    lv_obj_set_style_text_align(u->parameter_status, LV_TEXT_ALIGN_CENTER, 0);
     u->parameter_editor = demo_panel(u->root, 40, 88, 720, 310);
     lv_obj_set_style_bg_opa(u->parameter_editor, LV_OPA_COVER, 0);
     u->parameter_editor_title = demo_text(u, u->parameter_editor, 22, 20, DEMO_TXT_EDIT_VALUE, &lv_font_montserrat_24, 0xedf5f8);
@@ -127,7 +144,9 @@ void demo_monitor_create(demo_ui_t *u)
     lv_obj_set_size(u->parameter_keyboard, 370, 230);
     lv_obj_add_event_cb(u->parameter_keyboard, parameter_edit, LV_EVENT_READY, u);
     lv_obj_add_event_cb(u->parameter_keyboard, parameter_edit, LV_EVENT_CANCEL, u);
-    demo_pager_create(p, &u->monitor_pager, 2, turn_page, u);
+    demo_pager_create(p, &u->monitor_pager,
+                      (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE,
+                      turn_page, u);
     demo_monitor_show_page(u, 0);
 }
 void demo_monitor_update(demo_ui_t *u)

@@ -314,3 +314,11 @@ Demo 密码编辑页参考 参考项目 参考产品页面，在现有 800x480 �
 ### Demo 设置页紧凑化 OTA 结果
 
 候选 `demo-ui-settings-20260929` 由 Framework `09c50cd` 和 SDK `9187a19d` 构建。OS 镜像 SHA256 为 `8255dce099b1ab912fb3dd205d3250007fdd51d1e62b6af7ac8fc687a56bdcea`；CAN OTA 包 SHA256 为 `ee1a54e1ece8bc84b7105a3f26c87c004c53ddf366f0964e0ac05cf078cab8b6`。主机预检通过；在 COM11/PCAN_USBBUS1 上完成维护准入、下载、激活和重启，开发板接收 1,106,944 字节且队列拒绝为零。重启探针报告 `reference-demo/reference-board`、版本 `demo-ui-settings-20260929`、platform `09c50cd188ade20b27ef6921c49f1f8ed4ccdc02`、SDK `9187a19df878ce1ebeb1f4af05992290b1871411`、状态 `IDLE`、错误 `0`。原始证据位于 `evidence/ota/demo-ui-settings-20260929/`。本次未采集目标屏幕照片。
+
+### 监控页与设置页统一布局
+
+Demo 监控页现在与设置页采用相同组成：左侧垂直分类栏，右侧单列条目面板。参数监控和控制器参数设置通过左侧两个居中的 Tab 切换；监控读数和可编辑值在右侧按标签/数值对齐显示。监控条目密度已按完整目录调整，但页数、权限、快照和事务行为不变。确定性 UI 测试在双语场景下检查 Tab 与右侧面板几何。截图位于 `evidence/adaptation/ui-monitor-settings-unified/`。
+
+### 监控页每页四项
+
+监控遥测和故障列表现在每页显示四个条目，与设置页每页四项保持一致。监控目录按四行分页，控制器参数编辑仍使用右侧单页面板。页数和边界按钮根据目录数量确定，信号、权限和事务契约不变。

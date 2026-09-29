@@ -315,3 +315,11 @@ Host captures are under `evidence/adaptation/ui-settings-compact-3/`. The four s
 ### Demo settings compact OTA result
 
 Candidate `demo-ui-settings-20260929` was built from framework `09c50cd` and SDK `9187a19d`. The OS image SHA256 is `8255dce099b1ab912fb3dd205d3250007fdd51d1e62b6af7ac8fc687a56bdcea`; the CAN OTA package SHA256 is `ee1a54e1ece8bc84b7105a3f26c87c004c53ddf366f0964e0ac05cf078cab8b6`. Host preflight passed. Maintenance admission, download, activation and reboot completed on COM11/PCAN_USBBUS1; the board accepted 1,106,944 bytes with zero queue rejects. Post-reboot probe reported `reference-demo/reference-board`, version `demo-ui-settings-20260929`, platform `09c50cd188ade20b27ef6921c49f1f8ed4ccdc02`, SDK `9187a19df878ce1ebeb1f4af05992290b1871411`, state `IDLE`, error `0`. Raw evidence is under `evidence/ota/demo-ui-settings-20260929/`. No target-panel photograph was captured.
+
+### Unified monitor/settings layout
+
+The Demo monitor page now uses the same composition as settings: a left vertical category rail and a right single-column item panel. Parameter telemetry and controller parameter settings are selected by two centered left tabs; readings and editable values use aligned label/value rows on the right. The monitor row density was adjusted for all catalog entries without changing page count, authorization, snapshot or transaction behavior. The deterministic UI test now checks the tab and right-panel geometry in both language passes. Captures are under `evidence/adaptation/ui-monitor-settings-unified/`.
+
+### Four-item monitor pagination
+
+Monitor telemetry and fault lists now show four entries per page, matching the four-item settings pages. The monitor catalog therefore uses deterministic four-row pages; controller parameter editing remains a single right-panel view. Page counts and end stops are derived from catalog sizes, and no signal, authorization or transaction contract changes.

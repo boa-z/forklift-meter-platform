@@ -18,8 +18,8 @@ enum
 };
 enum
 {
-    DEMO_MONITORS_PER_PAGE = 8,
-    DEMO_FAULTS_PER_PAGE = 5
+    DEMO_MONITORS_PER_PAGE = 4,
+    DEMO_FAULTS_PER_PAGE = 4
 };
 /* 翻页只属于 Demo 展示层，不改变快照内容或向 App 发送动作。 */
 typedef struct

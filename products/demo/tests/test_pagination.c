@@ -73,7 +73,7 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
                 lv_area_t name, value;
                 lv_obj_get_coords(label, &name);
                 lv_obj_get_coords(ui->monitor_values[i], &value);
-                CHECK(name.y2 < value.y1);
+                CHECK(name.x2 < value.x1);
             }
         }
         else
@@ -136,6 +136,19 @@ static int check_dashboard_footer(demo_ui_t *ui)
     CHECK(icons == 5 && readings == 4);
     return 0;
 }
+/* 监控页与设置页共用左侧分类栏、右侧条目面板的几何约束。 */
+static int check_monitor_layout(demo_ui_t *ui)
+{
+    lv_area_t first_tab, second_tab, first_row;
+    lv_obj_get_coords(ui->monitor_mode_button, &first_tab);
+    lv_obj_get_coords(ui->parameter_mode_button, &second_tab);
+    lv_obj_get_coords(lv_obj_get_parent(ui->monitor_labels[0]), &first_row);
+    CHECK(first_tab.x1 == 24 && first_tab.x2 == 191 && first_tab.y1 == 123 && first_tab.y2 == 174);
+    CHECK(second_tab.x1 == 24 && second_tab.x2 == 191 && second_tab.y1 == 185 && second_tab.y2 == 236);
+    CHECK(first_row.x1 == 216 && first_row.x2 == 783 && first_row.y1 == 123);
+    CHECK(first_row.y2 < 365);
+    return 0;
+}
 int main(int argc, char **argv)
 {
     meter_core_t core;
@@ -170,10 +183,17 @@ int main(int argc, char **argv)
             CHECK(check_navigation(ui) == 0);
             demo_navigation_show(ui, DEMO_DASHBOARD);
             CHECK(check_dashboard_footer(ui) == 0);
+            demo_navigation_show(ui, DEMO_MONITOR);
+            CHECK(check_monitor_layout(ui) == 0);
             for (unsigned page = DEMO_MONITOR; page <= DEMO_SETTINGS; ++page)
             {
                 demo_pager_t *pager = pagers[page - DEMO_MONITOR];
-                CHECK(pager->count == (page == DEMO_SETTINGS ? 4u : 2u));
+                unsigned expected_count = page == DEMO_SETTINGS
+                    ? 4u
+                    : page == DEMO_MONITOR
+                        ? (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE
+                        : (DEMO_FAULT_SLOTS + DEMO_FAULTS_PER_PAGE - 1) / DEMO_FAULTS_PER_PAGE;
+                CHECK(pager->count == expected_count);
                 demo_navigation_show(ui, page);
                 if (page == DEMO_MONITOR)
                     demo_monitor_show_page(ui, 0);
