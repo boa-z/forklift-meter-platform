@@ -27,7 +27,14 @@ assert run("--scenario","unknown")["speed_state"]==0
 for language, locale in (("english", "en"), ("chinese", "zh-CN")):
     for page in range(4):
         r = run("--page", str(page), "--set-language", language)
-        assert r["page"] == page and r["language"] == locale, r
+        assert r["page"] == page and r["language"] == locale and r["subpage"] == 0, r
+        if page:
+            r = run("--page", str(page), "--subpage", "1", "--set-language", language)
+            assert r["page"] == page and r["language"] == locale and r["subpage"] == 1, r
+for args in (("--subpage", "1"), ("--page", "1", "--subpage", "2"),
+             ("--page", "1", "--subpage", "-1"), ("--page", "1", "--subpage", "bad")):
+    invalid = subprocess.run([str(exe), *args], env=env, capture_output=True, timeout=25)
+    assert invalid.returncode == 2
 invalid = subprocess.run([str(exe), "--set-language", "unsupported"], env=env, capture_output=True, timeout=25)
 assert invalid.returncode == 2
 with tempfile.TemporaryDirectory() as temp:
