@@ -202,7 +202,7 @@ int main(int argc, char **argv)
         if (page && (n == 4 || n == 7))
             meter_host_click(100 + (int)page * 195, 450, n == 4);
         if (subpage && (n == 12 || n == 15))
-            meter_host_click(724, 388, n == 12);
+            meter_host_click(364, 82, n == 12);
         if (smoke)
         {
             if (n == 20 || n == 23)
@@ -215,6 +215,8 @@ int main(int argc, char **argv)
                 navigation_ok = false;
             if (n == 55 || n == 58)
                 meter_host_click(600, 160, n == 55);
+            if (n == 62 || n == 65)
+                meter_host_click(490, 235, n == 62);
             if (n == 70 || n == 73)
                 meter_host_click(490, 450, n == 70);
             if (n == 80 && demo_ui_active_page(ui) != 2)

@@ -37,11 +37,12 @@ unsigned demo_pager_target(const demo_pager_t *pager, lv_event_t *event)
         return pager->current + 1;
     return pager->current;
 }
-void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
-                       lv_event_cb_t callback, void *context)
+void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count, lv_event_cb_t callback,
+                       void *context)
 {
     /* 翻页属于当前 Tab 的内容区，固定在右侧左上角，不占用底部导航空间。 */
-    lv_obj_t *bar = demo_panel(parent, 216, 8, 568, 40);
+    /* 页码靠近内容区右侧，左右箭头仍保留独立的大触摸区。 */
+    lv_obj_t *bar = demo_panel(parent, 600, 8, 184, 44);
     pager->count = count;
     pager->previous = lv_button_create(bar);
     pager->next = lv_button_create(bar);
@@ -50,8 +51,8 @@ void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_button(buttons[i]);
-        lv_obj_set_pos(buttons[i], i == 0 ? 4 : 500, 0);
-        lv_obj_set_size(buttons[i], 56, 38);
+        lv_obj_set_pos(buttons[i], i == 0 ? 0 : 128, 0);
+        lv_obj_set_size(buttons[i], 56, 44);
         lv_obj_set_style_bg_opa(buttons[i], LV_OPA_TRANSP, 0);
         lv_obj_set_style_opa(buttons[i], LV_OPA_40, LV_STATE_DISABLED);
         lv_obj_t *label = meter_text(buttons[i], 0, 0, labels[i], &lv_font_montserrat_24, 0xedf5f8);
@@ -153,10 +154,14 @@ unsigned demo_ui_active_subpage(const void *context)
     const demo_ui_t *u = context;
     switch (u->page)
     {
-        case DEMO_MONITOR: return u->monitor_pager.current;
-        case DEMO_FAULTS: return u->fault_pager.current;
-        case DEMO_SETTINGS: return u->settings_pager.current;
-        default: return 0;
+    case DEMO_MONITOR:
+        return u->monitor_pager.current;
+    case DEMO_FAULTS:
+        return u->fault_pager.current;
+    case DEMO_SETTINGS:
+        return u->settings_pager.current;
+    default:
+        return 0;
     }
 }
 

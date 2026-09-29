@@ -57,8 +57,7 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
     if (page == DEMO_SETTINGS)
     {
         for (unsigned i = 0; i < 4; ++i)
-            CHECK(lv_obj_is_hidden(ui->settings_cards[i]) ==
-                   (i != (subpage == 1 ? 2u : 0u)));
+            CHECK(lv_obj_is_hidden(ui->settings_cards[i]) == (i != (subpage == 1 ? 1u : 0u)));
         return 0;
     }
     for (size_t i = 0; i < slots; ++i)
@@ -66,6 +65,8 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
         lv_obj_t *label = page == DEMO_MONITOR ? ui->monitor_labels[i] : ui->fault_rows[i];
         lv_obj_t *row = lv_obj_get_parent(label);
         CHECK(lv_obj_is_hidden(row) == (i / capacity != subpage));
+        CHECK(lv_obj_get_height(row) == 56);
+        CHECK(lv_obj_get_y(row) == 58 + (int)(i % capacity) * 60);
         if (page == DEMO_MONITOR)
         {
             CHECK(!strcmp(lv_label_get_text(ui->monitor_values[i]), ui->monitor_text[i]));
@@ -147,7 +148,9 @@ static int check_monitor_layout(demo_ui_t *ui)
     CHECK(first_tab.x1 == 0 && first_tab.x2 == 199 && first_tab.y1 == 53 && first_tab.y2 == 116);
     CHECK(second_tab.x1 == 0 && second_tab.x2 == 199 && second_tab.y1 == 117 && second_tab.y2 == 180);
     CHECK(first_row.x1 == 200 && first_row.x2 == 783 && first_row.y1 == 111);
-    CHECK(first_row.y2 < 365);
+    CHECK(first_row.y2 == 166);
+    CHECK(DEMO_LIST_CAPACITY == 5);
+    CHECK(DEMO_MONITORS_PER_PAGE == 5 && DEMO_FAULTS_PER_PAGE == 5);
     return 0;
 }
 int main(int argc, char **argv)
@@ -189,8 +192,8 @@ int main(int argc, char **argv)
             for (unsigned page = DEMO_MONITOR; page <= DEMO_SETTINGS; ++page)
             {
                 demo_pager_t *pager = pagers[page - DEMO_MONITOR];
-                unsigned expected_count = page == DEMO_SETTINGS
-                    ? 2u
+                unsigned expected_count =
+                    page == DEMO_SETTINGS ? 1u
                     : page == DEMO_MONITOR
                         ? (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE
                         : (DEMO_FAULT_SLOTS + DEMO_FAULTS_PER_PAGE - 1) / DEMO_FAULTS_PER_PAGE;
@@ -290,6 +293,113 @@ int main(int argc, char **argv)
     demo_ui_present(ui, &core.snapshot, 16);
     CHECK(core.snapshot.brightness == 70 && ui->action_failed && actions_sent == 5);
     CHECK(!strcmp(lv_label_get_text(ui->setting_status), demo_i18n_text(DEMO_TXT_ACCESS_DENIED)));
+    /* 列表进入详情不发送动作；只在详情确认修改，并从快照恢复外部读数。 */
+    accept = true;
+    demo_navigation_show(ui, DEMO_SETTINGS);
+    for (unsigned language = 0; language < 2; ++language)
+    {
+        core.snapshot.language = language ? METER_LANGUAGE_ZH : METER_LANGUAGE_EN;
+        core.snapshot.brightness = 100;
+        demo_ui_present(ui, &core.snapshot, 16);
+        demo_settings_show_page(ui, 0);
+        for (unsigned i = 0; i < 4; ++i)
+        {
+            unsigned before = actions_sent;
+            lv_obj_send_event(ui->setting_entries[i], LV_EVENT_CLICKED, NULL);
+            CHECK(actions_sent == before && !lv_obj_is_hidden(ui->settings_detail));
+            CHECK(ui->selected_setting == i);
+            lv_obj_update_layout(ui->root);
+            CHECK(check_layout(ui->settings_detail) == 0);
+            CHECK(lv_obj_get_height(ui->setting_entries[i]) == 56);
+            CHECK(lv_obj_get_y(ui->setting_entries[i]) == (int)i * 60);
+            if (argc == 2)
+            {
+                char path[1024];
+                snprintf(path, sizeof(path), "%s/setting-%u-%s.bmp", argv[1], i, language ? "zh" : "en");
+                CHECK(meter_host_capture(path));
+            }
+            lv_obj_send_event(ui->settings_detail_back, LV_EVENT_CLICKED, NULL);
+            CHECK(actions_sent == before && lv_obj_is_hidden(ui->settings_detail));
+            CHECK(ui->settings_tab == 0 && !lv_obj_is_hidden(ui->settings_cards[0]));
+        }
+        lv_obj_send_event(ui->version_entry, LV_EVENT_CLICKED, NULL);
+        demo_ui_present(ui, &core.snapshot, 16);
+        lv_obj_update_layout(ui->root);
+        CHECK(ui->version_open && !lv_obj_is_hidden(ui->version_back));
+        CHECK(check_layout(ui->pages[DEMO_SETTINGS]) == 0);
+        if (argc == 2)
+        {
+            char path[1024];
+            snprintf(path, sizeof(path), "%s/version-%s.bmp", argv[1], language ? "zh" : "en");
+            CHECK(meter_host_capture(path));
+        }
+        lv_obj_send_event(ui->version_back, LV_EVENT_CLICKED, NULL);
+        CHECK(!ui->version_open && ui->settings_tab == 0);
+        demo_settings_show_page(ui, 1);
+        demo_ui_present(ui, &core.snapshot, 16);
+        lv_obj_update_layout(ui->root);
+        CHECK(check_layout(ui->pages[DEMO_SETTINGS]) == 0);
+        if (argc == 2)
+        {
+            char path[1024];
+            snprintf(path, sizeof(path), "%s/admin-%s.bmp", argv[1], language ? "zh" : "en");
+            CHECK(meter_host_capture(path));
+        }
+        for (unsigned i = 0; i < DEMO_ADMIN_COUNT; ++i)
+        {
+            unsigned before = actions_sent;
+            lv_obj_send_event(ui->admin_items[i], LV_EVENT_CLICKED, NULL);
+            CHECK(actions_sent == before && ui->selected_setting == 4 + i);
+            CHECK(!lv_obj_is_hidden(ui->settings_detail));
+            lv_obj_send_event(ui->settings_detail_back, LV_EVENT_CLICKED, NULL);
+            CHECK(ui->settings_tab == 1 && actions_sent == before);
+        }
+    }
+    demo_settings_show_page(ui, 0);
+    lv_obj_send_event(ui->setting_entries[0], LV_EVENT_CLICKED, NULL);
+    bool old_units = core.snapshot.imperial;
+    lv_obj_send_event(ui->unit_button, LV_EVENT_CLICKED, NULL);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(core.snapshot.imperial != old_units);
+    CHECK(!strcmp(lv_label_get_text(ui->setting_values[0]),
+                  demo_i18n_text(core.snapshot.imperial ? DEMO_TXT_IMPERIAL : DEMO_TXT_METRIC)));
+    lv_obj_send_event(ui->settings_detail_back, LV_EVENT_CLICKED, NULL);
+    lv_obj_send_event(ui->setting_entries[1], LV_EVENT_CLICKED, NULL);
+    meter_language_t old_language = core.snapshot.language;
+    lv_obj_send_event(ui->language_button, LV_EVENT_CLICKED, NULL);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(core.snapshot.language != old_language);
+    CHECK(!strcmp(
+        lv_label_get_text(ui->setting_values[1]),
+        demo_i18n_text(core.snapshot.language == METER_LANGUAGE_EN ? DEMO_TXT_ENGLISH : DEMO_TXT_CHINESE)));
+    lv_obj_send_event(ui->settings_detail_back, LV_EVENT_CLICKED, NULL);
+    lv_obj_send_event(ui->setting_entries[3], LV_EVENT_CLICKED, NULL);
+    lv_slider_set_value(ui->limit, 31, LV_ANIM_OFF);
+    lv_obj_send_event(ui->limit, LV_EVENT_RELEASED, NULL);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(ui->view.limit == 31 && !strcmp(lv_label_get_text(ui->setting_values[3]), "31 km/h"));
+    demo_navigation_show(ui, DEMO_MONITOR);
+    CHECK(lv_obj_is_hidden(ui->settings_detail));
+    demo_navigation_show(ui, DEMO_SETTINGS);
+    demo_settings_reset(0);
+    demo_settings_publish(&core.snapshot);
+    demo_ui_present(ui, &core.snapshot, 16);
+    lv_obj_send_event(ui->settings_menu[1], LV_EVENT_CLICKED, NULL);
+    CHECK(!lv_obj_is_hidden(ui->password_editor) && ui->settings_tab == 0);
+    /* 验证实际数字键盘的确认键，不能只向键盘直接发送 READY 掩盖接线缺陷。 */
+    lv_textarea_set_text(ui->admin_password, "5312");
+    lv_buttonmatrix_set_selected_button(ui->password_keyboard, 11);
+    lv_obj_send_event(ui->password_keyboard, LV_EVENT_VALUE_CHANGED, NULL);
+    demo_settings_publish(&core.snapshot);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(ui->view.admin_authorized && ui->settings_tab == 1);
+    lv_obj_send_event(ui->admin_items[0], LV_EVENT_CLICKED, NULL);
+    CHECK(!lv_obj_is_hidden(ui->settings_detail));
+    demo_settings_reset(0);
+    demo_settings_publish(&core.snapshot);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(ui->settings_tab == 0 && lv_obj_is_hidden(ui->settings_detail));
+    CHECK(meter_ui_object_count(ui->root) == objects);
     demo_ui_destroy(ui);
     meter_host_close();
     lv_deinit();

@@ -376,4 +376,9 @@ Candidate `demo-ui-routing-20260929` was rebuilt with the restored SDK Python 3.
 
 ### Tab-local pagination and unified typography
 
-Pagination controls now live at the upper-left of the active right-side content panel, so the bottom navigation remains dedicated to page routing. Monitor rows begin below the control and retain four entries per page; fault rows keep their own Tab-local pager. Settings title and user-setting labels use the same larger face and spacing rhythm as the monitor panel. The existing instrument-version detail route keeps its back control.
+Pagination controls now live at the upper-left of the active right-side content panel, so the bottom navigation remains dedicated to page routing. Monitor rows begin below the control and use the shared five-row layout target; fault rows keep their own Tab-local pager. Settings title and user-setting labels use the same larger face and spacing rhythm as the monitor panel. The existing instrument-version detail route keeps its back control.
+
+
+### Five-row pages and independent setting details
+
+The Demo monitor, fault and settings content now uses a shared five-row layout target: 56 px rows with 60 px rhythm and bottom separators. Monitor and fault pagination remains local to the active Tab; the compact pager is anchored at the upper-right of the content area. User settings expose five visible entries, and speed units, language, brightness and speed limit each open a separate detail route with a back control. The list is a presentation of the current snapshot; opening a detail page never sends an action. Administrator entries use the same row geometry and open the same detail surface after authorization. Host SDL captures and deterministic route/action checks are under `evidence/adaptation/ui-five-row-details/`. This batch does not enable CAN bitrate persistence or alter any retained format.

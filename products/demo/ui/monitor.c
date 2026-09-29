@@ -16,7 +16,8 @@ static void parameter_select(lv_event_t *event)
         if (lv_event_get_target_obj(event) != u->parameter_rows[i])
             continue;
         u->selected_parameter = i;
-        lv_snprintf(u->parameter_input_text, sizeof(u->parameter_input_text), "%.1f", u->view.parameters[i].value);
+        lv_snprintf(u->parameter_input_text, sizeof(u->parameter_input_text), "%.1f",
+                    u->view.parameters[i].value);
         lv_textarea_set_text(u->parameter_input, u->parameter_input_text);
         lv_keyboard_set_textarea(u->parameter_keyboard, u->parameter_input);
         lv_obj_set_hidden(u->parameter_editor, false);
@@ -41,7 +42,8 @@ static void parameter_edit(lv_event_t *event)
         meter_action_t intent = demo_remote_intent(u->selected_parameter, value);
         accepted = u->actions.send && u->actions.send(u->actions.context, &intent);
     }
-    lv_label_set_text(u->parameter_status, demo_i18n_text(accepted ? DEMO_TXT_ACCESS_QUEUED : DEMO_TXT_ACCESS_INVALID));
+    lv_label_set_text(u->parameter_status,
+                      demo_i18n_text(accepted ? DEMO_TXT_ACCESS_QUEUED : DEMO_TXT_ACCESS_INVALID));
     /* 关闭后可看到完整结果；最终成功以 App 快照为准。 */
     lv_obj_set_hidden(u->parameter_editor, true);
 }
@@ -49,9 +51,8 @@ static void monitor_mode_select(lv_event_t *event)
 {
     demo_ui_t *u = lv_event_get_user_data(event);
     u->parameter_mode = lv_event_get_target_obj(event) == u->parameter_mode_button;
-    u->monitor_pager.count = u->parameter_mode
-        ? 1
-        : (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE;
+    u->monitor_pager.count =
+        u->parameter_mode ? 1 : (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE;
     demo_monitor_show_page(u, 0);
 }
 void demo_monitor_show_page(demo_ui_t *u, unsigned page)
@@ -60,7 +61,8 @@ void demo_monitor_show_page(demo_ui_t *u, unsigned page)
         return;
     lv_obj_set_hidden(u->parameter_editor, true);
     for (size_t i = 0; i < DEMO_MONITOR_SLOTS; ++i)
-        lv_obj_set_hidden(lv_obj_get_parent(u->monitor_labels[i]), u->parameter_mode || i / DEMO_MONITORS_PER_PAGE != page);
+        lv_obj_set_hidden(lv_obj_get_parent(u->monitor_labels[i]),
+                          u->parameter_mode || i / DEMO_MONITORS_PER_PAGE != page);
     for (size_t i = 0; i < DEMO_REMOTE_COUNT; ++i)
         lv_obj_set_hidden(u->parameter_rows[i], !u->parameter_mode);
     lv_obj_set_hidden(u->parameter_status, !u->parameter_mode);
@@ -78,7 +80,7 @@ void demo_monitor_create(demo_ui_t *u)
     lv_obj_t *rail = lv_obj_create(p);
     lv_obj_remove_style_all(rail);
     lv_obj_set_pos(rail, 0, 0);
-    lv_obj_set_size(rail, 200, 256);
+    lv_obj_set_size(rail, 200, 372);
     lv_obj_set_style_bg_color(rail, lv_color_hex(0x1a242b), 0);
     lv_obj_set_style_bg_opa(rail, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(rail, 0, 0);
@@ -107,11 +109,12 @@ void demo_monitor_create(demo_ui_t *u)
         unsigned row = (unsigned)i % DEMO_MONITORS_PER_PAGE;
         lv_obj_t *r = lv_obj_create(p);
         lv_obj_remove_style_all(r);
-        lv_obj_set_pos(r, 200, 58 + (int)row * 58);
-        lv_obj_set_size(r, 584, 50);
+        lv_obj_set_pos(r, 200, DEMO_LIST_TOP + (int)row * DEMO_LIST_PITCH);
+        lv_obj_set_size(r, 584, DEMO_LIST_HEIGHT);
         demo_theme_list_row(r);
-        u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0xedf5f8);
-        u->monitor_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0x5de5ca);
+        u->monitor_labels[i] =
+            meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0xedf5f8);
+        u->monitor_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0xedf5f8);
         lv_obj_set_width(u->monitor_labels[i], 260);
         lv_label_set_long_mode(u->monitor_labels[i], LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_width(u->monitor_values[i], 260);
@@ -123,13 +126,13 @@ void demo_monitor_create(demo_ui_t *u)
     {
         lv_obj_t *r = lv_button_create(p);
         demo_theme_list_row(r);
-        lv_obj_set_pos(r, 200, 58 + (int)i * 45);
-        lv_obj_set_size(r, 584, 38);
+        lv_obj_set_pos(r, 200, DEMO_LIST_TOP + (int)i * DEMO_LIST_PITCH);
+        lv_obj_set_size(r, 584, DEMO_LIST_HEIGHT);
         lv_obj_add_event_cb(r, parameter_select, LV_EVENT_CLICKED, u);
         u->parameter_rows[i] = r;
         u->parameter_labels[i] = demo_text(u, r, 18, 0, (demo_text_id_t)(DEMO_TXT_PARAMETER_0 + i),
                                            &lv_font_montserrat_20, 0xedf5f8);
-        u->parameter_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0x5de5ca);
+        u->parameter_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0xedf5f8);
         lv_obj_set_width(u->parameter_labels[i], 260);
         lv_label_set_long_mode(u->parameter_labels[i], LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_width(u->parameter_values[i], 260);
@@ -137,13 +140,14 @@ void demo_monitor_create(demo_ui_t *u)
         lv_obj_align(u->parameter_labels[i], LV_ALIGN_LEFT_MID, 18, 0);
         lv_obj_align(u->parameter_values[i], LV_ALIGN_RIGHT_MID, -18, 0);
     }
-    u->parameter_status = meter_text(p, 216, 8, "", &lv_font_montserrat_16, 0x5de5ca);
-    lv_obj_set_width(u->parameter_status, 568);
+    u->parameter_status = meter_text(p, 410, 8, "", &lv_font_montserrat_16, 0xedf5f8);
+    lv_obj_set_width(u->parameter_status, 374);
     lv_obj_set_height(u->parameter_status, 24);
     lv_obj_set_style_text_align(u->parameter_status, LV_TEXT_ALIGN_CENTER, 0);
     u->parameter_editor = demo_panel(u->root, 40, 88, 720, 310);
     lv_obj_set_style_bg_opa(u->parameter_editor, LV_OPA_COVER, 0);
-    u->parameter_editor_title = demo_text(u, u->parameter_editor, 22, 20, DEMO_TXT_EDIT_VALUE, &lv_font_montserrat_24, 0xedf5f8);
+    u->parameter_editor_title =
+        demo_text(u, u->parameter_editor, 22, 20, DEMO_TXT_EDIT_VALUE, &lv_font_montserrat_24, 0xedf5f8);
     u->parameter_input = lv_textarea_create(u->parameter_editor);
     lv_textarea_set_one_line(u->parameter_input, true);
     lv_textarea_set_max_length(u->parameter_input, 12);
@@ -158,14 +162,15 @@ void demo_monitor_create(demo_ui_t *u)
     lv_obj_add_event_cb(u->parameter_keyboard, parameter_edit, LV_EVENT_READY, u);
     lv_obj_add_event_cb(u->parameter_keyboard, parameter_edit, LV_EVENT_CANCEL, u);
     demo_pager_create(p, &u->monitor_pager,
-                      (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE,
-                      turn_page, u);
+                      (DEMO_MONITOR_SLOTS + DEMO_MONITORS_PER_PAGE - 1) / DEMO_MONITORS_PER_PAGE, turn_page,
+                      u);
     demo_monitor_show_page(u, 0);
 }
 void demo_monitor_update(demo_ui_t *u)
 {
-    const lv_font_t *font = u->view.language == METER_LANGUAGE_EN ? &lv_font_montserrat_20
-                                    : meter_font_get(u->view.language, METER_FONT_LABEL);
+    const lv_font_t *font = u->view.language == METER_LANGUAGE_EN
+                                ? &lv_font_montserrat_20
+                                : meter_font_get(u->view.language, METER_FONT_LABEL);
     for (size_t i = 0; i < DEMO_MONITOR_SLOTS; ++i)
     {
         const demo_monitor_view_t *d = &u->view.monitors[i];
@@ -182,14 +187,16 @@ void demo_monitor_update(demo_ui_t *u)
     {
         lv_obj_set_style_text_font(u->parameter_labels[i], font, 0);
         if (u->view.parameters[i].available)
-            lv_snprintf(u->parameter_text[i], sizeof(u->parameter_text[i]), "%.1f", u->view.parameters[i].value);
+            lv_snprintf(u->parameter_text[i], sizeof(u->parameter_text[i]), "%.1f",
+                        u->view.parameters[i].value);
         else
             lv_snprintf(u->parameter_text[i], sizeof(u->parameter_text[i]), "--");
         lv_label_set_text_static(u->parameter_values[i], u->parameter_text[i]);
         lv_obj_set_style_text_font(u->parameter_values[i], font, 0);
     }
     demo_text_id_t status = u->view.parameter_feedback == DEMO_FEEDBACK_IDLE
-        ? DEMO_TXT_REMOTE_NOTE : demo_i18n_feedback(u->view.parameter_feedback);
+                                ? DEMO_TXT_REMOTE_NOTE
+                                : demo_i18n_feedback(u->view.parameter_feedback);
     lv_label_set_text(u->parameter_status, demo_i18n_text(status));
     lv_obj_set_style_text_font(u->parameter_status, font, 0);
     if (!u->view.admin_authorized)
