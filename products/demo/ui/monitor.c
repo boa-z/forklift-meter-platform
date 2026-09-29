@@ -82,11 +82,12 @@ void demo_monitor_create(demo_ui_t *u)
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_button(modes[i]);
-        lv_obj_set_pos(modes[i], 24, 70 + (int)i * 62);
-        lv_obj_set_size(modes[i], 168, 52);
-        lv_obj_set_style_radius(modes[i], 4, 0);
-        lv_obj_t *label = demo_text(u, modes[i], 8, 0, mode_ids[i], &lv_font_montserrat_16, 0xedf5f8);
-        lv_obj_set_width(label, 152);
+        lv_obj_set_pos(modes[i], 0, (int)i * 156);
+        lv_obj_set_size(modes[i], 200, 156);
+        lv_obj_set_style_radius(modes[i], 0, 0);
+        lv_obj_set_style_border_width(modes[i], 0, 0);
+        lv_obj_t *label = demo_text(u, modes[i], 8, 0, mode_ids[i], &lv_font_montserrat_20, 0xedf5f8);
+        lv_obj_set_width(label, 184);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
         if (i == 0)
             u->monitor_mode_label = label;
@@ -98,11 +99,11 @@ void demo_monitor_create(demo_ui_t *u)
     for (size_t i = 0; i < DEMO_MONITOR_SLOTS; ++i)
     {
         unsigned row = (unsigned)i % DEMO_MONITORS_PER_PAGE;
-        lv_obj_t *r = demo_panel(p, 216, 70 + (int)row * 38, 568, 34);
-        u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_16, 0x9cb5c4);
-        u->monitor_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_20, 0x5de5ca);
-        lv_obj_set_width(u->monitor_labels[i], 250);
-        lv_obj_set_width(u->monitor_values[i], 240);
+        lv_obj_t *r = demo_panel(p, 200, 18 + (int)row * 58, 584, 50);
+        u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0x9cb5c4);
+        u->monitor_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0x5de5ca);
+        lv_obj_set_width(u->monitor_labels[i], 260);
+        lv_obj_set_width(u->monitor_values[i], 260);
         lv_obj_set_style_text_align(u->monitor_values[i], LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_align(u->monitor_labels[i], LV_ALIGN_LEFT_MID, 18, 0);
         lv_obj_align(u->monitor_values[i], LV_ALIGN_RIGHT_MID, -18, 0);
@@ -111,15 +112,15 @@ void demo_monitor_create(demo_ui_t *u)
     {
         lv_obj_t *r = lv_button_create(p);
         demo_theme_button(r);
-        lv_obj_set_pos(r, 216, 70 + (int)i * 38);
-        lv_obj_set_size(r, 568, 34);
+        lv_obj_set_pos(r, 200, 18 + (int)i * 45);
+        lv_obj_set_size(r, 584, 38);
         lv_obj_add_event_cb(r, parameter_select, LV_EVENT_CLICKED, u);
         u->parameter_rows[i] = r;
         u->parameter_labels[i] = demo_text(u, r, 18, 0, (demo_text_id_t)(DEMO_TXT_PARAMETER_0 + i),
-                                           &lv_font_montserrat_16, 0x9cb5c4);
-        u->parameter_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_20, 0x5de5ca);
-        lv_obj_set_width(u->parameter_labels[i], 250);
-        lv_obj_set_width(u->parameter_values[i], 240);
+                                           &lv_font_montserrat_20, 0x9cb5c4);
+        u->parameter_values[i] = meter_text(r, 300, 0, "--", &lv_font_montserrat_24, 0x5de5ca);
+        lv_obj_set_width(u->parameter_labels[i], 260);
+        lv_obj_set_width(u->parameter_values[i], 260);
         lv_obj_set_style_text_align(u->parameter_values[i], LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_align(u->parameter_labels[i], LV_ALIGN_LEFT_MID, 18, 0);
         lv_obj_align(u->parameter_values[i], LV_ALIGN_RIGHT_MID, -18, 0);

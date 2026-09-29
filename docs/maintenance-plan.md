@@ -323,3 +323,7 @@ The Demo monitor page now uses the same composition as settings: a left vertical
 ### Four-item monitor pagination
 
 Monitor telemetry and fault lists now show four entries per page, matching the four-item settings pages. The monitor catalog therefore uses deterministic four-row pages; controller parameter editing remains a single right-panel view. Page counts and end stops are derived from catalog sizes, and no signal, authorization or transaction contract changes.
+
+### Full-width left-tab and spacing refinement
+
+The monitor and settings rails now attach to the page's left edge and form continuous, gap-free 200 px columns. Their tabs fill the available content height without rounded gaps. Right-side monitor rows use larger label/value faces and wider spacing; the four-item page rule remains enforced. The full SDL capture set, including dashboard, monitor pages, fault pages, settings pages and password page, is under `evidence/adaptation/ui-left-tab-full/`.
