@@ -4,6 +4,16 @@
 
 Established 2026-09-28 from the [source assessment](maintainability.md), baseline `81e5083`. This is the active continuation record. Update status and evidence here in the same change as the work; do not depend on chat history.
 
+## Current batch: Product-owned parameter management
+
+2026-09-29, based on clean Framework `65bcdb2` on main. Inspection confirmed that the existing transaction engine already borrows Product descriptors and contains no transport/storage implementation. Extend that boundary rather than add another manager.
+
+- Implemented: publish `meter_parameter_exchange_t`, retain the reference port alias, and document copied nonblocking handoff, independent backend ownership and durable completion obligations. Keep existing take/reply, authorization, timeout, retained-result and uncertain-write semantics.
+- Implemented: reject concrete remote Parameter and local Settings descriptor declarations in contracts/core/runtime through the architecture guard, with positive and negative fixtures. Production definitions stay in Product packages; test-only synthetic catalogs are allowed. Guard limitations and review scope are recorded as GCR-009.
+- Implemented: deterministic reference tests for a deferred storage owner, successful write/read, failed completion and independent catalogs with different permissions/ranges. Existing synthetic protocol tests continue to exercise the same public exchange.
+- Validation: `cmake --build build-adaptation-demo -j 8` and `cmake --build build-adaptation-release -j 8` succeeded. Complete `ctest --test-dir BUILD --output-on-failure -j 6` passed Debug/UI 90/90 and Release/headless+update 86/86, including parameter, architecture, public-header, bilingual and assertion guards. Standalone guard fixtures passed 15/15. Windows GNU host evidence only; no firmware or physical storage/transport acceptance is claimed. Existing LVGL deprecation warnings in the update UI test remain outside this parameter change.
+- Product decisions remain: actual parameter mappings, credential policy, persistence completion guarantees and untagged-response drain rules require Product evidence. No customer parameters, new persistence format, migration, worker or runtime registry is introduced.
+
 ## Behavior-preserving hardening
 
 | Order / item | Scope and rationale | Exit evidence | Status |

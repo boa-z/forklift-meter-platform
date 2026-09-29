@@ -38,7 +38,7 @@ static bool receive_reply(void *context, meter_parameter_reply_t *out)
 }
 static reference_parameter_port_t port(backend_t *backend)
 {
-    return (reference_parameter_port_t){backend, ready, send_work, receive_reply};
+    return (meter_parameter_exchange_t){backend, ready, send_work, receive_reply};
 }
 static void complete(backend_t *backend, float value)
 {
@@ -292,8 +292,124 @@ static void result_availability_is_not_zero_success(void)
     assert(valid_zero.has_value && valid_zero.value == 0.0f); /* 此前复制的展示值保持不变。 */
 }
 
+/* 合成存储所有者使用同一个复制消息契约，无文件、NVM 或传输类型。
+ * send 只排队；显式的所有者步骤模拟耐久确认，不能在 App 回调中落盘。 */
+typedef struct
+{
+    backend_t queue;
+    float durable_value;
+} storage_backend_t;
+
+static bool storage_ready(void *context)
+{
+    storage_backend_t *storage = context;
+    return ready(&storage->queue);
+}
+
+static bool storage_send(void *context, const meter_parameter_work_t *work)
+{
+    storage_backend_t *storage = context;
+    return send_work(&storage->queue, work);
+}
+
+static bool storage_receive(void *context, meter_parameter_reply_t *reply)
+{
+    storage_backend_t *storage = context;
+    return receive_reply(&storage->queue, reply);
+}
+
+static void storage_owner_complete(storage_backend_t *storage, bool success)
+{
+    assert(storage->queue.busy);
+    if (success && storage->queue.work.operation == METER_PARAMETER_WRITE)
+        storage->durable_value = storage->queue.work.value;
+    complete(&storage->queue, storage->durable_value);
+    if (!success)
+    {
+        /* 保留现有后端失败枚举及不确定写结果，不新增存储专属运行时语义。 */
+        storage->queue.reply.code = METER_PARAMETER_REPLY_TRANSPORT_FAILED;
+        storage->queue.reply.has_value = false;
+        storage->queue.reply.detail = -17;
+    }
+}
+
+static void storage_completion_controls_success(void)
+{
+    reference_parameter_app_t app;
+    initialize(&app, 1u);
+    assert(meter_authorization_grant(&app.authorization, 1u, 0u, 200u));
+    storage_backend_t storage = {.durable_value = 3.0f};
+    const meter_parameter_exchange_t exchange = {
+        &storage, storage_ready, storage_send, storage_receive};
+    reference_parameter_intent_t input = intent(REFERENCE_FIELD_TRAVEL_LIMIT, METER_PARAMETER_WRITE);
+    assert(reference_parameter_app_submit(&app, &input, 0u) == METER_PARAMETER_ACCEPTED);
+    reference_parameter_app_step(&app, &exchange, 1u);
+    input.value = 99.0f;
+    reference_parameter_app_step(&app, &exchange, 5u);
+    assert(storage.durable_value == 3.0f && storage.queue.work.value == 8.0f);
+    assert(present(&app).pending && !present(&app).has_result);
+    storage_owner_complete(&storage, true);
+    reference_parameter_app_step(&app, &exchange, 6u);
+    assert(storage.durable_value == 8.0f);
+    assert(present(&app).has_result && present(&app).has_value);
+    assert(present(&app).outcome == METER_PARAMETER_SUCCEEDED && present(&app).value == 8.0f);
+    acknowledge(&app);
+
+    input.operation = METER_PARAMETER_READ;
+    assert(reference_parameter_app_submit(&app, &input, 7u) == METER_PARAMETER_ACCEPTED);
+    reference_parameter_app_step(&app, &exchange, 8u);
+    storage_owner_complete(&storage, true);
+    reference_parameter_app_step(&app, &exchange, 9u);
+    assert(present(&app).has_value && present(&app).value == 8.0f);
+    acknowledge(&app);
+
+    input.operation = METER_PARAMETER_WRITE;
+    input.value = 12.0f;
+    assert(reference_parameter_app_submit(&app, &input, 10u) == METER_PARAMETER_ACCEPTED);
+    reference_parameter_app_step(&app, &exchange, 11u);
+    storage_owner_complete(&storage, false);
+    reference_parameter_app_step(&app, &exchange, 12u);
+    assert(present(&app).outcome == METER_PARAMETER_TRANSPORT_FAILED);
+    assert(present(&app).effect_unknown && !present(&app).has_value);
+    assert(storage.durable_value == 8.0f);
+    meter_parameter_result_t result;
+    assert(meter_parameters_query(&app.parameters, present(&app).request, &result));
+    assert(result.detail == -17);
+    acknowledge(&app);
+}
+
+static void independent_catalogs_define_access_and_bounds(void)
+{
+    /* 第二份合成 Product 目录复用逻辑键，但不继承第一份目录的权限或范围。 */
+    const meter_parameter_definition_t other_catalog[] = {
+        {.key = {1u, 7u}, .confirmed = true, .readable = true, .minimum = -5.0f, .maximum = 5.0f}};
+    reference_parameter_app_t first, second;
+    initialize(&first, 1u);
+    assert(reference_parameter_app_init(&second, other_catalog, 1u, 12u, 5u,
+                                        (meter_parameter_policy_t){100u, 20u, 1u}));
+    assert(meter_authorization_grant(&first.authorization, 1u, 0u, 200u));
+    assert(meter_authorization_grant(&second.authorization, 1u, 0u, 200u));
+    reference_parameter_intent_t input = intent(REFERENCE_FIELD_TRAVEL_LIMIT, METER_PARAMETER_WRITE);
+    assert(reference_parameter_app_submit(&first, &input, 0u) == METER_PARAMETER_ACCEPTED);
+    assert(reference_parameter_app_submit(&second, &input, 0u) == METER_PARAMETER_DENIED);
+    input.field = REFERENCE_FIELD_LIFT_LIMIT;
+    assert(reference_parameter_app_submit(&second, &input, 0u) == METER_PARAMETER_NOT_FOUND);
+    input.field = REFERENCE_FIELD_TRAVEL_LIMIT;
+    input.operation = METER_PARAMETER_READ;
+    assert(reference_parameter_app_submit(&second, &input, 0u) == METER_PARAMETER_ACCEPTED);
+    backend_t backend = {0};
+    const meter_parameter_exchange_t exchange = port(&backend);
+    reference_parameter_app_step(&second, &exchange, 1u);
+    complete(&backend, 8.0f);
+    reference_parameter_app_step(&second, &exchange, 2u);
+    assert(present(&second).outcome == METER_PARAMETER_INVALID_REPLY);
+    assert(!present(&second).has_value);
+}
+
 int main(void)
 {
+    storage_completion_controls_success();
+    independent_catalogs_define_access_and_bounds();
     result_availability_is_not_zero_success();
     profile_replacement_retains_old_result();
     admission_and_copied_presentation();

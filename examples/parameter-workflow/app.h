@@ -3,16 +3,8 @@
 #include "contracts/meter_profile.h"
 #include "examples/parameter-workflow/ui/presentation.h"
 #include "runtime/meter_parameters.h"
-/* App 调用的非阻塞复制消息端口。生产端口向协议所有者投递请求，
- * 不得内联执行 I/O 或运行其他所有者。ready 包含后端排空/隔离状态，
- * 与 App 的结果保留额度相互独立。 */
-typedef struct
-{
-    void *context;
-    bool (*ready)(void *context);
-    bool (*send)(void *context, const meter_parameter_work_t *work);
-    bool (*receive)(void *context, meter_parameter_reply_t *reply);
-} reference_parameter_port_t;
+/* 保留参考示例的源代码兼容名称，复制消息契约由公共头文件统一定义。 */
+typedef meter_parameter_exchange_t reference_parameter_port_t;
 typedef struct
 {
     meter_parameters_t parameters;

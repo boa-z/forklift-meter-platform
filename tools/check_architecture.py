@@ -94,6 +94,13 @@ for area in ('contracts','core','runtime'):
             errors.append(f'{file.relative_to(ROOT)} declares fixed-size domain storage')
         if re.search(r'\bactive_faults\b', text):
             errors.append(f'{file.relative_to(ROOT)} folds fault state into one word')
+        # 参数类型和借用指针属于框架；具体远端参数及本地设置目录只属于 Product。
+        # 去掉注释和字符串，避免文档示例误报；此检查不替代宏展开和类型别名评审。
+        declarations = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', text, flags=re.S)
+        if re.search(
+                r'\bmeter_parameter_(?:definition|def)_t\s+(?:const\s+)?\w+\s*'
+                r'(?:\[[^;{}\]]*\]\s*(?:=|;)|=\s*\{)', declarations):
+            errors.append(f'{file.relative_to(ROOT)} defines a Product parameter catalog in Framework')
 # 域、运行时、产品与板级适配代码绑定调用方提供的存储，不申请堆。
 for area in ('diagnostics','contracts','core','runtime','protocols','products','platform/rtthread'):
     for file in (ROOT/area).rglob('*'):

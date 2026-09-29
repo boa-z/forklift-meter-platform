@@ -2,7 +2,21 @@
 
 > [中文版](parameter-service.zh-CN.md)
 
-This opt-in internal framework seam now has a deterministic reference Application and copied presentation witness. Existing production Products, native workers, CAN encoders, SDO channels and NVM backends remain unbound. The active priorities remain in the [maintenance plan](maintenance-plan.md).
+This opt-in framework service has a deterministic reference Application and copied presentation witness. Demo binds its own synthetic catalog in `products/demo/services/settings_app.c`; real controller transports and persistent parameter backends are not automatically bound. The active priorities remain in the [maintenance plan](maintenance-plan.md).
+
+## Product definitions and independent backends
+
+Framework provides types, catalog validation, authorization checks, request identity, deadlines and retained results. It defines no vehicle parameter IDs, defaults, ranges, permission meanings or fallback catalog. Every production parameter definition belongs to the selected Product package, including local Settings descriptors. Product owns semantic-to-key mappings, units, supported operations, credentials, protocol encoding and optional persistence binding. Tests may construct synthetic catalogs; they are never firmware defaults.
+
+The public `meter_parameter_exchange_t` in `contracts/meter_parameter.h` describes an optional App-level copied-message port: context, ready, send and receive. It has no CAN, device, RTOS, storage handle or record-layout dependency. The transaction engine neither stores nor calls it: App orchestrates the exchange using the existing take/reply API. Direct users of take/reply remain valid. The reference name `reference_parameter_port_t` is a source-compatible alias.
+
+All callbacks must be valid and nonblocking for the duration of each App call. Successful send copies the work before returning; it never borrows App stack storage. Receive copies and consumes one completed reply. Ready includes backend drain/quarantine and capacity, separately from retained-result credit. A send failure after take keeps the existing conservative failed-write semantics. Transport and storage owners perform their own work outside App callbacks. A storage adapter promising durability reports OK only after durable completion, not queue admission; failure uses the existing backend failure outcome and detail without changing health policy. No serializer, storage format or additional worker is introduced.
+
+Local authoritative Settings (`meter_parameter_def_t`, Domain actions/snapshot and the existing NVM path) and owner-qualified Parameters (`meter_parameter_definition_t`, explicit request/result lifecycle) remain separate. The exchange can bind a Product-selected backend; it does not automatically route local Settings through transactions or migrate their records. Exactly one build-time Product owns each firmware catalog.
+
+The architecture guard rejects direct parameter descriptor arrays and initialized descriptors in contracts/core/runtime, while permitting borrowed catalogs and Product-owned definitions. Negative fixtures cover both descriptor types, all three Framework layers and forbidden runtime-to-storage imports. This is a lexical regression guard, not proof against aliases, macros or all semantic dependencies.
+
+`tests/test_parameter_app.c` uses the public exchange for the existing synthetic protocol backend and a deferred storage-owner fixture. It checks that admission/dispatch do not imply durability, reads return completed storage values, failures retain diagnostic details and uncertain write effects, and independent supplied catalogs retain their own access/range rules. These are deterministic integration witnesses, not physical transport or power-loss evidence.
 
 ## Ownership and identity
 

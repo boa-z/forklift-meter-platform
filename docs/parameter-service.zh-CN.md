@@ -2,7 +2,21 @@
 
 > [English](parameter-service.md)
 
-此可选框架接口现有确定性的参考 App 与复制展示见证。既有生产 Product、原生工作线程、CAN 编码器、SDO 通道及 NVM 后端仍未绑定。优先级继续由[维护计划](maintenance-plan.zh-CN.md)维护。
+此可选框架服务已有确定性的参考 App 与复制展示见证。Demo 在 `products/demo/services/settings_app.c` 绑定自己的合成目录；真实控制器传输及持久化参数后端不会自动绑定。优先级继续由[维护计划](maintenance-plan.zh-CN.md)维护。
+
+## Product 定义与独立后端
+
+Framework 仅提供类型、目录校验、权限检查、请求身份、期限和结果保留，不定义车辆参数 ID、默认值、范围、权限含义或后备目录。所有生产参数定义均属于选中的 Product 包，包括本地 Settings 描述符。Product 持有语义到键的映射、单位、支持操作、凭据、协议编码及可选持久化绑定。测试可以构造合成目录，但不能成为固件默认目录。
+
+`contracts/meter_parameter.h` 中的公共 `meter_parameter_exchange_t` 描述可选的 App 复制消息端口：context、ready、send 和 receive，不依赖 CAN、设备、RTOS、存储句柄或记录布局。事务核心不保存或调用此端口：App 使用现有 take/reply API 协调交接。直接使用 take/reply 的调用方仍然有效。参考名称 `reference_parameter_port_t` 保留为源代码兼容别名。
+
+所有回调在每次 App 调用期间必须有效且非阻塞。send 成功前复制工作项，不借用 App 栈空间；receive 复制并消费一个已完成回复。ready 包括后端排空/隔离及容量，与结果保留额度独立。take 后 send 失败继续采用既有保守写失败语义。传输和存储所有者在 App 回调之外执行各自工作。承诺耐久性的存储适配器必须等到耐久完成才报告 OK，不能在队列准入时报告；失败沿用现有后端失败结果与详情，不改变健康策略。不引入序列化器、存储格式或额外线程。
+
+本地权威 Settings（`meter_parameter_def_t`、Domain 动作/快照和现有 NVM 路径）与属主限定 Parameters（`meter_parameter_definition_t`、显式请求/结果生命周期）保持独立。交接端口可以绑定 Product 选择的后端，但不会自动把本地 Settings 转为事务或迁移记录。每个固件目录恰由一个构建期 Product 持有。
+
+架构检查拒绝 contracts/core/runtime 中直接声明的参数描述符数组及已初始化描述符，允许借用目录及 Product 自有定义。负向样例覆盖两种描述符、三个 Framework 层及禁止运行时导入存储头文件的规则。这是词法回归检查，不能证明类型别名、宏及全部语义依赖均无违规。
+
+`tests/test_parameter_app.c` 使用公共端口验证已有合成协议后端及延迟存储所有者样例，检查准入/派发不代表耐久成功、读取返回存储完成值、失败保留诊断详情及写入不确定性，以及独立传入目录各自的访问/范围规则。这些是确定性集成见证，不是物理传输或掉电证据。
 
 ## 所有权与身份
 

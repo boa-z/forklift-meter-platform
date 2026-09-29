@@ -4,6 +4,16 @@
 
 根据[源码评估](maintainability.zh-CN.md) 于 2026-09-28 建立，基线 `81e5083`。这是当前续接记录；随代码变更同步更新此处的状态与证据，不依赖聊天历史。
 
+## 当前批次：Product 自有参数管理
+
+2026-09-29，基于 main 上干净的 Framework `65bcdb2`。检查确认既有事务核心已经借用 Product 描述符，且没有传输/存储实现。本批扩展既有边界，不另建管理器。
+
+- 已实现：公开 `meter_parameter_exchange_t`，保留参考端口别名，明确非阻塞复制交接、独立后端所有权与耐久完成责任。保持既有 take/reply、授权、超时、结果保留及不确定写语义。
+- 已实现：架构检查拒绝 contracts/core/runtime 中具体远端 Parameter 与本地 Settings 描述符声明，并增加正负向样例。生产定义留在 Product 包；允许仅测试使用的合成目录。检查限制及评审范围记录于 GCR-009。
+- 已实现：参考确定性测试覆盖延迟存储所有者、写入/读取成功、完成失败，以及不同权限/范围的独立目录。已有合成协议测试继续验证同一公共交接端口。
+- 验证：`cmake --build build-adaptation-demo -j 8` 与 `cmake --build build-adaptation-release -j 8` 通过。完整 `ctest --test-dir BUILD --output-on-failure -j 6` 通过 Debug/UI 90/90、Release/headless+update 86/86，包括参数、架构、公共头文件、双语及断言检查；独立门禁样例通过 15/15。仅为 Windows GNU 主机证据，不声称固件或物理存储/传输验收通过。既有 update UI 测试的 LVGL 弃用警告不属于本批参数变更。
+- Product 待决策项：实际参数映射、凭据策略、持久化完成保证及无标签响应排空规则需 Product 证据。不引入客户参数、新持久化格式、迁移、线程或运行时注册表。
+
 ## 行为保持加固
 
 | 顺序 / 项目 | 范围与理由 | 完成证据 | 状态 |

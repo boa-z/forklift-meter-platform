@@ -55,6 +55,33 @@ class GuardBoundaries(unittest.TestCase):
         self.write('core/good.c', '#include "local.h"')
         self.run_guard('check_architecture.py', 'core/local.h ->')
 
+    def test_parameter_definitions_belong_to_products(self):
+        for area in ('contracts', 'core', 'runtime'):
+            for kind in ('definition', 'def'):
+                for declaration in ('static const {type} values[] = {{0}};',
+                                    'const {type} value = {{0}};',
+                                    'extern const {type} values[2];',
+                                    '{type} const values[2];'):
+                    with self.subTest(area=area, kind=kind, declaration=declaration):
+                        path = area + '/catalog.c'
+                        self.write(path, declaration.format(type='meter_parameter_' + kind + '_t'))
+                        self.run_guard('check_architecture.py', 'defines a Product parameter catalog')
+                        self.write(path, '')
+
+    def test_product_catalogs_and_framework_borrowing_are_allowed(self):
+        self.write('products/demo/services/catalog.c',
+                   'static const meter_parameter_definition_t values[] = {{0}};')
+        self.write('runtime/service.h',
+                   'const meter_parameter_definition_t *catalog;\n'
+                   'void bind(const meter_parameter_definition_t catalog[], unsigned count);\n'
+                   '/* const meter_parameter_definition_t example[] = {{0}}; */')
+        self.run_guard('check_architecture.py')
+
+    def test_parameter_runtime_cannot_import_storage(self):
+        self.write('storage/backend.h', '')
+        self.write('runtime/parameters.c', '#include "storage/backend.h"')
+        self.run_guard('check_architecture.py', 'runtime/parameters.c ->')
+
     def test_product_include_root_is_checked(self):
         self.write('products/demo/protocol/good.c', '#include "generated/demo_catalog.h"')
         self.run_guard('check_architecture.py')
