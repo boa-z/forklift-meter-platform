@@ -1,3 +1,4 @@
+#include "services/settings_app.h"
 #include "product/product.h"
 #include "generated/demo_catalog.h"
 #include "update/meter_update.h"
@@ -77,6 +78,7 @@ static const meter_product_t product = {
     .storage = &storage_profile, .update = &update_policy, .update_admission = update_admission,
     .update_exclusive = true, .mode_policy = mode_policy,
     .tx_sample = tx_sample, .tx_value_count = 2u,
+    .local_action = demo_settings_action, .app_reset = demo_settings_reset, .app_run = demo_settings_run,
     .periodic = periodic, .periodic_count = sizeof(periodic) / sizeof(periodic[0])};
 const meter_product_t *meter_product_get(void)
 {

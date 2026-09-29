@@ -11,6 +11,7 @@ RULES = {
     'contracts': ('contracts/',),
     'products/demo/ui': ('contracts/', 'products/demo/ui/', 'products/demo/application/', 'products/demo/generated/', 'ui/common/'),
     'products/demo/application': ('contracts/', 'products/demo/application/', 'products/demo/generated/'),
+    'products/demo/services': ('contracts/', 'runtime/', 'products/demo/services/', 'products/demo/application/', 'products/demo/generated/'),
     'core': ('contracts/', 'core/', 'diagnostics/'),
     'diagnostics': ('contracts/', 'diagnostics/'),
     'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/'),
@@ -30,7 +31,7 @@ for area, allowed in RULES.items():
             # Product-local roots are known for the selected Demo protocol scope.
             search_roots = [file.parent] if delimiter == '"' else []
             search_roots.append(ROOT)
-            if area in ('products/demo/protocol', 'products/demo/application', 'products/demo/ui'):
+            if area in ('products/demo/protocol', 'products/demo/application', 'products/demo/ui', 'products/demo/services'):
                 search_roots.append(ROOT / 'products/demo')
             candidate = next(((base / include).resolve() for base in search_roots
                               if (base / include).is_file()), (ROOT / include).resolve())

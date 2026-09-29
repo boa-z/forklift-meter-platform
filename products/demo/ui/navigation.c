@@ -10,6 +10,7 @@ void demo_navigation_show(demo_ui_t *u, unsigned page)
 {
     if (page >= DEMO_PAGE_COUNT)
         return;
+    demo_editors_close(u);
     u->page = page;
     for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
     {

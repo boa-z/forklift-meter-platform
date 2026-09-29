@@ -1,3 +1,4 @@
+#include "services/settings_app.h"
 #include "core/meter_core.h"
 #include "platform/host/host_platform.h"
 #include "ui/demo_internal.h"
@@ -12,7 +13,9 @@ static bool accept = true;
 static bool send(void *context, const meter_action_t *action)
 {
     ++actions_sent;
-    return accept && meter_core_action(context, action);
+    if (!accept || !demo_settings_action(action, lv_tick_get()))
+        return false;
+    return action->kind == METER_ACTION_PRODUCT || meter_core_action(context, action);
 }
 
 /* 对实际布局求边界；仅验证可见内容，不能用隐藏溢出来掩盖排版问题。 */
@@ -45,8 +48,8 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
     unsigned capacity = page == DEMO_MONITOR ? DEMO_MONITORS_PER_PAGE : DEMO_FAULTS_PER_PAGE;
     if (page == DEMO_SETTINGS)
     {
-        CHECK(lv_obj_is_hidden(ui->settings_cards[0]) == (subpage != 0));
-        CHECK(lv_obj_is_hidden(ui->settings_cards[1]) == (subpage != 1));
+        for (unsigned i = 0; i < 4; ++i)
+            CHECK(lv_obj_is_hidden(ui->settings_cards[i]) == (subpage != i));
         return 0;
     }
     for (size_t i = 0; i < slots; ++i)
@@ -105,8 +108,14 @@ int main(int argc, char **argv)
             for (unsigned page = DEMO_MONITOR; page <= DEMO_SETTINGS; ++page)
             {
                 demo_pager_t *pager = pagers[page - DEMO_MONITOR];
-                CHECK(pager->count == 2);
+                CHECK(pager->count == (page == DEMO_SETTINGS ? 4u : 2u));
                 demo_navigation_show(ui, page);
+                if (page == DEMO_MONITOR)
+                    demo_monitor_show_page(ui, 0);
+                else if (page == DEMO_FAULTS)
+                    demo_faults_show_page(ui, 0);
+                else
+                    demo_settings_show_page(ui, 0);
                 lv_obj_send_event(pager->previous, LV_EVENT_CLICKED, NULL);
                 CHECK(pager->current == 0 && lv_obj_has_state(pager->previous, LV_STATE_DISABLED));
                 for (unsigned subpage = 0; subpage < pager->count; ++subpage)
@@ -121,8 +130,10 @@ int main(int argc, char **argv)
                     lv_tick_inc(32);
                     lv_timer_handler();
                     CHECK(pager->current == subpage);
-                    CHECK(!strcmp(lv_label_get_text(pager->indicator), subpage ? "2 / 2" : "1 / 2"));
-                    CHECK(lv_obj_has_state(pager->next, LV_STATE_DISABLED) == (subpage == 1));
+                    char expected_page[16];
+                    snprintf(expected_page, sizeof(expected_page), "%u / %u", subpage + 1u, pager->count);
+                    CHECK(!strcmp(lv_label_get_text(pager->indicator), expected_page));
+                    CHECK(lv_obj_has_state(pager->next, LV_STATE_DISABLED) == (subpage + 1u == pager->count));
                     CHECK(check_rows(ui, page, subpage) == 0);
                     CHECK(check_layout(ui->pages[page]) == 0);
                     CHECK(meter_ui_object_count(ui->root) == objects);
@@ -135,28 +146,57 @@ int main(int argc, char **argv)
                     }
                 }
                 lv_obj_send_event(pager->next, LV_EVENT_CLICKED, NULL);
-                CHECK(pager->current == 1);
+                CHECK(pager->current == pager->count - 1u);
                 demo_monitor_show_page(ui, UINT_MAX);
                 demo_faults_show_page(ui, UINT_MAX);
                 demo_settings_show_page(ui, UINT_MAX);
-                CHECK(pager->current == 1);
+                CHECK(pager->current == pager->count - 1u);
                 lv_obj_send_event(pager->previous, LV_EVENT_CLICKED, NULL);
-                CHECK(pager->current == 0);
+                CHECK(pager->current == (pager->count > 1u ? pager->count - 2u : 0u));
             }
         }
     }
     /* 翻页后的设置仍通过既有动作入口，拒绝状态不能因翻页消失。 */
     demo_settings_show_page(ui, 1);
+    lv_obj_send_event(ui->admin_password_button, LV_EVENT_CLICKED, NULL);
+    lv_textarea_set_text(ui->admin_password, "0000");
+    lv_obj_send_event(ui->password_keyboard, LV_EVENT_READY, NULL);
+    demo_settings_publish(&core.snapshot);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(!ui->view.admin_authorized && lv_obj_is_hidden(ui->admin_items[0]));
+    lv_obj_send_event(ui->admin_password_button, LV_EVENT_CLICKED, NULL);
+    lv_textarea_set_text(ui->admin_password, "5312");
+    lv_obj_send_event(ui->password_keyboard, LV_EVENT_READY, NULL);
+    demo_settings_publish(&core.snapshot);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(ui->view.admin_authorized && !lv_obj_is_hidden(ui->admin_items[0]));
+    CHECK(strlen(lv_textarea_get_text(ui->admin_password)) == 0);
+    demo_navigation_show(ui, DEMO_MONITOR);
+    lv_obj_send_event(ui->parameter_mode_button, LV_EVENT_CLICKED, NULL);
+    CHECK(ui->monitor_pager.count == 1);
+    lv_obj_send_event(ui->parameter_rows[0], LV_EVENT_CLICKED, NULL);
+    CHECK(!lv_obj_is_hidden(ui->parameter_editor));
+    lv_textarea_set_text(ui->parameter_input, "");
+    lv_obj_send_event(ui->parameter_keyboard, LV_EVENT_READY, NULL);
+    CHECK(actions_sent == 2);
+    lv_obj_send_event(ui->parameter_rows[0], LV_EVENT_CLICKED, NULL);
+    lv_textarea_set_text(ui->parameter_input, "42.0");
+    lv_obj_send_event(ui->parameter_keyboard, LV_EVENT_READY, NULL);
+    demo_settings_run(lv_tick_get(), NULL);
+    demo_settings_publish(&core.snapshot);
+    demo_ui_present(ui, &core.snapshot, 16);
+    CHECK(core.snapshot.parameters[0] == 25.0f && actions_sent == 3);
+    CHECK(ui->view.parameters[0].value == 42.0f && ui->view.parameter_feedback == DEMO_FEEDBACK_APPLIED);
     lv_slider_set_value(ui->brightness, 70, LV_ANIM_OFF);
     lv_obj_send_event(ui->brightness, LV_EVENT_RELEASED, NULL);
-    CHECK(core.snapshot.brightness == 70 && actions_sent == 1);
+    CHECK(core.snapshot.brightness == 70 && actions_sent == 4);
     accept = false;
     lv_slider_set_value(ui->brightness, 80, LV_ANIM_OFF);
     lv_obj_send_event(ui->brightness, LV_EVENT_RELEASED, NULL);
     demo_settings_show_page(ui, 0);
     demo_ui_present(ui, &core.snapshot, 16);
-    CHECK(core.snapshot.brightness == 70 && ui->action_failed && actions_sent == 2);
-    CHECK(!strcmp(lv_label_get_text(ui->setting_status), demo_i18n_text(DEMO_TXT_SETTINGS_ERROR)));
+    CHECK(core.snapshot.brightness == 70 && ui->action_failed && actions_sent == 5);
+    CHECK(!strcmp(lv_label_get_text(ui->setting_status), demo_i18n_text(DEMO_TXT_ACCESS_DENIED)));
     demo_ui_destroy(ui);
     meter_host_close();
     lv_deinit();

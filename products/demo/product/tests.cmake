@@ -1,3 +1,6 @@
+add_executable(test-demo-settings "${METER_PRODUCT_ROOT}/tests/test_settings_app.c")
+target_link_libraries(test-demo-settings PRIVATE meter_product_data meter_core)
+add_test(NAME demo-settings-app COMMAND test-demo-settings)
 add_executable(test-presentation "${METER_PRODUCT_ROOT}/tests/test_presentation.c")
 target_link_libraries(test-presentation PRIVATE meter_product_data meter_core)
 add_test(NAME product-presentation COMMAND test-presentation)

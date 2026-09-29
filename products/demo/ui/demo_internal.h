@@ -42,10 +42,22 @@ typedef struct
     meter_status_t *status[5];
     lv_obj_t *monitor_labels[DEMO_MONITOR_SLOTS], *monitor_values[DEMO_MONITOR_SLOTS],
         *fault_rows[DEMO_FAULT_SLOTS];
+    lv_obj_t *parameter_rows[DEMO_REMOTE_COUNT], *parameter_labels[DEMO_REMOTE_COUNT],
+        *parameter_values[DEMO_REMOTE_COUNT];
+    lv_obj_t *parameter_editor, *parameter_editor_title, *parameter_input, *parameter_keyboard, *parameter_status, *monitor_mode_button,
+        *parameter_mode_button;
+    lv_obj_t *monitor_mode_label, *parameter_mode_label;
+    bool parameter_mode;
+    unsigned selected_parameter;
     lv_obj_t *unit_button, *language_button, *brightness, *limit, *setting_status;
-    lv_obj_t *settings_cards[2];
+    lv_obj_t *settings_title, *settings_note, *settings_cards[4], *version_labels[4], *version_values[4];
+    lv_obj_t *user_password, *admin_password, *user_password_button, *admin_password_button,
+        *password_editor, *password_editor_title, *password_keyboard, *password_status, *admin_items[4],
+        *admin_value_labels[4], *admin_locked, *logout_button;
+    bool password_admin;
     demo_pager_t monitor_pager, fault_pager, settings_pager;
     char monitor_text[DEMO_MONITOR_SLOTS][64], fault_text[DEMO_FAULT_SLOTS][100];
+    char parameter_text[DEMO_REMOTE_COUNT][32], parameter_input_text[32];
     char clock_text[32], connection_text[48];
     bool action_failed;
     bool language_presented;
@@ -66,6 +78,7 @@ void demo_monitor_show_page(demo_ui_t *ui, unsigned page);
 void demo_faults_create(demo_ui_t *ui);
 void demo_faults_update(demo_ui_t *ui);
 void demo_faults_show_page(demo_ui_t *ui, unsigned page);
+void demo_editors_close(demo_ui_t *ui);
 void demo_settings_create(demo_ui_t *ui);
 void demo_settings_update(demo_ui_t *ui);
 void demo_settings_show_page(demo_ui_t *ui, unsigned page);

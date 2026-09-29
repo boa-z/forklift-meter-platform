@@ -9,7 +9,7 @@ PRIVATE_FIRST = 0x1000
 
 def generate():
     data = json.loads((ROOT / "catalog/demo_catalog.json").read_text(encoding="utf-8"))
-    for key, low, high in (("signals", 10, 20), ("parameters", 8, 15), ("monitors", 10, 20),
+    for key, low, high in (("signals", 10, 32), ("parameters", 8, 15), ("monitors", 10, 20),
                            ("faults", 8, 15)):
         assert low <= len(data[key]) <= high, key
     for key in ("signals", "parameters", "faults"):

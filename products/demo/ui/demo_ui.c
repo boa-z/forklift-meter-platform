@@ -97,6 +97,8 @@ void *demo_ui_create(void *parent, const meter_ui_actions_t *actions)
     demo_faults_create(u);
     demo_settings_create(u);
     demo_navigation_create(u);
+    lv_obj_move_foreground(u->parameter_editor);
+    lv_obj_move_foreground(u->password_editor);
     demo_navigation_show(u, 0);
     meter_update_widget_create(&u->update_widget, u->root);
     return u;

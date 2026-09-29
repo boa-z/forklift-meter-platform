@@ -41,6 +41,7 @@
     "product/firmware.c"
   ],
   "application": [
-    "application/presentation.c"
+    "application/presentation.c",
+    "services/settings_app.c"
   ]
 }

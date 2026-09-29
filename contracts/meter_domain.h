@@ -225,7 +225,9 @@ typedef enum
     METER_ACTION_UNITS,
     METER_ACTION_BRIGHTNESS,
     METER_ACTION_PARAMETER,
-    METER_ACTION_LANGUAGE
+    METER_ACTION_LANGUAGE,
+    /* 可选 Product 语义意图；沿用有界动作队列，不解释为本机参数编号。 */
+    METER_ACTION_PRODUCT
 } meter_action_kind_t;
 /** @brief UI 发起的动作；value 的含义由 kind 决定，参数动作使用参数自身单位。 */
 typedef struct

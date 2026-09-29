@@ -1,3 +1,4 @@
+#include "services/settings_app.h"
 #include "generated/demo_catalog.h"
 #include "product/product.h"
 #include <math.h>
@@ -25,6 +26,7 @@ static bool threshold(const meter_snapshot_t *s, uint16_t parameter_id, float *o
 }
 void meter_demo_evaluate(meter_snapshot_t *s)
 {
+    demo_settings_publish(s);
     float limit = 0;
     meter_snapshot_fault_set(s, DEMO_FAULT_LOW_CHARGE,
                              threshold(s, DEMO_PARAMETER_BATTERY_WARNING_LEVEL, &limit) &&

@@ -136,7 +136,14 @@ meter_library(meter_product_data product product)
 string(JSON application_count ERROR_VARIABLE application_error LENGTH "${product_manifest}" application)
 if(NOT application_error AND application_count GREATER 0)
     meter_library(meter_product_application application product)
-    target_link_libraries(meter_product_application PUBLIC meter_catalog)
+    target_link_libraries(meter_product_application PUBLIC meter_catalog meter_runtime)
+    add_custom_target(meter-host-identity
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_identity.py
+            --platform ${CMAKE_CURRENT_SOURCE_DIR} --board host
+            --output ${CMAKE_CURRENT_BINARY_DIR}/identity/meter_build_identity.h
+        BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/identity/meter_build_identity.h)
+    add_dependencies(meter_product_application meter-host-identity)
+    target_include_directories(meter_product_application PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/identity)
 else()
     add_library(meter_product_application INTERFACE)
 endif()

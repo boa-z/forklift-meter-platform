@@ -26,6 +26,8 @@ static bool action(void *context, const meter_action_t *a)
     if (!c->product->auth->local_settings ||
         (a->kind == METER_ACTION_PARAMETER && !c->product->capabilities->parameter_write))
         return false;
+    if (a->kind == METER_ACTION_PRODUCT)
+        return c->product->local_action && c->product->local_action(a, SDL_GetTicks());
     if (!meter_core_action(c->core, a))
         return false;
     /* 保存请求不回滚已应用的 RAM；失败由 NVM 状态单独报告。 */
@@ -212,7 +214,7 @@ int main(int argc, char **argv)
             if (n == 50 && demo_ui_active_page(ui) != 3)
                 navigation_ok = false;
             if (n == 55 || n == 58)
-                meter_host_click(600, 155, n == 55);
+                meter_host_click(600, 160, n == 55);
             if (n == 70 || n == 73)
                 meter_host_click(490, 450, n == 70);
             if (n == 80 && demo_ui_active_page(ui) != 2)
@@ -235,6 +237,8 @@ int main(int argc, char **argv)
         meter_runtime_poll(&runtime, 8);
         meter_core_connection(&core, runtime.connected, runtime.generation);
         meter_core_tick(&core, now);
+        if (product->app_run)
+            product->app_run(SDL_GetTicks(), NULL);
         if (product->evaluate)
             product->evaluate(&core.snapshot);
         lv_tick_inc(16);

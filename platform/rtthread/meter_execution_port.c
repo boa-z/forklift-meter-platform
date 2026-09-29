@@ -504,7 +504,13 @@ static void apply_actions(uint32_t now)
     bool allowed = meter_execution_settings_allowed() && message.generation == execution.generation &&
         meter_board_nvm_ready() && p->auth->local_settings &&
         (message.action.kind != METER_ACTION_PARAMETER || p->capabilities->parameter_write);
-    bool applied = allowed && meter_core_action(config.core, &message.action);
+    bool applied = false;
+    if (allowed)
+    {
+        applied = message.action.kind == METER_ACTION_PRODUCT
+            ? (p->local_action && p->local_action(&message.action, now))
+            : meter_core_action(config.core, &message.action);
+    }
     if (applied) (void)meter_board_nvm_changed(now);
     meter_request_result_t result = {.id = {.session = message.generation, .serial = message.serial},
         .code = applied ? METER_RESULT_APPLIED : METER_RESULT_REJECTED, .revision = config.core->snapshot.revision};
