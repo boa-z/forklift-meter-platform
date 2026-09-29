@@ -214,6 +214,23 @@ Next work belongs to this plan: review D-07 Product mapping, measurement/profile
 
 Continue from 67a378a without new framework mechanisms. The Demo projection, normalized profiles, calibration service and classifier already satisfy the foundation. The remaining reference UI leaked owner-qualified keys and full transaction results. Batch A moves address selection into the synthetic Product App and exposes semantic fields plus plain result values. No runtime/public contract or production firmware changes. Deterministic tests retain owner separation, panel/profile lifetimes, permission/drain rules and now distinguish valid zero from unavailable/rejected values.
 
-Batch B will exercise the existing services together in one headless Product adaptation recipe: invalidate old measurements before profile publication, normalize feature visibility in App, capture only the matching acquisition generation, retain uncertain writes through profile replacement, and complete readback after backend drain. Keep all policy illustrative; D-01/D-03/D-05/D-07 remain open for production decisions.
+Batch B now exercises the existing services together in the headless product-application-flow recipe: invalidate old measurements before profile publication, normalize feature visibility in App, capture only the matching acquisition generation, retain uncertain writes through profile replacement, and complete readback after backend drain. Keep all policy illustrative; D-01/D-03/D-05/D-07 remain open for production decisions.
 
 Batch A verification: parameter App, public headers, architecture and negative guard fixtures pass on the fresh Debug/headless build; valid-zero and rejected-result copies are distinguished. Chinese explanatory comments are now required by AGENTS.md, with the new service contracts corrected in a separate comment-only commit. No current batch hardware result is claimed.
+
+
+Batch B adds only a test-local Product App/ViewModel composition, documented in [Application services](application-services.md). Mapping and policy remain explicit Product code; no new generic runtime interface or production worker is introduced. It demonstrates source-generation rejection, coherent invalidation before publication, retained uncertain old results, independent backend drain, capture stability, optional readback and permission-loss classification.
+
+| Check | Result | Local evidence under evidence/adaptation/ |
+|---|---|---|
+| Debug headless + update | 80/80 PASS | headless.xml; final recipe rebuilt and rechecked in headless-recipe.xml |
+| Release headless + update | 80/80 PASS | release.xml; final recipe rebuilt and rechecked in release-recipe.xml |
+| Demo / Reference-B / Reference-Mixed SDL | 83/83, 72/72, 70/70 PASS | demo.xml, reference-b.xml, reference-mixed.xml |
+| Python host tools | 115 PASS, 9 physical HIL skipped | python.xml; pinned requirements in isolated Python 3.13 environment |
+| Handwritten analyzer baseline | Ten sources, Cppcheck PASS | handwritten.json and handwritten.log; scopes retained |
+| Reference App and integration recipe | Cppcheck and GCC analyzer PASS | adaptation-analysis.json; source hashes, versions, commands and raw diagnostics |
+| Format, public headers/clean, architecture and docs | PASS; 28 bilingual pairs | matrix logs, boundary-test.log; no check or threshold removed |
+
+Toolchain: Windows, GNU 16.1.0 (WinLibs headless; MSYS2 SDL), CMake 4.4.3, Python 3.13.15, Cppcheck 2.21.0 and clang-format 23.1.1. SDL initially auto-selected an unprepared MSYS2 Python; initial failures remain archived and reconfiguration explicitly selects the pinned environment. Additional analyzer coverage found side effects inside new test assertions; calls were separated from assertions and rechecked without suppression. The first diagnostic capture also encountered mixed Windows output encoding; exact bytes are retained. The new fixture was rebuilt/retested after that source correction in both headless modes. These results do not claim current-head Linux CI, sanitizer/fuzz, rendered-UI acceptance or new hardware testing. The board was not accessed in this batch; prior services-a evidence remains bound to its original source.
+
+The next Product work should supply confirmed mappings/catalogs, capability normalization, acquisition identity, authentication policy, ViewModels and UI composition. D-07 remains pending for actual transport correlation/drain and invalidation/authentication policy; D-01 for health consequences, D-05 for counter semantics and persistence, and D-03 for native recovery/wait contracts. None is implicitly approved by the synthetic recipe. Do not add another shared mechanism until a concrete adaptation gap demonstrates reuse and reduced complexity.

@@ -214,6 +214,23 @@ Python Host 工具：114 PASS，9 项物理 HIL 跳过；证据 build-maintainer
 
 从 67a378a 继续，不新增 Framework 机制。Demo 投影、归一化 profile、标定服务和分类器已具备基础。参考 UI 尚泄露 owner-qualified key 与完整事务结果。批次 A 将地址选择移入合成 Product App，展示仅保留语义字段与纯结果值。不改变 Runtime/公开契约或生产固件。确定性测试保留 owner 隔离、面板/profile 生命周期、权限/排空规则，并区分有效零值与不可用/拒绝结果。
 
-批次 B 将以一条无头 Product 适配示例贯穿既有服务：profile 发布前使旧测量失效，App 归一化功能可见性，仅捕获匹配采集代际的数据，profile 替换后保留不确定写入，后端排空后完成回读。策略均为示例；D-01/D-03/D-05/D-07 生产决策继续开放。
+批次 B 已以一条无头 Product 适配示例贯穿既有服务：profile 发布前使旧测量失效，App 归一化功能可见性，仅捕获匹配采集代际的数据，profile 替换后保留不确定写入，后端排空后完成回读。策略均为示例；D-01/D-03/D-05/D-07 生产决策继续开放。
 
 批次 A 验证：全新 Debug/headless 构建中的参数 App、公共头文件、架构及负向守卫用例通过；有效零值与被拒绝的结果副本明确区分。AGENTS.md 现要求说明性代码注释使用中文，新增服务契约已单独提交注释修正。本批不新增硬件验收结论。
+
+
+批次 B 仅增加测试内的 Product App/ViewModel 组合，详见 [Application 服务](application-services.zh-CN.md)。映射和策略仍是显式 Product 代码，不新增通用运行时接口或生产线程。用例验证采集代数拒绝、发布前一致失效、保留不确定旧结果、独立后端排空、捕获值稳定性、可选回读及权限丢失分类。
+
+| 检查 | 结果 | evidence/adaptation/ 下的本地证据 |
+|---|---|---|
+| Debug headless + update | 80/80 PASS | headless.xml；最终示例重建复测见 headless-recipe.xml |
+| Release headless + update | 80/80 PASS | release.xml；最终示例重建复测见 release-recipe.xml |
+| Demo / Reference-B / Reference-Mixed SDL | 83/83、72/72、70/70 PASS | demo.xml、reference-b.xml、reference-mixed.xml |
+| Python 宿主工具 | 115 PASS，9 项物理 HIL 跳过 | python.xml；隔离 Python 3.13 环境使用固定版本依赖 |
+| 手写代码分析基线 | 十个源文件，Cppcheck PASS | handwritten.json 和 handwritten.log；保留原范围 |
+| 参考 App 及集成示例 | Cppcheck 和 GCC 分析器 PASS | adaptation-analysis.json；源码哈希、版本、命令及原始诊断 |
+| 格式、公共头文件/洁净、架构和文档 | PASS；28 对双语文档 | 构建矩阵日志、boundary-test.log；未移除检查或阈值 |
+
+工具链：Windows、GNU 16.1.0（无界面使用 WinLibs；SDL 使用 MSYS2）、CMake 4.4.3、Python 3.13.15、Cppcheck 2.21.0、clang-format 23.1.1。SDL 首次自动选中未准备依赖的 MSYS2 Python；初次失败已归档，重新配置后显式选择固定依赖的隔离环境。扩展分析发现新测试断言包含副作用，已将调用移到断言之外并复测，没有添加抑制。首次诊断采集还遇到 Windows 混合输出编码，精确原始字节已保留。修正测试源码后，两种无界面模式均重建并复测了该示例。这些结果不代表当前提交的 Linux CI、sanitizer/fuzz、UI 渲染验收或新增硬件测试。本批未访问开发板，已有 services-a 证据仍绑定其原始源码。
+
+下一步 Product 工作应提供已确认的映射/目录、能力规范化、采集身份、认证策略、ViewModel 及 UI 组合。D-07 的真实传输关联/排空及失效/认证策略、D-01 的健康后果、D-05 的计数语义与持久化、D-03 的原生恢复/等待契约仍待决策，合成示例不构成隐式批准。只有具体适配缺口证明可复用且能降低复杂度时，才考虑增加共享机制。
