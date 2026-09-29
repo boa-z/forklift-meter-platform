@@ -52,7 +52,7 @@ typedef struct
     bool limit_available;
     float limit;
     demo_link_t link;
-    demo_readout_t speed, steering, soc, height, load;
+    demo_readout_t speed, steering, soc, height, load, mileage, hours;
     float speed_maximum;
     const char *speed_unit;
     demo_readout_t status[5];

@@ -38,7 +38,7 @@ typedef struct
     meter_gauge_t *speed, *steering;
     meter_ring_t *soc, *load_arc;
     meter_linear_meter_t *height;
-    meter_value_label_t *load, *hours;
+    meter_value_label_t *load, *mileage, *hours;
     meter_status_t *status[5];
     lv_obj_t *monitor_labels[DEMO_MONITOR_SLOTS], *monitor_values[DEMO_MONITOR_SLOTS],
         *fault_rows[DEMO_FAULT_SLOTS];

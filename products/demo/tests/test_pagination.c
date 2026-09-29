@@ -86,6 +86,56 @@ static int check_rows(demo_ui_t *ui, unsigned page, unsigned subpage)
     }
     return 0;
 }
+/* 检查连续触摸区和双语布局，防止全宽导航留下空隙或裁掉标签。 */
+static int check_navigation(demo_ui_t *ui)
+{
+    for (unsigned i = 0; i < DEMO_PAGE_COUNT; ++i)
+    {
+        lv_area_t area;
+        lv_obj_get_coords(ui->nav[i], &area);
+        CHECK(area.x1 == (int)i * 200 && area.x2 == (int)(i + 1) * 200 - 1);
+        CHECK(area.y1 == 425 && area.y2 == 479);
+        CHECK(check_layout(ui->nav[i]) == 0);
+        lv_obj_send_event(ui->nav[i], LV_EVENT_CLICKED, NULL);
+        CHECK(ui->page == i);
+    }
+    return 0;
+}
+static int check_dashboard_footer(demo_ui_t *ui)
+{
+    unsigned icons = 0, readings = 0;
+    lv_obj_t *page = ui->pages[DEMO_DASHBOARD];
+    for (uint32_t i = 0; i < lv_obj_get_child_count(page); ++i)
+    {
+        lv_obj_t *panel = lv_obj_get_child(page, (int32_t)i);
+        if (lv_obj_get_y(panel) != 314)
+            continue;
+        CHECK(check_layout(panel) == 0);
+        for (uint32_t j = 0; j < lv_obj_get_child_count(panel); ++j)
+        {
+            lv_obj_t *child = lv_obj_get_child(panel, (int32_t)j);
+            if (lv_obj_check_type(child, &lv_label_class))
+            {
+                ++readings;
+                continue;
+            }
+            for (uint32_t k = 0; k < lv_obj_get_child_count(child); ++k)
+            {
+                lv_obj_t *element = lv_obj_get_child(child, (int32_t)k);
+                if (lv_obj_check_type(element, &lv_label_class))
+                    CHECK(lv_obj_is_hidden(element) && strlen(lv_label_get_text(element)) == 0);
+                if (lv_obj_check_type(element, &lv_image_class))
+                {
+                    CHECK(!lv_obj_is_hidden(element));
+                    CHECK(lv_image_get_scale_x(element) == 512 && lv_image_get_scale_y(element) == 512);
+                    ++icons;
+                }
+            }
+        }
+    }
+    CHECK(icons == 5 && readings == 4);
+    return 0;
+}
 int main(int argc, char **argv)
 {
     meter_core_t core;
@@ -115,6 +165,11 @@ int main(int argc, char **argv)
             }
             for (size_t i = 0; i < DEMO_FAULT_SLOTS; ++i)
                 core.snapshot.faults[i].active = (i + state) % 2 != 0;
+            demo_ui_present(ui, &core.snapshot, 16);
+            lv_obj_update_layout(ui->root);
+            CHECK(check_navigation(ui) == 0);
+            demo_navigation_show(ui, DEMO_DASHBOARD);
+            CHECK(check_dashboard_footer(ui) == 0);
             for (unsigned page = DEMO_MONITOR; page <= DEMO_SETTINGS; ++page)
             {
                 demo_pager_t *pager = pagers[page - DEMO_MONITOR];

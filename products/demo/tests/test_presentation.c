@@ -12,6 +12,22 @@ int main(void)
     demo_presentation_t view;
     demo_presentation_build(&core.snapshot, &view);
     assert(view.speed.state == METER_VALUE_UNKNOWN && view.link == DEMO_LINK_OFFLINE);
+    assert(view.hours.state == METER_VALUE_UNKNOWN);
+    assert(view.mileage.state == METER_VALUE_VALID && fabsf(view.mileage.value - 1286.4f) < 0.01f);
+    /* 小时计必须保留快照有效性，不能把未知、过期或错误伪装成零。 */
+    for (unsigned state = METER_VALUE_UNKNOWN; state <= METER_VALUE_ERROR; ++state)
+    {
+        meter_update_t hours = {METER_WORK_HOURS, {1246, 1, (meter_value_state_t)state, METER_SOURCE_DEMO}};
+        bool applied = meter_core_apply(&core, &hours);
+        assert(applied);
+        demo_presentation_build(&core.snapshot, &view);
+        assert(view.hours.value == 1246 && view.hours.state == (meter_value_state_t)state);
+    }
+    meter_update_t hours = {METER_WORK_HOURS, {0, 1, METER_VALUE_VALID, METER_SOURCE_DEMO}};
+    bool applied = meter_core_apply(&core, &hours);
+    assert(applied);
+    demo_presentation_build(&core.snapshot, &view);
+    assert(view.hours.value == 0 && view.hours.state == METER_VALUE_VALID);
     meter_core_connection(&core, true, 1);
     demo_presentation_build(&core.snapshot, &view);
     assert(view.link == DEMO_LINK_WAITING);

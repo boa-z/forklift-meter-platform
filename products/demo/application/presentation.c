@@ -26,6 +26,9 @@ void demo_presentation_build(const meter_snapshot_t *s, demo_presentation_t *out
     view.soc = readout(s, METER_SOC);
     view.height = readout(s, METER_HEIGHT);
     view.load = readout(s, METER_LOAD);
+    view.hours = readout(s, METER_WORK_HOURS);
+    /* 里程是公开 Demo 的合成展示值，真实 Product 应从自己的目录映射。 */
+    view.mileage = (demo_readout_t){1286.4f, METER_VALUE_VALID};
     view.speed.value *= s->imperial ? 0.621371f : 1.0f;
     view.speed_maximum = s->imperial ? 32.0f : 50.0f;
     view.speed_unit = s->imperial ? "mph" : "km/h";

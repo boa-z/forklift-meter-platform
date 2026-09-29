@@ -29,13 +29,19 @@ void demo_navigation_create(demo_ui_t *u)
     {
         u->nav[i] = lv_button_create(u->root);
         demo_theme_button(u->nav[i]);
-        lv_obj_set_pos(u->nav[i], 16 + (int)i * 195, 425);
-        lv_obj_set_size(u->nav[i], 183, 49);
+        lv_obj_set_pos(u->nav[i], (int)i * 200, 425);
+        lv_obj_set_size(u->nav[i], 200, 55);
         lv_obj_set_style_shadow_width(u->nav[i], 0, 0);
-        lv_obj_set_style_radius(u->nav[i], 8, 0);
+        lv_obj_set_style_radius(u->nav[i], 0, 0);
+        lv_obj_set_style_border_width(u->nav[i], 0, 0);
+        lv_obj_set_style_pad_all(u->nav[i], 0, 0);
+        lv_obj_set_style_pad_column(u->nav[i], 12, 0);
+        lv_obj_set_flex_flow(u->nav[i], LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(u->nav[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_scrollable(u->nav[i], false);
         const char *icons[] = {LV_SYMBOL_HOME, LV_SYMBOL_LIST, LV_SYMBOL_WARNING, LV_SYMBOL_SETTINGS};
-        u->nav_icons[i] = meter_text(u->nav[i], 18, 12, icons[i], &lv_font_montserrat_20, 0xb8c2c8);
-        u->nav_labels[i] = demo_text(u, u->nav[i], 52, 14, ids[i], &lv_font_montserrat_16, 0xe8f1f4);
+        u->nav_icons[i] = meter_text(u->nav[i], 0, 0, icons[i], &lv_font_montserrat_20, 0xb8c2c8);
+        u->nav_labels[i] = demo_text(u, u->nav[i], 0, 0, ids[i], &lv_font_montserrat_16, 0xe8f1f4);
         lv_obj_add_event_cb(u->nav[i], navigate, LV_EVENT_CLICKED, u);
     }
 }

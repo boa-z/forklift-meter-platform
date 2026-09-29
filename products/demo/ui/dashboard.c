@@ -27,13 +27,21 @@ void demo_dashboard_create(demo_ui_t *u)
     flatten_dashboard_panel(load);
     u->load = meter_value_label_create(load, 15, 34, "kg");
     u->load_arc = meter_arc_bar_create(load, 151, 20, 60, 0, 360, 5, "kg");
-    lv_obj_t *strip = demo_panel(page, 16, 314, 768, 52);
+    lv_obj_t *mileage = demo_panel(page, 16, 314, 180, 52);
+    flatten_dashboard_panel(mileage);
+    demo_text(u, mileage, 0, 0, DEMO_TXT_MILEAGE, &lv_font_montserrat_16, 0xa5afb8);
+    u->mileage = meter_value_label_create(mileage, 0, 24, "km");
+    lv_obj_t *hours = demo_panel(page, 204, 314, 180, 52);
+    flatten_dashboard_panel(hours);
+    demo_text(u, hours, 0, 0, DEMO_TXT_HOUR_METER, &lv_font_montserrat_16, 0xa5afb8);
+    u->hours = meter_value_label_create(hours, 0, 24, "h");
+    lv_obj_t *strip = demo_panel(page, 400, 314, 384, 52);
     flatten_dashboard_panel(strip);
     const lv_image_dsc_t *icons[] = {&demo_icon_armchair, &demo_icon_circle_letter_p,
                                      &demo_icon_circle_letter_n, &demo_icon_battery,
                                      &demo_icon_alert_triangle};
     for (unsigned i = 0; i < 5; ++i)
-        u->status[i] = meter_status_create(strip, 13 + (int)i * 151, 6, "", icons[i]);
+        u->status[i] = meter_status_create(strip, 8 + (int)i * 76, 2, "", icons[i]);
     const meter_widget_style_t *style = demo_theme_widget_style();
     meter_gauge_set_style(u->speed, style);
     meter_gauge_set_style(u->steering, style);
@@ -41,6 +49,8 @@ void demo_dashboard_create(demo_ui_t *u)
     meter_ring_set_style(u->load_arc, style);
     meter_linear_meter_set_style(u->height, style);
     meter_value_label_set_style(u->load, style);
+    meter_value_label_set_style(u->mileage, style);
+    meter_value_label_set_style(u->hours, style);
     for (unsigned i = 0; i < 5; ++i)
         meter_status_set_style(u->status[i], style);
 }
@@ -53,6 +63,8 @@ void demo_dashboard_update(demo_ui_t *u)
     meter_ring_set_language(u->load_arc, s->language);
     meter_linear_meter_set_language(u->height, s->language);
     meter_value_label_set_language(u->load, s->language);
+    meter_value_label_set_language(u->mileage, s->language);
+    meter_value_label_set_language(u->hours, s->language);
     demo_readout_t speed = s->speed;
     demo_readout_t steering = s->steering;
     demo_readout_t soc = s->soc;
@@ -69,16 +81,14 @@ void demo_dashboard_update(demo_ui_t *u)
     meter_linear_meter_set_state(u->height, height.state);
     meter_linear_meter_set_value(u->height, height.value);
     meter_value_label_set(u->load, load.value, load.state);
+    meter_value_label_set(u->mileage, s->mileage.value, s->mileage.state);
+    meter_value_label_set(u->hours, s->hours.value, s->hours.state);
     meter_ring_set_state(u->load_arc, load.state);
     meter_ring_set_range(u->load_arc, 0, 1500);
     meter_ring_set_value(u->load_arc, load.value);
-    const demo_text_id_t names[] = {DEMO_TXT_SEAT, DEMO_TXT_BRAKE, DEMO_TXT_NEUTRAL, DEMO_TXT_CHARGE,
-                                    DEMO_TXT_WARNING};
     for (unsigned i = 0; i < 5; ++i)
     {
         demo_readout_t flag = s->status[i];
         meter_status_set(u->status[i], flag.value > 0, flag.state);
-        meter_status_set_name(u->status[i], demo_i18n_text(names[i]));
-        meter_status_set_language(u->status[i], s->language);
     }
 }
