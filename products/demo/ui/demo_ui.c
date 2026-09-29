@@ -40,7 +40,8 @@ unsigned demo_pager_target(const demo_pager_t *pager, lv_event_t *event)
 void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
                        lv_event_cb_t callback, void *context)
 {
-    lv_obj_t *bar = demo_panel(parent, 16, 312, 768, 48);
+    /* 翻页属于当前 Tab 的内容区，固定在右侧左上角，不占用底部导航空间。 */
+    lv_obj_t *bar = demo_panel(parent, 216, 8, 568, 40);
     pager->count = count;
     pager->previous = lv_button_create(bar);
     pager->next = lv_button_create(bar);
@@ -49,8 +50,8 @@ void demo_pager_create(lv_obj_t *parent, demo_pager_t *pager, unsigned count,
     for (unsigned i = 0; i < 2; ++i)
     {
         demo_theme_button(buttons[i]);
-        lv_obj_set_pos(buttons[i], i == 0 ? 4 : 700, 2);
-        lv_obj_set_size(buttons[i], 64, 44);
+        lv_obj_set_pos(buttons[i], i == 0 ? 4 : 500, 0);
+        lv_obj_set_size(buttons[i], 56, 38);
         lv_obj_set_style_bg_opa(buttons[i], LV_OPA_TRANSP, 0);
         lv_obj_set_style_opa(buttons[i], LV_OPA_40, LV_STATE_DISABLED);
         lv_obj_t *label = meter_text(buttons[i], 0, 0, labels[i], &lv_font_montserrat_24, 0xedf5f8);

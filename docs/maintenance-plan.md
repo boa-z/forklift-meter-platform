@@ -373,3 +373,7 @@ The board wrapper now uses the SDK-bundled Python 3.8 executable `tools/env/tool
 ### Demo settings routing OTA result
 
 Candidate `demo-ui-routing-20260929` was rebuilt with the restored SDK Python 3.8/SCons environment and packaged with host integrity PASS. The OS image SHA256 is `ae80d1cedd4969e1086cfaa2ff722a7ecd0a5c6bd87c04a956f64d3b5e60d0ad`; the OTA package SHA256 is `297439da36e89c2d872ca72993a0fc49f504e0759c5f0f4aa2fdc723e1c2c1c3`. Maintenance admission, download of 1,111,040 bytes, activation and reboot completed on COM11/PCAN_USBBUS1. Post-reboot identity reported `reference-demo/reference-board`, firmware `demo-ui-routing-20260929`, Framework `d55321b`, SDK `9db13a6c`, LVGL `9.6.0`, state `IDLE`, error `0`, queue rejects `0`. Raw evidence is under `evidence/ota/demo-ui-routing-20260929/`.
+
+### Tab-local pagination and unified typography
+
+Pagination controls now live at the upper-left of the active right-side content panel, so the bottom navigation remains dedicated to page routing. Monitor rows begin below the control and retain four entries per page; fault rows keep their own Tab-local pager. Settings title and user-setting labels use the same larger face and spacing rhythm as the monitor panel. The existing instrument-version detail route keeps its back control.

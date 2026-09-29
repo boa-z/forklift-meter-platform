@@ -171,7 +171,7 @@ static lv_obj_t *settings_button(demo_ui_t *u, lv_obj_t *parent, int x, int y, d
 void demo_settings_create(demo_ui_t *u)
 {
     lv_obj_t *p = u->pages[DEMO_SETTINGS];
-    u->settings_title = meter_text(p, 216, 8, "", &lv_font_montserrat_24, 0xedf5f8);
+    u->settings_title = meter_text(p, 430, 8, "", &lv_font_montserrat_24, 0xedf5f8);
     u->settings_note = meter_text(p, 24, 34, "", &lv_font_montserrat_20, 0x8ba9bb);
     lv_obj_set_hidden(u->settings_note, true);
     /* 导航栏使用透明容器，只让四个按钮表达选中状态，避免形成整块深色背景。 */
@@ -210,7 +210,7 @@ void demo_settings_create(demo_ui_t *u)
     const demo_text_id_t labels[] = {DEMO_TXT_SPEED_UNITS, DEMO_TXT_LANGUAGE, DEMO_TXT_BRIGHTNESS,
                                      DEMO_TXT_SPEED_LIMIT};
     for (unsigned i = 0; i < 4; ++i)
-        demo_text(u, card, 22, 4 + (int)i * 42, labels[i], &lv_font_montserrat_16, 0xe4eff5);
+        demo_text(u, card, 22, 4 + (int)i * 42, labels[i], &lv_font_montserrat_20, 0xedf5f8);
     u->unit_button = settings_button(u, card, 290, 0, DEMO_TXT_METRIC, action);
     u->language_button = settings_button(u, card, 290, 42, DEMO_TXT_CHINESE, action);
     u->brightness = lv_slider_create(card);

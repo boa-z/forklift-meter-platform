@@ -372,3 +372,7 @@ Demo 现在提供两个设置路由：用户设置和管理员设置。用户设
 ### Demo 设置路由 OTA 结果
 
 候选 `demo-ui-routing-20260929` 使用恢复后的 SDK Python 3.8/SCons 环境重新构建，并通过主机完整性预检。OS 镜像 SHA256 为 `ae80d1cedd4969e1086cfaa2ff722a7ecd0a5c6bd87c04a956f64d3b5e60d0ad`；OTA 包 SHA256 为 `297439da36e89c2d872ca72993a0fc49f504e0759c5f0f4aa2fdc723e1c2c1c3`。在 COM11/PCAN_USBBUS1 上完成维护准入、接收 1,111,040 字节、激活和重启。重启后身份为 `reference-demo/reference-board`，固件 `demo-ui-routing-20260929`，Framework `d55321b`，SDK `9db13a6c`，LVGL `9.6.0`，状态 `IDLE`，错误 `0`，队列拒绝 `0`。原始证据位于 `evidence/ota/demo-ui-routing-20260929/`。
+
+### Tab 内翻页与统一字体排版
+
+翻页控件现在位于当前右侧内容面板左上角，底部导航只负责页面路由。监控条目从翻页控件下方开始，每页仍为四项；故障条目继续使用自己的 Tab 内翻页。设置标题和用户设置条目改用与监控面板一致的较大字体和间距节奏。现有仪表版本详情路由保留返回控件。

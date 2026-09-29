@@ -107,7 +107,7 @@ void demo_monitor_create(demo_ui_t *u)
         unsigned row = (unsigned)i % DEMO_MONITORS_PER_PAGE;
         lv_obj_t *r = lv_obj_create(p);
         lv_obj_remove_style_all(r);
-        lv_obj_set_pos(r, 200, 18 + (int)row * 58);
+        lv_obj_set_pos(r, 200, 58 + (int)row * 58);
         lv_obj_set_size(r, 584, 50);
         demo_theme_list_row(r);
         u->monitor_labels[i] = meter_text(r, 18, 0, demo_i18n_monitor_label(i), &lv_font_montserrat_20, 0xedf5f8);
@@ -123,7 +123,7 @@ void demo_monitor_create(demo_ui_t *u)
     {
         lv_obj_t *r = lv_button_create(p);
         demo_theme_list_row(r);
-        lv_obj_set_pos(r, 200, 18 + (int)i * 45);
+        lv_obj_set_pos(r, 200, 58 + (int)i * 45);
         lv_obj_set_size(r, 584, 38);
         lv_obj_add_event_cb(r, parameter_select, LV_EVENT_CLICKED, u);
         u->parameter_rows[i] = r;
