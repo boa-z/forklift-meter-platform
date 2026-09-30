@@ -20,17 +20,19 @@ for name in sorted(set(paths)):
     try: text=raw.decode('utf-8').casefold()
     except UnicodeDecodeError: errors.append(name+': unaudited binary'); continue
     checked+=1
-    # Product/third-party gitlink metadata is a dependency boundary, not
-    # first-party source. Keep credential scanning on the original text, but
-    # do not fingerprint repository names and URLs in .gitmodules.
+    # 仅放行子模块名称及 path/url/branch 元数据；注释和其他内容继续扫描。
+    # 凭据检查始终使用原文，Product 源码由其独立仓库负责审查。
     marker_text = text
     if name.casefold() == '.gitmodules':
-        marker_text = ''
+        marker_text = '\n'.join(
+            line for line in text.splitlines()
+            if not re.fullmatch(r'\s*\[submodule "[^"\r\n]+"\]\s*', line)
+            and not re.fullmatch(r'\s*(?:path|url|branch)\s*=.*', line))
     for token in re.findall(r'[a-z0-9_-]+|[\u4e00-\u9fff]+',name.casefold()+' '+marker_text):
         for length, hashes in FINGERPRINTS.items():
             for i in range(len(token)-length+1):
                 if hashlib.sha256(token[i:i+length].encode()).hexdigest() in hashes: errors.append(name+': private marker'); break
-    if any(t and t in text for t in extra): errors.append(name+': additional private marker')
+    if any(t and t in marker_text for t in extra): errors.append(name+': additional private marker')
     if re.search(r'gh[pousr]_[a-z0-9]{30,}|github_pat_[a-z0-9_]{30,}',text): errors.append(name+': credential-shaped token')
 if errors: raise SystemExit('\n'.join(sorted(set(errors))))
 print(json.dumps({'public_clean':'PASS','files_checked':checked,'scope':'first-party tree; upstream pins reviewed separately'}))

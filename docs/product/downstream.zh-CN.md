@@ -5,11 +5,11 @@
 从已打标签的公共平台版本启动新的私有仓库，并设置：
 
 ```text
-origin   → private product repository
+origin   → private Framework fork
 upstream → https://github.com/boa-z/forklift-meter-platform
 ```
 
-仅在 `products/<customer>`、`protocols/vendor/<customer>`、`ui/products/<customer>` 之下以及私有资源/文档目录树中添加客户代码。添加产品组合记录和选定源列表。将客户目录、捕获文件、对象字典、维护对象和 UI 资源排除在公共仓库之外。除非经评审确认确实缺少某项通用能力，否则不得向 `contracts`、`core`、`runtime`、`protocols/common` 或 `ui/common` 添加客户符号或条件。
+fork 的 `main` 保持与 upstream 同步；开发分支通过 `products/<product>` 固定私有 Product 仓库。客户代码、协议、UI、素材、需求和验证文档均放在独立 Product 仓库内部。Framework fork 只保存 gitlink 和通用集成，通过 `METER_PRODUCT_ROOT` 选择其 `product/sources.json`。客户数据及 Product 历史不得进入公共 Framework。不要向 `contracts`、`core`、`runtime`、`protocols/common` 或 `ui/common` 添加客户符号和条件；缺少通用能力时先在上游完善。
 
 ## 产品规模的域存储
 
@@ -35,3 +35,16 @@ meter_core_init(&core, &private_catalog, &storage);
 ### Product submodule
 
 下游仓库可以在 `products/<product>` 下以 Git submodule 引入独立 Product。public-clean 会把 `.gitmodules` 中的路径和 URL 当作依赖元数据，并跳过 gitlink 指向的外部内容；同时仍检查凭据，并扫描所有第一方源码。公共 Framework 仓库本身不能加入客户 submodule。私有下游仓库负责 Product 仓库、客户文档和验证记录。
+
+公开的 `products/demo` submodule 展示这种组织方式。添加私有 Product 时保留 Demo 的固定版本；固件只链接选定的 Product。在私有 Framework 开发分支执行：
+
+```text
+git submodule add PRIVATE_PRODUCT_REPOSITORY products/my-product
+git add .gitmodules products/my-product
+git commit -m "build: pin independent Product"
+cmake -S . -B build-my-product -G Ninja -DMETER_PRODUCT_ROOT=products/my-product
+```
+
+把 `PRIVATE_PRODUCT_REPOSITORY` 替换为私有 Git URL。新克隆使用 `git clone --recurse-submodules`，已有检出执行 `git submodule update --init --recursive`。先在 Product 仓库提交并推送修改，再在 Framework 开发分支提交更新后的 gitlink。构建使用固定提交，不跟随分支最新版本；可复现构建不要使用 `submodule update --remote`。
+
+元数据豁免仅覆盖 submodule section 名称及 `path`、`url`、`branch` 值。注释和其他文本仍会扫描，凭据检查始终使用完整文件。Product gitlink 内的内容由其独立仓库检查。`products/` 下的普通目录仍属于 Framework 源码，不享受豁免。

@@ -5,11 +5,11 @@
 Start a new private repository from a tagged public platform release and set:
 
 ```text
-origin   → private product repository
+origin   → private Framework fork
 upstream → https://github.com/boa-z/forklift-meter-platform
 ```
 
-Add customer code only below `products/<customer>`, `protocols/vendor/<customer>`, `ui/products/<customer>` and a private asset/document tree. Add a product composition record and selected source list. Keep customer catalogs, captures, object dictionaries, maintenance objects and UI assets out of the public repository. Do not add customer symbols or conditions to `contracts`, `core`, `runtime`, `protocols/common` or `ui/common` unless a reviewed generic capability is genuinely missing.
+Keep the fork's `main` synchronized with upstream; use a development branch to pin the private Product repository at `products/<product>`. Customer code, protocols, UI, assets, requirements and validation documents belong inside that independent Product repository. The Framework fork stores its gitlink and generic integration only. Select its `product/sources.json` with `METER_PRODUCT_ROOT`. Keep customer data and Product history out of the public Framework. Do not add customer symbols or conditions to `contracts`, `core`, `runtime`, `protocols/common` or `ui/common`; implement missing generic capabilities upstream first.
 
 ## Product-sized domain storage
 
@@ -35,3 +35,16 @@ For each downstream build record the public platform commit, all submodule SHAs,
 ### Product submodules
 
 A downstream repository may add its Product as a Git submodule below `products/<product>`. The public-clean check treats `.gitmodules` paths and URLs as dependency metadata and skips the checked-out gitlink contents; it still rejects credentials and scans all first-party source. The public Framework repository must not add a customer submodule itself. The private downstream repository owns the Product repository, its documentation and its validation.
+
+The public `products/demo` submodule demonstrates this structure. Keep its pin when adding a private Product; only the selected Product is linked into firmware. From the private Framework development branch:
+
+```text
+git submodule add PRIVATE_PRODUCT_REPOSITORY products/my-product
+git add .gitmodules products/my-product
+git commit -m "build: pin independent Product"
+cmake -S . -B build-my-product -G Ninja -DMETER_PRODUCT_ROOT=products/my-product
+```
+
+Replace `PRIVATE_PRODUCT_REPOSITORY` with the private Git URL. New clones use `git clone --recurse-submodules`, or run `git submodule update --init --recursive` after checkout. Commit and push Product changes in that repository first, then commit the updated gitlink in the Framework development branch. Builds use the pinned commit, not the latest branch tip; avoid `submodule update --remote` in reproducible builds.
+
+The metadata exemption covers only submodule section names and `path`, `url`, `branch` values. Comments and other text remain scanned; credential checks use the full file. Product gitlink contents need their own repository checks. A plain directory under `products/` is still Framework source and is not exempt.

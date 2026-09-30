@@ -10,6 +10,7 @@ Create an independent Product and define its application services.
 
 | Document | Use |
 |---|---|
+| [Demo and examples](demo-and-examples.md) | Choose a reference and maintain independent Products |
 | [downstream](downstream.md) | Connect an external Product |
 | [application-services](application-services.md) | Separate services, presentation and rendering |
 | [parameter-service](parameter-service.md) | Implement parameter transactions and permissions |

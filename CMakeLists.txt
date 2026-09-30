@@ -53,9 +53,15 @@ if(BUILD_TESTING)
     add_test(NAME product-boundaries COMMAND test-product-boundaries)
 endif()
 option(METER_BUILD_UI "Build LVGL/SDL host UI" ON)
-set(METER_PRODUCT "demo" CACHE STRING "Built-in product folder")
+set(METER_PRODUCT "demo" CACHE STRING "Product folder under products/")
 set(METER_PRODUCT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/products/${METER_PRODUCT}" CACHE PATH "Independent product package")
 get_filename_component(METER_PRODUCT_ROOT "${METER_PRODUCT_ROOT}" ABSOLUTE)
+if(NOT EXISTS "${METER_PRODUCT_ROOT}/product/sources.json")
+    message(FATAL_ERROR
+        "Product manifest missing: ${METER_PRODUCT_ROOT}/product/sources.json. "
+        "Initialize the selected Product submodule (default: git submodule update --init products/demo), "
+        "or set METER_PRODUCT_ROOT to an initialized Product repository.")
+endif()
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sources.json" platform_manifest)
 file(READ "${METER_PRODUCT_ROOT}/product/sources.json" product_manifest)
 # 产品清单决定 SDO 依赖，运行时不判断产品名称。
@@ -303,6 +309,8 @@ if(BUILD_TESTING)
     foreach(check architecture public_clean reference_boundary docs_sync public_headers)
         add_test(NAME ${check} COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_${check}.py)
     endforeach()
+    add_test(NAME public-clean-boundaries
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_public_clean_boundaries.py)
     if(METER_BUILD_UI)
         add_executable(test-widgets-behavior tests/test_widgets_behavior.c)
         target_link_libraries(test-widgets-behavior PRIVATE meter_ui_common meter_ui_math)

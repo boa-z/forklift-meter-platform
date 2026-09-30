@@ -13,6 +13,7 @@ For each pair the check compares language-independent structure only:
 Line-ending differences (LF vs CRLF) are normalized before comparison.
 """
 from pathlib import Path
+import argparse
 import re
 import sys
 
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 ROOT_DOCS = ["README.md"]
 EXTRA_DOCS = [
+    "examples/README.md",
     "platform/rtthread/README.md",
     "tools/product_template/README.md",
     "tools/product_template/assets/README.md",
@@ -87,6 +89,10 @@ def structure(text):
 
 
 def main():
+    global ROOT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--root', type=Path, default=ROOT, help='Framework or independent Product root')
+    ROOT = parser.parse_args().root.resolve()
     errors = []
     pairs = scope()
     if not pairs:
