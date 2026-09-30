@@ -14,6 +14,15 @@ spec.loader.exec_module(selector)
 
 
 class FirmwareSelection(unittest.TestCase):
+    def test_cli_serializes_paths(self):
+        result = subprocess.run([sys.executable, str(ROOT / 'tools/firmware_product.py'),
+                                 '--product-root', 'products/demo'], check=True,
+                                capture_output=True, text=True)
+        report = json.loads(result.stdout)
+        product, sources = selector.select(ROOT)
+        self.assertEqual(report['product'], str(product))
+        self.assertEqual(report['sources'], [str(source) for source in sources])
+
     def test_generated_template_has_firmware(self):
         with tempfile.TemporaryDirectory() as directory:
             product = Path(directory) / 'independent-product'

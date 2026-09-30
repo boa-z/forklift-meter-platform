@@ -5,8 +5,10 @@ import json
 import os
 try:
     string_types = (basestring,)
+    Path = None
 except NameError:
     string_types = (str,)
+    from pathlib import Path
 
 GROUPS = ('catalog', 'protocol', 'product', 'application', 'ui', 'ui_binding', 'firmware')
 
@@ -37,6 +39,8 @@ def select(app_root, selection=None):
             if source in sources:
                 raise ValueError('Duplicate Product source: ' + entry)
             sources.append(source)
+    if Path is not None:
+        return Path(product), [Path(source) for source in sources]
     return product, sources
 
 
@@ -45,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument('--product-root')
     args = parser.parse_args()
     product, sources = select(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), args.product_root)
-    print(json.dumps(dict(product=product, sources=sources), indent=2))
+    print(json.dumps(dict(product=str(product), sources=[str(source) for source in sources]), indent=2))
 
 
 

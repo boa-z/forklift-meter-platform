@@ -46,13 +46,13 @@ group += DefineGroup('FORKLIFT-METER-PLATFORM', sources,
 if os.environ.get('METER_CAN_UPDATE', '0') == '1':
     import re
     version = os.environ.get('METER_UPDATE_VERSION', 'ota-development')
-    if not re.fullmatch(r'[A-Za-z0-9_.+-]{1,31}', version):
+    if not re.match(r'[A-Za-z0-9_.+-]{1,31}\Z', version):
         raise ValueError('METER_UPDATE_VERSION must fit 31 ASCII characters')
     ota = os.path.join(AIC_ROOT, 'packages', 'artinchip', 'ota')
     crypto = os.path.join(AIC_ROOT, 'packages', 'third-party', 'mbedtls', 'mbedtls')
     protocol = os.path.join(cwd, 'third_party', 'iso14229', 'src')
     version_header = os.path.join(identity_dir, 'meter_update_build.h')
-    version_text = '#define METER_UPDATE_FIRMWARE_VERSION ' + json.dumps(version) + chr(10)
+    version_text = u'#define METER_UPDATE_FIRMWARE_VERSION ' + json.dumps(version) + u'\n'
     if not os.path.exists(version_header) or io.open(version_header, encoding='utf-8').read() != version_text:
         io.open(version_header, 'w', encoding='utf-8').write(version_text)
     Env.Append(CPPDEFINES=['METER_ENABLE_CAN_UPDATE', 'METER_AIC_OTA'])
