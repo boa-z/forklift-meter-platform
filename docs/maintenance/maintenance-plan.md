@@ -4,6 +4,12 @@
 
 Established 2026-09-28 from the [source assessment](maintainability.md), baseline `81e5083`. This is the active continuation record. Update status and evidence here in the same change as the work; do not depend on chat history.
 
+## Generic host Product actions
+
+The shared SDL host now sends Product-local actions through the selected Product's `local_action` callback, matching the native execution path. Ordinary brightness, language and units actions still use Core. A missing callback or a rejected Product action remains rejected; host acceptance does not prove persistence or hardware acceptance.
+
+Validation: 100/100 local CTest cases passed, including a new host action regression covering callback acceptance/rejection, missing callbacks, null arguments, snapshot identity, timestamp forwarding and ordinary Core actions. No customer code or assets are included.
+
 ## Documentation organization and OTA workflow (2026-09-30)
 
 The maintainer requested module folders and an operator-first CAN OTA guide. Documentation now uses build, product, runtime, ota, testing, maintenance and compliance modules, each with a bilingual index. Root navigation starts with tasks. Relative links and first-party references follow the moved files; historical source/image identities stay unchanged.

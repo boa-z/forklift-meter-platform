@@ -5,7 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-static bool action(void *ctx, const meter_action_t *a) { return meter_core_action(ctx, a); }
+static bool action(void *ctx, const meter_action_t *a)
+{
+    return meter_product_host_action(ctx, meter_product_get(), a, lv_tick_get());
+}
 int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, uint32_t))
 {
     unsigned frames = 0;
