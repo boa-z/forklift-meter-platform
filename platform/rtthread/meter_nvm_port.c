@@ -226,9 +226,12 @@ void meter_board_nvm_poll(uint32_t now, meter_diag_storage_t *status)
             meter_diag_increment(&port.diag.reads);
             if (!port.loaded)
             {
+                const meter_product_t *product = meter_product_get();
                 if (result.result == METER_SLOTS_OK &&
                     (result.record.type != port.service.type ||
-                     !meter_settings_decode(port.core, result.record.payload, result.record.payload_size)))
+                     !(product->allow_parameter_extension
+                         ? meter_settings_decode_append_only(port.core, result.record.payload, result.record.payload_size)
+                         : meter_settings_decode(port.core, result.record.payload, result.record.payload_size))))
                     result.result = METER_SLOTS_INCOMPATIBLE;
                 (void)meter_nvm_loaded(&port.service, result.generation, result.result, &result.record);
                 port.loaded = true;

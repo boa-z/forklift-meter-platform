@@ -93,3 +93,12 @@ MSP3 的字节 0..3 为魔数，4/5/6 为单位/亮度/语言，7 为 CAN 速率
 参考板启动先等待 NVM 首次读取，才锁存两个 CAN 设备共用的速率；运行中修改只保存，不重配控制器。损坏记录沿用默认 500k 和写入阻止策略。meter storage 的 configured_can_rate 为待重启配置，meter can 的 bitrate 才是实际已打开速率。重启前确认 dirty=0、ram_revision=durable_revision。
 
 亮度由 App 调用 Board PWM adapter 即时应用，并经同一 NVM 服务保存；寄存器读回失败会打印错误并重试，RAM 接受不代表背光成功或介质持久化。meter_settings product id value 将诊断意图送给 App 的 Product 回调，仍校验管理员授权，通用端口不解释 Product 私有 ID。
+
+
+## Product 计数与目录扩展
+
+`app_tick` 在 App owner 中执行，位于初始 NVM 加载及 Core 超时处理之后、evaluate 和发布之前。断线与维护时仍执行，停止阶段不执行。回调修改数据须递增 snapshot revision。原生执行层在 Product 回调后观察设置，相同编码内容不会排入新写入。既有防抖、最大派发延时、worker 与持久化屏障继续生效。派发延时不是硬件写完期限，也不是掉电无损保证。
+
+默认解码仍要求参数完整。同 namespace、type 和 schema 下仅增加目录参数时，Product 可显式配置 `allow_parameter_extension=true`。已有 ID、含义、单位和允许范围须兼容。记录整体校验后应用，新缺项使用目录 `initial`；重复或未知 ID、错误计数或数值、校验损坏及未知 schema 仍拒绝。下一次普通提交写入完整替代记录。这不迁移旧 payload 格式、不支持 ID 改名或缩减目录，也不授权改变物理槽布局。
+
+Host 集成使用 `meter_host_nvm_open_profile`，传入 Product 存储配置与显式扩展策略；旧 open API 保持严格解码及原时序。调用方须等待加载后才首次计时、观察设置变化，并在主动退出前等待目标 durable revision。Host 测试不能证明物理掉电恢复或耐久性。

@@ -93,3 +93,12 @@ MSP3 bytes 0..3 hold magic, 4/5/6 hold units/brightness/language, 7 holds the CA
 Reference-board startup waits for the initial NVM read before latching the common rate for both CAN devices. Runtime changes save only and do not reconfigure controllers. Corrupt records retain the default 500k and write-block policy. configured_can_rate in meter storage is the next-boot configuration; bitrate in meter can is the opened controller rate. Before restarting confirm dirty=0 and ram_revision=durable_revision.
 
 App applies brightness immediately through the Board PWM adapter and saves it through the same NVM service. Register-readback failure logs an error and retries; RAM acceptance proves neither successful backlight control nor storage durability. meter_settings product id value queues a diagnostic intent for the App Product callback, including administrator authorization; the generic port does not interpret Product-private IDs.
+
+
+## Product counters and additive catalogs
+
+`app_tick` runs on the App owner after initial NVM loading and Core freshness processing, before evaluation and publication. It runs while disconnected or in maintenance, but not during shutdown. Callbacks increment snapshot revision on changes. Native execution observes settings after Product callbacks; equal encoded payloads do not queue writes. Existing debounce, maximum dispatch delay, worker and durability barriers remain. Dispatch delay is not a hardware completion deadline or a guarantee against power loss.
+
+Default decoding still requires every parameter. A Product may explicitly set `allow_parameter_extension=true` for an additive catalog update within the same namespace, type and schema. Existing IDs, meaning, units and accepted ranges must remain compatible. Entries are validated atomically and missing new parameters use catalog `initial`. Duplicate or unknown IDs, invalid counts/values, checksum failures and unknown schemas still fail. The next ordinary commit writes a complete replacement. This does not migrate older payload formats, rename IDs, shrink catalogs or authorize physical slot geometry changes.
+
+Host integrations use `meter_host_nvm_open_profile` with the Product storage profile and explicit extension policy. The legacy open API retains strict decoding and its original timings. Callers wait for loading before the first counter tick, observe settings changes and wait for the target durable revision before intentional shutdown. Host tests do not prove physical power-cut recovery or endurance.

@@ -10,7 +10,7 @@ static const meter_protocol_profile_t protocols = {0};
 static const meter_route_profile_t routes = {0};
 static const meter_auth_profile_t auth = {.local_settings = true};
 static meter_storage_profile_t storage_profile;
-static const meter_product_t product = {.catalog = &catalog,
+static meter_product_t product = {.catalog = &catalog,
                                         .protocols = &protocols,
                                         .routes = &routes,
                                         .auth = &auth,
@@ -19,6 +19,17 @@ static meter_core_t core;
 static meter_value_t domain[1], presentation[1], diagnostic[1];
 static meter_diagnostics_t diagnostics;
 static unsigned waits;
+static unsigned product_ticks;
+static bool product_mutates;
+
+static void product_tick(meter_snapshot_t *snapshot, uint32_t now)
+{
+    assert(nvm_ready && settings_boot_calls == 1u);
+    assert(snapshot == &core.snapshot && now == fake_now);
+    assert(state_lock.depth == 0u && view_lock.depth == 0u);
+    ++product_ticks;
+    if (product_mutates) { ++snapshot->brightness; ++snapshot->revision; }
+}
 
 static void finish_failed_start(void)
 {
@@ -122,6 +133,25 @@ static void cancel_boot_scan(void)
     meter_execution_stop();
     app_wait_hook = finish_boot_stop;
 }
+static void finish_product_stop(void)
+{
+    /* 停止阶段不能再累计，也不能排入新的周期保存。 */
+    assert(product_ticks == 1u);
+    finish_boot_stop();
+}
+static void check_product_tick(void)
+{
+    assert(product_ticks == 1u);
+    assert(changes == (storage_profile.enabled && product_mutates ? 1u : 0u));
+    meter_execution_stop();
+    app_wait_hook = finish_product_stop;
+}
+static void complete_product_scan(void)
+{
+    assert(product_ticks == 0u && changes == 0u && settings_boot_calls == 0u);
+    nvm_ready = true;
+    app_wait_hook = check_product_tick;
+}
 int main(int argc, char **argv)
 {
     assert(argc == 3);
@@ -160,6 +190,13 @@ int main(int argc, char **argv)
         storage_profile.enabled = true;
         nvm_start_ok = false;
     }
+    if (strncmp(argv[1], "tick-", 5) == 0)
+    {
+        product.app_tick = product_tick;
+        product_mutates = strcmp(argv[1], "tick-noop") != 0;
+        storage_profile.enabled = strcmp(argv[1], "tick-no-storage") != 0;
+        flush_ticket = 1u; barrier_ready = true;
+    }
     assert(meter_execution_start(&settings));
     assert(init_calls == 21u && startup_calls == 1u);
     assert(!meter_execution_start(&settings));
@@ -177,6 +214,12 @@ int main(int argc, char **argv)
     {
         nvm_ready = false;
         app_wait_hook = strcmp(argv[1], "boot-settings") == 0 ? complete_boot_scan : cancel_boot_scan;
+    }
+    if (strncmp(argv[1], "tick-", 5) == 0)
+    {
+        shared.protocol_ready = true;
+        nvm_ready = !storage_profile.enabled;
+        app_wait_hook = nvm_ready ? check_product_tick : complete_product_scan;
     }
     app_entry(NULL);
     assert(meter_execution_stopped() && shared.ui_done && close_calls == 1u);

@@ -16,7 +16,7 @@ struct meter_host_nvm
     meter_nvm_job_t job;
     meter_slots_result_t result;
     meter_record_view_t record;
-    bool load, done, outstanding, stop;
+    bool load, done, outstanding, stop, allow_parameter_extension;
 };
 static int run(void *ctx)
 {
@@ -50,7 +50,14 @@ static int run(void *ctx)
 }
 meter_host_nvm_t *meter_host_nvm_open(meter_core_t *core, const char *path, uint16_t ns, uint16_t schema)
 {
-    if (!core || !path)
+    const meter_storage_profile_t profile = {.enabled = true, .record_type = 1u,
+        .product_namespace = ns, .schema = schema, .debounce_ms = 500u, .max_delay_ms = 3000u};
+    return meter_host_nvm_open_profile(core, path, &profile, false);
+}
+meter_host_nvm_t *meter_host_nvm_open_profile(meter_core_t *core, const char *path,
+                                             const meter_storage_profile_t *profile, bool allow_parameter_extension)
+{
+    if (!core || !path || !profile || !profile->enabled)
         return NULL;
     const size_t capacity = meter_settings_size(core);
     const size_t slot =
@@ -64,9 +71,11 @@ meter_host_nvm_t *meter_host_nvm_open(meter_core_t *core, const char *path, uint
     if (!h->allocation || !h->lock || !h->wake)
         goto failed;
     h->core = core;
+    h->allow_parameter_extension = allow_parameter_extension;
     h->encoded = h->allocation + 2u * capacity;
-    if (!meter_nvm_init(&h->service, h->allocation, h->allocation + capacity, capacity, 1u, ns, schema, 500u,
-                        3000u) ||
+    if (!meter_nvm_init(&h->service, h->allocation, h->allocation + capacity, capacity,
+                        profile->record_type, profile->product_namespace, profile->schema,
+                        profile->debounce_ms, profile->max_delay_ms) ||
         !meter_file_init(&h->file, path, slot, "host-file", false) ||
         !meter_slots_init(&h->slots, h->allocation + 3u * capacity, 2u * slot,
                           h->allocation + 3u * capacity + 2u * slot, slot) ||
@@ -75,8 +84,8 @@ meter_host_nvm_t *meter_host_nvm_open(meter_core_t *core, const char *path, uint
     h->load = true;
     h->outstanding = true;
     h->job.generation = h->service.generation;
-    h->job.record.product_namespace = ns;
-    h->job.record.schema = schema;
+    h->job.record.product_namespace = profile->product_namespace;
+    h->job.record.schema = profile->schema;
     h->thread = SDL_CreateThread(run, "meter-nvm", h);
     if (!h->thread)
         goto failed;
@@ -117,7 +126,9 @@ void meter_host_nvm_poll(meter_host_nvm_t *h, uint32_t now)
         {
             if (result == METER_SLOTS_OK &&
                 (record.type != h->service.type ||
-                 !meter_settings_decode(h->core, record.payload, record.payload_size)))
+                 !(h->allow_parameter_extension
+                     ? meter_settings_decode_append_only(h->core, record.payload, record.payload_size)
+                     : meter_settings_decode(h->core, record.payload, record.payload_size))))
                 result = METER_SLOTS_INCOMPATIBLE;
             (void)meter_nvm_loaded(&h->service, completed.generation, result, &record);
             (void)meter_host_nvm_changed(h, now);

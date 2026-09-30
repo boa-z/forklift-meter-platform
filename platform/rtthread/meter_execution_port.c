@@ -709,7 +709,14 @@ static void app_entry(void *arg)
         if (!stopping && meter_board_nvm_ready())
             (void)meter_board_backlight_apply(config.core->snapshot.brightness, now);
         meter_core_tick(config.core, now);
+        const uint32_t before_product = config.core->snapshot.revision;
+        if (!stopping && config.product->app_tick)
+            config.product->app_tick(&config.core->snapshot, now);
         if (config.product->evaluate) config.product->evaluate(&config.core->snapshot);
+        /* 只观察编码后的设置；信号刷新不会产生介质写入，实际 I/O 仍由 NVM worker 完成。 */
+        if (!stopping && config.product->storage && config.product->storage->enabled &&
+            meter_board_nvm_ready() && config.core->snapshot.revision != before_product)
+            (void)meter_board_nvm_changed(now);
         publish_app(now);
         if (stopping && app_shutdown_progress(now, stop_at, &durable))
         {

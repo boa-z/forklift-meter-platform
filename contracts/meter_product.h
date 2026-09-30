@@ -109,6 +109,13 @@ typedef struct
     bool (*local_action)(meter_snapshot_t *snapshot, const meter_action_t *action, uint32_t now_ms);
     /** @brief 可选 Product 默认设置；NULL 保持兼容默认，不代表工厂恢复策略。 */
     const meter_initial_settings_t *initial_settings;
+    /** @brief App owner 的本机周期计算，信号超时处理后、evaluate/发布前调用。
+     * now_ms 是单调毫秒；维护/断线仍调用，停止阶段不调用。
+     * snapshot 仅在回调内借用；变更须递增 revision，不得阻塞或执行设备 I/O。
+     * 原生端在 NVM 恢复后调用，参数变化进入既有去抖保存；RAM 更新不是持久化确认。 */
+    void (*app_tick)(meter_snapshot_t *snapshot, uint32_t now_ms);
+    /** @brief 显式允许同一 schema 的旧 MSP3 缺少新增参数；已有 ID/含义/范围不得改变。 */
+    bool allow_parameter_extension;
 } meter_product_t;
 const meter_product_t *meter_product_get(void);
 #endif

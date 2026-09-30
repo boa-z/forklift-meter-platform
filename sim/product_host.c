@@ -46,6 +46,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     language = core.snapshot.language;
     meter_runtime_connection(&runtime,true);
     meter_core_connection(&core,true,runtime.generation);
+    if (p->app_reset) p->app_reset(runtime.generation);
     if (fixture && !meter_fixture_load(&core,fixture)) return 4;
     lv_init();
     if (!meter_i18n_init() || !meter_host_open(hidden)) return 5;
@@ -60,8 +61,9 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
         meter_runtime_poll(&runtime,32);
         if (!meter_runtime_process(&runtime,now)) return 7;
         meter_core_tick(&core, now);
+        if(p->app_tick) p->app_tick(&core.snapshot,now);
         if(p->evaluate) p->evaluate(&core.snapshot);
-        p->ui->present(ui,&core.snapshot,16);
+        p->ui->present(ui,&core.snapshot,now);
         lv_tick_inc(16); lv_timer_handler();
         if(!frames) meter_host_delay(16);
     }

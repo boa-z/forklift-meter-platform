@@ -54,18 +54,22 @@ bool meter_settings_encode(const meter_core_t *core, uint8_t *out, size_t size)
     put32(out + length - 4, checksum(out, length - 4));
     return true;
 }
-bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
+static bool decode(meter_core_t *core, const uint8_t *data, size_t size, bool append_only)
 {
-    if (!core || !data || size != meter_settings_size(core) || size < METER_SETTINGS_OVERHEAD ||
+    const size_t capacity = meter_settings_size(core);
+    if (!capacity || !data || size < METER_SETTINGS_OVERHEAD || size > capacity ||
+        (!append_only && size != capacity) ||
+        (size - METER_SETTINGS_OVERHEAD) % METER_SETTINGS_ENTRY_SIZE != 0u ||
         memcmp(data, "MSP3", 4) || data[7] > METER_CAN_RATE_500K ||
         data[4] > 1 || data[5] < 10 || data[5] > 100 ||
         data[6] > METER_LANGUAGE_ZH || get32(data + size - 4) != checksum(data, size - 4))
         return false;
     const meter_can_rate_t rate = (meter_can_rate_t)data[7];
     const meter_catalog_t *catalog = core->snapshot.catalog;
-    if (get32(data + 8) != catalog->parameter_count)
+    const size_t count = (size - METER_SETTINGS_OVERHEAD) / METER_SETTINGS_ENTRY_SIZE;
+    if (get32(data + 8) != count)
         return false;
-    for (size_t i = 0; i < catalog->parameter_count; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         const uint8_t *entry = data + 12 + i * METER_SETTINGS_ENTRY_SIZE;
         const uint32_t id = get32(entry);
@@ -77,8 +81,21 @@ bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
     }
     bool changed = core->snapshot.imperial != (data[4] != 0) || core->snapshot.brightness != data[5] ||
                    core->snapshot.language != (meter_language_t)data[6] || core->snapshot.can_rate != rate;
-    /* 全部校验成功后才按稳定 ID 应用，目录调整顺序不改变参数身份。 */
+    /* 只补新目录缺失项；不把调用前的偶然 RAM 值作为新参数默认值。 */
     for (size_t i = 0; i < catalog->parameter_count; ++i)
+    {
+        bool found = false;
+        for (size_t j = 0; j < count; ++j)
+            if (get32(data + 12 + j * METER_SETTINGS_ENTRY_SIZE) == catalog->parameters[i].id)
+                found = true;
+        if (!found)
+        {
+            changed = changed || core->snapshot.parameters[i] != catalog->parameters[i].initial;
+            core->snapshot.parameters[i] = catalog->parameters[i].initial;
+        }
+    }
+    /* 全部校验成功后才按稳定 ID 应用，目录调整顺序不改变参数身份。 */
+    for (size_t i = 0; i < count; ++i)
     {
         const uint8_t *entry = data + 12 + i * METER_SETTINGS_ENTRY_SIZE;
         const size_t index = meter_catalog_parameter_index(catalog, (uint16_t)get32(entry));
@@ -93,4 +110,12 @@ bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
     if (changed)
         ++core->snapshot.revision;
     return true;
+}
+bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size)
+{
+    return decode(core, data, size, false);
+}
+bool meter_settings_decode_append_only(meter_core_t *core, const uint8_t *data, size_t size)
+{
+    return decode(core, data, size, true);
 }

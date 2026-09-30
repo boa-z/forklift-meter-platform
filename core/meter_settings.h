@@ -10,4 +10,6 @@ size_t meter_settings_size(const meter_core_t *core);
 bool meter_settings_encode(const meter_core_t *core, uint8_t *out, size_t size);
 /** @brief App 先验证所有稳定 ID、重复项和范围，再整体应用并更新实际变化的 revision。 */
 bool meter_settings_decode(meter_core_t *core, const uint8_t *data, size_t size);
+/** @brief Product 显式选择只增参数兼容；缺项使用目录 initial，其余校验及原子应用不变。 */
+bool meter_settings_decode_append_only(meter_core_t *core, const uint8_t *data, size_t size);
 #endif

@@ -449,3 +449,12 @@ The retained-settings change is intentionally kept as three reviewable commits a
 ### Board validation: retained settings and real backlight
 
 Candidate `demo-settings-20260929` built from Framework `99f6e7a` and SDK `6ec2d080`; OS image SHA256 `cb7cd580be8fb8d6eb14f3e687f1ee579ac01402fe9dcc4a023eb8a4889307a1`, 1,110,016 bytes; OTA package SHA256 `37ea0ee8466cfbd44712d252f35c4955a0b53053dc2e48bc28ffdf9bfc8d552f`, 1,111,040 bytes. Host package integrity and Debug/Release tests passed. COM11/PCAN_USBBUS1 transfer, activation and reboot completed; post-reboot identity is `demo-settings-20260929`, `reference-demo/reference-board`, state `READY`, NVM `ram_revision=10 durable_revision=10 dirty=0`, configured CAN rate index 2 and opened `can0 bitrate=500000`. Existing board settings were explicitly initialized because MSP3 intentionally has no old-record migration. The board adapter reports repeated native CAN transmit refusal while no vehicle sender/termination is connected; this is recorded as a physical bus condition, not a bitrate/NVM failure. UART, OTA events and storage/diagnostic logs are under `evidence/ota/demo-settings-20260929/`. SDL unknown-state captures are under `evidence/adaptation/ui-board-settings/`; both languages show `--` without a duplicate unknown-state label.
+
+
+## Product tick persistence and additive restore
+
+The shared host and native App owner support optional bounded `app_tick`. Native execution observes settings after Product changes so periodic local counters are saved without a separate user action. Lifecycle regressions cover load-before-tick, enabled/disabled storage, no-op callbacks and shutdown suppression.
+
+Product explicitly opts into additive MSP3 parameter recovery; strict decoding remains the default. Codec tests cover reordered stable IDs, new defaults, complete re-encoding, corruption, duplicates, unknown IDs, malformed lengths/counts and invalid values. The host profile API shares Product identity and timing. No customer source or policy is imported. Board power-loss and endurance verification remain open.
+
+Validation: local Debug/UI+update build and complete CTest passed 105/105, including public-clean, bilingual documentation, Demo UI and storage/lifecycle regressions. No new board evidence is claimed.

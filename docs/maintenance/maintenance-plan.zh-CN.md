@@ -448,3 +448,12 @@ Demo 监控、故障和设置内容统一采用每页五行的排版目标：条
 ### 板验：持久化设置与真实背光
 
 候选 `demo-settings-20260929` 由 Framework `99f6e7a`、SDK `6ec2d080` 构建；OS SHA256 为 `cb7cd580be8fb8d6eb14f3e687f1ee579ac01402fe9dcc4a023eb8a4889307a1`，大小 1,110,016 字节；OTA 包 SHA256 为 `37ea0ee8466cfbd44712d252f35c4955a0b53053dc2e48bc28ffdf9bfc8d552f`，大小 1,111,040 字节。Host 包完整性及 Debug/Release 测试通过。COM11/PCAN_USBBUS1 传输、激活和重启完成；重启后身份为 `demo-settings-20260929`、`reference-demo/reference-board`，状态 `READY`，NVM `ram_revision=10 durable_revision=10 dirty=0`，配置 CAN 速率索引 2，实际打开 `can0 bitrate=500000`。因 MSP3 明确不迁移旧记录，已显式初始化开发板旧设置区。板端报告原生 CAN 发送拒绝（当前无车辆发送端/终端匹配），记录为总线条件，不判定为波特率或 NVM 失败。UART、OTA 事件及存储/诊断日志位于 `evidence/ota/demo-settings-20260929/`。SDL 未知状态中英文截图位于 `evidence/adaptation/ui-board-settings/`，均显示 `--` 且没有重复的未知文字。
+
+
+## Product 周期持久化与增量恢复
+
+共享 Host 与原生 App owner 支持可选有界 `app_tick`。原生执行层在 Product 修改后观察设置，使周期本机计数无需额外用户操作即可排入保存。生命周期回归覆盖先加载后计时、启用与禁用存储、空操作回调及停止抑制。
+
+Product 显式选择 MSP3 新增参数兼容恢复，默认仍严格解码。编解码测试覆盖目录重排后的稳定 ID、新默认值、完整重编码、损坏、重复项、未知 ID、非法长度或计数及非法数值。Host profile API 复用 Product 身份与时序。不引入客户源码或策略，实板掉电和耐久验证仍未完成。
+
+验证：本地 Debug/UI+update 构建及完整 CTest 105/105 通过，包含公开内容、双语文档、Demo UI 与存储/生命周期回归；不据此宣称新增实板证据。
