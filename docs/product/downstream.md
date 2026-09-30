@@ -31,3 +31,7 @@ Signal, parameter and fault identities are 16-bit handles resolved through your 
 The settings blob is sized by your own table: `meter_settings_size()` returns `METER_SETTINGS_OVERHEAD` plus four bytes per parameter, so a caller passes a buffer it computed rather than a platform constant. A catalog with more than 255 parameters needs a reviewed versioned format; the platform reports that by returning zero size, and no write is attempted.
 
 For each downstream build record the public platform commit, all submodule SHAs, SDK commit, selected product, image SHA256 and test logs. Public platform changes flow upstream to private products after review; customer code never flows upstream automatically. Private board validation remains a separate reference-board reservation with original serial evidence.
+
+### Product submodules
+
+A downstream repository may add its Product as a Git submodule below `products/<product>`. The public-clean check treats `.gitmodules` paths and URLs as dependency metadata and skips the checked-out gitlink contents; it still rejects credentials and scans all first-party source. The public Framework repository must not add a customer submodule itself. The private downstream repository owns the Product repository, its documentation and its validation.
