@@ -29,6 +29,21 @@ def license_text(path):
     # as CRLF while our eol=lf copy stays LF; only the license text is under review.
     return path.read_bytes().replace(b'\r\n', b'\n')
 
+def product_font_text(root, config):
+    """合并显式声明的产品文字来源，避免动态目录中的字符漏出字体子集。"""
+    extra = config.get('text_sources', [])
+    if not isinstance(extra, list) or any(not isinstance(item, str) for item in extra):
+        raise ValueError('font-config text_sources must be a list of relative paths')
+    names = [config.get('translations', 'ui/demo_i18n.c'), *extra]
+    root = root.resolve()
+    texts = []
+    for name in dict.fromkeys(names):
+        path = (root / name).resolve()
+        if Path(name).is_absolute() or not path.is_relative_to(root):
+            raise ValueError('font text source must remain inside the Product: ' + name)
+        texts.append(path.read_text(encoding='utf-8'))
+    return '\n'.join(texts)
+
 def main():
     global ROOT
     parser = argparse.ArgumentParser(description=__doc__)
@@ -38,7 +53,7 @@ def main():
     ROOT = args.product_root.resolve()
     config_path = ROOT / 'assets/font-config.json'
     config = json.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
-    text = (PLATFORM / 'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8') + (ROOT / config.get('translations', 'ui/demo_i18n.c')).read_text(encoding='utf-8')
+    text = (PLATFORM / 'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8') + product_font_text(ROOT, config)
     # 只从可执行字符串和翻译表提取字符，中文说明性注释不应改变字体资产。
     text = re.sub(r'/\*.*?\*/|//[^\r\n]*', '', text, flags=re.S)
     symbols = ''.join(sorted({c for c in text if ord(c) > 127}))

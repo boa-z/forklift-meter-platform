@@ -32,6 +32,12 @@ The settings blob is sized by your own table: `meter_settings_size()` returns `M
 
 For each downstream build record the public platform commit, all submodule SHAs, SDK commit, selected product, image SHA256 and test logs. Public platform changes flow upstream to private products after review; customer code never flows upstream automatically. Private board validation remains a separate reference-board reservation with original serial evidence.
 
+### Product font inputs
+
+Declare dynamic UI text catalogs in **assets/font-config.json** with the optional **text_sources** list. Each entry is a Product-relative UTF-8 source path. The existing **translations** file remains the primary input; the generator combines both sets, removes comments and creates the same 14/20 px subsets. Paths must remain inside the Product. A missing declared file fails generation and checking.
+
+For example, a Product can set **translations** to **ui/i18n.c** and **text_sources** to **["catalog/display_names.c"]**. Run **python tools/generate_fonts.py --product-root products/my-product**, then repeat with **--check**. Commit the generated fonts, manifest, license and input declarations with the Product. Inspect the rendered longest labels; glyph coverage does not prove that text fits.
+
 ### Product submodules
 
 A downstream repository may add its Product as a Git submodule below `products/<product>`. The public-clean check treats `.gitmodules` paths and URLs as dependency metadata and skips the checked-out gitlink contents; it still rejects credentials and scans all first-party source. The public Framework repository must not add a customer submodule itself. The private downstream repository owns the Product repository, its documentation and its validation.

@@ -32,6 +32,12 @@ meter_core_init(&core, &private_catalog, &storage);
 
 对于每次下游构建，记录公共平台提交、所有子模块 SHA、SDK 提交、所选产品、镜像 SHA256 和测试日志。公共平台变更经评审后向上游流入私有产品；客户代码永不自动向上游流动。私有单板验证仍为独立的 reference-board 预约，并附原始串口证据。
 
+### Product 字体输入
+
+在 **assets/font-config.json** 中使用可选的 **text_sources** 列表声明动态 UI 文本目录。每项都是 Product 内的 UTF-8 源文件相对路径。现有 **translations** 文件仍是主要输入；生成器合并两组输入、去除注释，生成相同的 14/20 px 字体子集。路径必须位于 Product 内。已声明文件缺失时，生成和检查都会失败。
+
+例如将 **translations** 设为 **ui/i18n.c**，将 **text_sources** 设为 **["catalog/display_names.c"]**。运行 **python tools/generate_fonts.py --product-root products/my-product**，再追加 **--check** 检查。生成字体、清单、许可证及输入声明随 Product 一起提交。检查最长标签的实际渲染；字形齐全不代表文字排得下。
+
 ### Product submodule
 
 下游仓库可以在 `products/<product>` 下以 Git submodule 引入独立 Product。public-clean 会把 `.gitmodules` 中的路径和 URL 当作依赖元数据，并跳过 gitlink 指向的外部内容；同时仍检查凭据，并扫描所有第一方源码。公共 Framework 仓库本身不能加入客户 submodule。私有下游仓库负责 Product 仓库、客户文档和验证记录。
