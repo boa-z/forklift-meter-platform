@@ -5,7 +5,7 @@
 Run host commands from the Framework root with Python 3, CMake, Ninja and a C/C++ compiler; UI builds also need SDL2 development files. Initialize the pinned dependencies and install host test tools:
 
 ```text
-git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/CANopenNode third_party/iso14229
+git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/CANopenNode third_party/iso14229 products/demo
 python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requirements.txt -r tools/ota/requirements.txt
 ```
 
@@ -14,6 +14,8 @@ Keep the SDK-bundled Python/SCons/toolchain unchanged. SDK OneStep may invoke Py
 ## Choose a Product
 
 Every firmware contains exactly one Product. A Product is a directory with `product/sources.json`; the manifest lists the source closure for `application`, `protocol`, `catalog`, `ui`, `product`, `firmware` and optional `ui_binding` groups. The default is `products/demo`.
+
+The reference Demo is maintained in the public [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo) repository and is included here as a Product submodule. Clone with `--recurse-submodules`, or initialize `products/demo` before configuring CMake.
 
 Create a starting point and inspect its closure:
 

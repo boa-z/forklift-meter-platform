@@ -10,3 +10,7 @@
 [submodule "third_party/iso14229"]
 	path = third_party/iso14229
 	url = https://github.com/driftregion/iso14229.git
+[submodule "products/demo"]
+	path = products/demo
+	url = https://github.com/boa-z/forklift-meter-platform-demo.git
+	branch = main

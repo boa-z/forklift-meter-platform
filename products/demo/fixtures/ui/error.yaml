@@ -1,9 +1,0 @@
-vehicle.speed:
-  value: 0
-  state: error
-energy.soc:
-  value: 0
-  state: error
-vehicle.steering:
-  value: -15
-  state: error
