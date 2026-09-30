@@ -410,6 +410,7 @@ endif()
 # Assertions include setup in existing tests. Keep them active for tests only, including Release.
 if(BUILD_TESTING)
     add_test(NAME guard-boundary-fixtures COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_guard_boundaries.py)
+    add_test(NAME target-command-capture COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_capture_target.py)
     add_executable(test-assertions tests/test_assertions.c)
     add_test(NAME assertion-witness COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_assertions.py $<TARGET_FILE:test-assertions>)
     get_property(test_build_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)

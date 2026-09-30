@@ -458,3 +458,5 @@ The shared host and native App owner support optional bounded `app_tick`. Native
 Product explicitly opts into additive MSP3 parameter recovery; strict decoding remains the default. Codec tests cover reordered stable IDs, new defaults, complete re-encoding, corruption, duplicates, unknown IDs, malformed lengths/counts and invalid values. The host profile API shares Product identity and timing. No customer source or policy is imported. Board power-loss and endurance verification remain open.
 
 Validation: local Debug/UI+update build and complete CTest passed 105/105, including public-clean, bilingual documentation, Demo UI and storage/lifecycle regressions. No new board evidence is claimed.
+
+Target command collection also resolves the actual application path instead of requiring a fixed checkout name. Local full CTest passed 106/106, including a new relative/absolute and Windows-path capture regression. A native short-directory build log was reprocessed to recover 18 exact compiler commands; the original log and image remain unchanged.
