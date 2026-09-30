@@ -3,7 +3,8 @@
 from building import *
 import json
 import os
-import importlib.util
+import imp
+import io
 
 Import('AIC_ROOT')
 cwd = GetCurrentDir()
@@ -15,15 +16,11 @@ Env.Append(CPPDEFINES=[
     'LV_FONT_MONTSERRAT_20=1',
     'LV_FONT_MONTSERRAT_24=1',
 ])
-selection_spec = importlib.util.spec_from_file_location('meter_firmware_product', os.path.join(cwd, 'tools', 'firmware_product.py'))
-selection = importlib.util.module_from_spec(selection_spec)
-selection_spec.loader.exec_module(selection)
+selection = imp.load_source('meter_firmware_product', os.path.join(cwd, 'tools', 'firmware_product.py'))
 product, product_sources = selection.select(cwd, os.environ.get('METER_PRODUCT_ROOT'))
 product = str(product)
-platform_manifest = json.load(open(os.path.join(cwd, 'cmake', 'sources.json'), encoding='utf-8'))
-identity_spec = importlib.util.spec_from_file_location('meter_build_identity', os.path.join(cwd,'tools','build_identity.py'))
-identity = importlib.util.module_from_spec(identity_spec)
-identity_spec.loader.exec_module(identity)
+platform_manifest = json.load(io.open(os.path.join(cwd, 'cmake', 'sources.json'), encoding='utf-8'))
+identity = imp.load_source('meter_build_identity', os.path.join(cwd, 'tools', 'build_identity.py'))
 identity_dir = os.path.join(cwd, 'build-firmware')
 # 公开身份使用集成者指定的别名，不泄露 SDK 内部板型名称。
 board_id = os.environ.get('METER_BOARD_ID', 'reference-board')
@@ -56,8 +53,8 @@ if os.environ.get('METER_CAN_UPDATE', '0') == '1':
     protocol = os.path.join(cwd, 'third_party', 'iso14229', 'src')
     version_header = os.path.join(identity_dir, 'meter_update_build.h')
     version_text = '#define METER_UPDATE_FIRMWARE_VERSION ' + json.dumps(version) + chr(10)
-    if not os.path.exists(version_header) or open(version_header, encoding='utf-8').read() != version_text:
-        open(version_header, 'w', encoding='utf-8').write(version_text)
+    if not os.path.exists(version_header) or io.open(version_header, encoding='utf-8').read() != version_text:
+        io.open(version_header, 'w', encoding='utf-8').write(version_text)
     Env.Append(CPPDEFINES=['METER_ENABLE_CAN_UPDATE', 'METER_AIC_OTA'])
     app_update = ['platform/rtthread/meter_update_port.c', 'platform/rtthread/meter_update_backend_aic.c',
         'update/meter_update.c', 'update/meter_package.c', 'protocols/uds/meter_uds.c',
@@ -74,3 +71,7 @@ if os.environ.get('METER_CAN_UPDATE', '0') == '1':
             'ISO_TP_DEFAULT_ST_MIN_US=0', 'ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000',
             'METER_AIC_OTA'])
 Return('group')
+
+
+
+
