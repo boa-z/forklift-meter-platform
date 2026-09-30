@@ -78,6 +78,8 @@ meter_gauge_t *meter_gauge_create(lv_obj_t *parent, int x, int y, const meter_ga
     memset(g, 0, sizeof(*g));
     g->config = *c;
     g->current = c->min;
+    /* target 必须与初始指针一致；否则首次目标值为 0 会被误判为已完成。 */
+    g->target = c->min;
     g->style = *meter_widget_style_default();
     if (c->diameter < 220)
         g->style.value_font = &lv_font_montserrat_16;
