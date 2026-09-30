@@ -4,7 +4,7 @@
 
 日期：2026-09-28。基线：ac3dc01。原验证分支：codex/dynamic-periodic-tx。Firmware 源码：3c141ff479e40a2b7d21f2873d7ccb0c05b939aa。Host UART 工具：4793bb48ff72056a2a1e18352d6287bccb693c51。开发板运行 dynamic-tx-e。未修改 SDK 源码、持久配置或父仓库 gitlink。
 
-现行契约见[Runtime](runtime-production.zh-CN.md)、[Dynamic TX](dynamic-periodic-tx.zh-CN.md)与[治理](compliance/status.zh-CN.md)。本页保存历史测试身份，分支名和原始 SHA 不是对当前 main/板上软件同一性的声明。旧阶段报告可从 Git 历史检索。
+现行契约见[Runtime](../runtime/runtime-production.zh-CN.md)、[Dynamic TX](../runtime/dynamic-periodic-tx.zh-CN.md)与[治理](../compliance/status.zh-CN.md)。本页保存历史测试身份，分支名和原始 SHA 不是对当前 main/板上软件同一性的声明。旧阶段报告可从 Git 历史检索。
 
 ## 验证结果
 

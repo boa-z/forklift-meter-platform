@@ -4,7 +4,7 @@
 
 Date: 2026-09-28. Baseline: ac3dc01. Original validation branch: codex/dynamic-periodic-tx. Firmware source: 3c141ff479e40a2b7d21f2873d7ccb0c05b939aa. Host UART tooling: 4793bb48ff72056a2a1e18352d6287bccb693c51. The board runs dynamic-tx-e. No SDK source, persistent configuration or parent gitlink changes were made.
 
-Current contracts are in [Runtime](runtime-production.md), [Dynamic TX](dynamic-periodic-tx.md) and [governance](compliance/status.md). This page retains historical test identities: branch names and original SHAs do not imply that current main and installed firmware have identical identities. Superseded phase reports remain in Git history.
+Current contracts are in [Runtime](../runtime/runtime-production.md), [Dynamic TX](../runtime/dynamic-periodic-tx.md) and [governance](../compliance/status.md). This page retains historical test identities: branch names and original SHAs do not imply that current main and installed firmware have identical identities. Superseded phase reports remain in Git history.
 
 ## Validation
 

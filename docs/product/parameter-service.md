@@ -2,7 +2,7 @@
 
 > [中文版](parameter-service.zh-CN.md)
 
-This opt-in framework service has a deterministic reference Application and copied presentation witness. Demo binds its own synthetic catalog in `products/demo/services/settings_app.c`; real controller transports and persistent parameter backends are not automatically bound. The active priorities remain in the [maintenance plan](maintenance-plan.md).
+This opt-in framework service has a deterministic reference Application and copied presentation witness. Demo binds its own synthetic catalog in `products/demo/services/settings_app.c`; real controller transports and persistent parameter backends are not automatically bound. The active priorities remain in the [maintenance plan](../maintenance/maintenance-plan.md).
 
 ## Product definitions and independent backends
 

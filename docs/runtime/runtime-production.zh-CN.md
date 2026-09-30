@@ -10,7 +10,7 @@ Core 和公共运行时不依赖 OS/LVGL。Protocol 拥有解码和协议状态�
 
 ## 验收状态
 
-当前 Host、Linux 分析与单总线实板验证见[验证记录](validation.zh-CN.md)。记录绑定原始 firmware SHA 和镜像 hash，历史整理不改变板上固件身份。双总线实板仍未验证；不宣称正式 MISRA 合规、rollback 或掉电恢复通过。
+当前 Host、Linux 分析与单总线实板验证见[验证记录](../testing/validation.zh-CN.md)。记录绑定原始 firmware SHA 和镜像 hash，历史整理不改变板上固件身份。双总线实板仍未验证；不宣称正式 MISRA 合规、rollback 或掉电恢复通过。
 
 ## 执行与所有权
 
@@ -37,7 +37,7 @@ App 只有一个保留命令/结果信用，身份由 generation 和不复用的
 
 ## 模式与期限
 
-App 独占 STARTUP、NORMAL、DEGRADED、UPDATE_MAINTENANCE、SHUTDOWN，Product 提供能力矩阵。原生队列满计数器（`batch_full`、`event_full`、`tx_full`）增加时，在未选择维护模式的情况下选择 DEGRADED；连续一秒无新增队列拒绝可恢复。语义批次校验和 TX 发布失败增加 `batch_rejected`，但它不参与过载计算。改变此边界需按[维护者评估](maintainability.zh-CN.md) 中 D-01 进行产品策略评审。这是参考策略而非安全保证。模式变化推进 generation、将旧 Domain 信号标 stale、复位协议会话和产品工作流。OTA 返回普通模式需结束显式维护请求；Abort 不覆盖操作者的维护选择。
+App 独占 STARTUP、NORMAL、DEGRADED、UPDATE_MAINTENANCE、SHUTDOWN，Product 提供能力矩阵。原生队列满计数器（`batch_full`、`event_full`、`tx_full`）增加时，在未选择维护模式的情况下选择 DEGRADED；连续一秒无新增队列拒绝可恢复。语义批次校验和 TX 发布失败增加 `batch_rejected`，但它不参与过载计算。改变此边界需按[维护者评估](../maintenance/maintainability.zh-CN.md) 中 D-01 进行产品策略评审。这是参考策略而非安全保证。模式变化推进 generation、将旧 Domain 信号标 stale、复位协议会话和产品工作流。OTA 返回普通模式需结束显式维护请求；Abort 不覆盖操作者的维护选择。
 
 Reference-Demo 在 CAN0 每 50 ms 发送合成 0x3C0，每 100 ms 发送 0x2F0。维护模式仅保留关键 0x3C0。它们是公开台架数据，不是车辆控制。期限从上次计划值推进；迟到时跳过错过周期，不补发突发。模式切换显式重置相位。Mixed TPDO 也使用该 helper。线上间隔仍受队列和驱动延迟影响，必须 PCAN 实测。
 
@@ -59,7 +59,7 @@ Windows Host、Target build、实板 HIL 分别报告并绑定 SHA 证据。配�
 
 Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，默认要求远端响应。仅发送命令保留 TX_COMPLETED 终态，不会随后被误报为超时。采用 App 会话代次时复位 Adapter，并立即同步诊断代次，维护期间暂停遥测也不会显示旧代次。
 
-分析器的真实覆盖范围、Annex K TAD-001 待人工批准状态及 required checks 缺口统一维护在[治理状态](compliance/status.zh-CN.md)，不将 advisory 例外视作已批准的 MISRA deviation。
+分析器的真实覆盖范围、Annex K TAD-001 待人工批准状态及 required checks 缺口统一维护在[治理状态](../compliance/status.zh-CN.md)，不将 advisory 例外视作已批准的 MISRA deviation。
 
 ## 编译期 Product 选择
 

@@ -24,7 +24,7 @@
 | 持久化 | `storage/` 提供记录、双槽恢复和 NVM 状态；`meter_nvm_port.c` 将工作/结果交给阻塞 worker。 | RAM 应用、持久化排队和耐久修订不同；存储格式是兼容契约。 |
 | 升级 | 公共 Protocol/TX 路径上的 UDS/ISO-TP 接收复制任务；Update worker 校验包，经过 NVM 屏障使用 SDK 原生安装器。 | 哈希完整性不等于身份认证；原生启动确认不等于应用健康确认。 |
 
-代码评审从[运行时所有权](runtime-production.zh-CN.md)、[动态 TX](dynamic-periodic-tx.zh-CN.md)、[协议](protocols.zh-CN.md)、[NVM](nvm.zh-CN.md) 和[升级](can-update.zh-CN.md) 开始。构建清单选择依赖；上游代码保留在固定提交的子模块中。
+代码评审从[运行时所有权](../runtime/runtime-production.zh-CN.md)、[动态 TX](../runtime/dynamic-periodic-tx.zh-CN.md)、[协议](../runtime/protocols.zh-CN.md)、[NVM](../runtime/nvm.zh-CN.md) 和[升级](../ota/can-update.zh-CN.md) 开始。构建清单选择依赖；上游代码保留在固定提交的子模块中。
 
 ## 发现与优先级
 
@@ -42,7 +42,7 @@
 | M-08 / 中 | 多个 C 测试将初始化调用及校验放入 `assert`；CI 显式使用 Debug，但 CMake 允许含 NDEBUG 的 Release。 | 测试断言尚未机械保证启用前，不应把 Release CTest 全绿视为等价证据。用故意失败样例复现，再增加仅作用于测试的策略，不改生产断言语义。 |
 | M-09 / 中 | 双语门禁比较标题/代码块/表格/链接结构，不验证链接存在或翻译含义。部分回调注释仍写 Protocol/App，与生产单所有者规则不一致。 | 修正已确认的所有权措辞，后续增加链接/反例覆盖。双语结构通过不等于技术评审。 |
 | M-10 / 高 | `docs/compliance/status.md` 在其检查时记录 TAD-001 待审及缺少受保护必需检查；工作流 YAML 不能强制分支保护。 | 保留待审状态，需要管理员批准和远端实施状态复核；本审计没有查询远端设置。 |
-| M-11 / 中 | `docs/migration.md` 仍称 CANopen 为分阶段依赖、固件升级不在范围内；其协议/UI 路径及 `docs/downstream.md` 中 Demo 存储路径已不匹配源码树。 | 修正文档地图，区分初始提取历史与当前能力，保留历史验证身份。 |
+| M-11 / 中 | `docs/build/migration.md` 仍称 CANopen 为分阶段依赖、固件升级不在范围内；其协议/UI 路径及 `docs/product/downstream.md` 中 Demo 存储路径已不匹配源码树。 | 修正文档地图，区分初始提取历史与当前能力，保留历史验证身份。 |
 
 ## 产品就绪决策
 
@@ -53,10 +53,10 @@
 | D-03：生命周期失败策略 | 修改原生启停前定义部分初始化清理、禁止重启及耐久屏障失败处理。 | 注入每类 IPC/worker/open 失败；证明不释放存活资源、不将未完成停止报为成功。覆盖每个阻塞后端操作中的停止。 |
 | D-04：真实产品验证 | 定义实际协议权威、诊断/安全策略、时序限制、bus-off 行为、NVM 寿命及升级认证/恢复要求。 | 批准的需求及绑定源码/镜像的实板测试。合成 Demo 流量和已有单总线观测不是车辆产品验证。 |
 
-`docs/can-update.md` 已明确且重要的原生升级限制：厂商提前自动确认、未声称具备认证升级或回滚、下载中断电未验证。不得在维护性任务中悄然改变启动信任或恢复策略。
+`docs/ota/can-update.md` 已明确且重要的原生升级限制：厂商提前自动确认、未声称具备认证升级或回滚、下载中断电未验证。不得在维护性任务中悄然改变启动信任或恢复策略。
 
 ## 验证与置信范围
 
 全新 Windows GNU 16.1.0 / Python 3.13.15 Debug 无界面构建启用可选升级，在编辑前于 `build-maintainer-audit` 通过 **42/42 CTest**。本次从当前源码重建，未复用旧可执行文件。覆盖可移植行为、确定性原生端口路径、公共头文件、生成及仓库护栏。变更后结果和准确命令记录在[执行计划](maintenance-plan.zh-CN.md)。
 
-绑定源码的[验证记录](validation.zh-CN.md) 仍只为其指定提交和镜像提供历史证据。本审计不会把硬件结论迁移到当前源码。Linux sanitizers/分析器、全新固件构建、实物 UI、双总线硬件、长时间时序及断电测试，均不能由本次宿主运行确认。上层 SDK 和另一应用检出已有状态；本任务不更改配置、gitlink 或相邻源码。
+绑定源码的[验证记录](../testing/validation.zh-CN.md) 仍只为其指定提交和镜像提供历史证据。本审计不会把硬件结论迁移到当前源码。Linux sanitizers/分析器、全新固件构建、实物 UI、双总线硬件、长时间时序及断电测试，均不能由本次宿主运行确认。上层 SDK 和另一应用检出已有状态；本任务不更改配置、gitlink 或相邻源码。

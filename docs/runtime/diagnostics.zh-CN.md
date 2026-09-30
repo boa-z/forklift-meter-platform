@@ -79,4 +79,4 @@ HOST_PASS 要求 Demo、Reference-B、Reference-Mixed、公共头、架构、dia
 
 IMAGE_READY 要求当前 SDK 固件构建与产物哈希；BOARD_PASS 还须与该镜像绑定的物理 boot/MSH/fixture 证据。没有可用板端串口时报告 BOARD_NOT_RUN。Demo 固件不含 CANopen Adapter，pdo/sdo unavailable 正确；Mixed Host 证明其 SDO/PDO 诊断，不代表 Demo 镜像的硬件行为。本任务不增加 Mixed 固件选择、持久化 trace、coredump、网络日志、自研 UART parser 或无关 Demo 页面。
 
-相邻架构见 [RT-Thread adapter](../platform/rtthread/README.zh-CN.md) 与 [CANopenNode 接入](protocols.zh-CN.md)。
+相邻架构见 [RT-Thread adapter](../../platform/rtthread/README.zh-CN.md) 与 [CANopenNode 接入](protocols.zh-CN.md)。

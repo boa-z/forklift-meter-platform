@@ -31,18 +31,20 @@ python tools/create_product.py --id reference-b --output examples/reference-b
 
 Reference-B is a second synthetic product example using CAN1, 29-bit extended frames, an independent DBC, independent stale times and a two-page LVGL UI.
 
+See the [Build and Product guide](docs/build/build.md) for Product manifests, SDK OneStep builds and optional CAN OTA composition.
+
 ## Firmware boundary
 
 Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`. Luban-Lite integration must link the SDK's `packages/third-party/lvgl` and `packages/custom/lvgl-aic`, and must not rebuild this repository's host LVGL submodule.
 
 ## Documentation
 
-Project documentation is bilingual: every first-party document ships `X.md` (English) and `X.zh-CN.md` (Simplified Chinese); update both together. See the [bilingual documentation rule](docs/bilingual-docs.md).
+Project documentation is bilingual: every first-party document ships `X.md` (English) and `X.zh-CN.md` (Simplified Chinese); update both together. See the [bilingual documentation rule](docs/maintenance/bilingual-docs.md).
 
-Reference-Mixed combines CAN0 synthetic DBC, CAN1 fixed PDO and standalone CANopenNode SDO read/write without NMT/Heartbeat. Product startup services consume queued results outside protocol callbacks. See [SDO integration](docs/protocols.md).
+Reference-Mixed combines CAN0 synthetic DBC, CAN1 fixed PDO and standalone CANopenNode SDO read/write without NMT/Heartbeat. Product startup services consume queued results outside protocol callbacks. See [SDO integration](docs/runtime/protocols.md).
 
 ## Diagnostics
 
-See [Diagnostics and serial debugging](docs/diagnostics.md) for native ULog/MSH queries, structured trace, build identity and raw UART evidence.
+See [Diagnostics and serial debugging](docs/runtime/diagnostics.md) for native ULog/MSH queries, structured trace, build identity and raw UART evidence.
 
 See the [documentation index](docs/README.md) for current architecture, operating guides and validation records.

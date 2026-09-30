@@ -24,7 +24,7 @@ Inspection covered build manifests, CI, contracts, portable runtime/Core, native
 | Persistence | `storage/` provides records, two-slot recovery and NVM state; `meter_nvm_port.c` transfers work/results to a blocking worker. | RAM application, queued persistence and durable revision are distinct. Storage format is a compatibility contract. |
 | Update | UDS/ISO-TP on the common Protocol/TX path admits copied jobs; Update worker validates packages and uses the native SDK installer with NVM barrier. | Hash integrity is not authenticity; native boot confirmation is not application-health confirmation. |
 
-Start a code review with [runtime ownership](runtime-production.md), [dynamic TX](dynamic-periodic-tx.md), [protocols](protocols.md), [NVM](nvm.md) and [update](can-update.md). Source manifests select dependencies; upstream code remains in pinned submodules.
+Start a code review with [runtime ownership](../runtime/runtime-production.md), [dynamic TX](../runtime/dynamic-periodic-tx.md), [protocols](../runtime/protocols.md), [NVM](../runtime/nvm.md) and [update](../ota/can-update.md). Source manifests select dependencies; upstream code remains in pinned submodules.
 
 ## Findings and priorities
 
@@ -42,7 +42,7 @@ Priorities describe engineering sequence, not a vehicle safety classification. O
 | M-08 / medium | Many C tests put both setup calls and checks inside `assert`; CI explicitly uses Debug, while CMake permits Release with NDEBUG. | Do not count Release CTest green as equivalent until test assertions are mechanically guaranteed active. Reproduce with a deliberate failing fixture and add a test-only policy; do not alter production assertion semantics. |
 | M-09 / medium | Bilingual gate compares heading/block/table/link structure but does not verify link existence or translation meaning. Several callback comments still say Protocol/App despite production single-owner rules. | Correct verified ownership wording and add link/negative-fixture coverage later. Bilingual structural green is not technical review. |
 | M-10 / high | `docs/compliance/status.md` records pending TAD-001 and absent protected checks at its inspection; workflow YAML cannot enforce branch protection. | Preserve pending status. Administrator approval and live repository enforcement verification are needed; this audit did not query remote settings. |
-| M-11 / medium | `docs/migration.md` still labels CANopen as staged and firmware update outside scope; its protocol/UI paths and the Demo storage path in `docs/downstream.md` no longer match the tree. | Repair the map and distinguish original extraction history from present capabilities. Preserve historical validation identities. |
+| M-11 / medium | `docs/build/migration.md` still labels CANopen as staged and firmware update outside scope; its protocol/UI paths and the Demo storage path in `docs/product/downstream.md` no longer match the tree. | Repair the map and distinguish original extraction history from present capabilities. Preserve historical validation identities. |
 
 ## Product readiness decisions
 
@@ -53,10 +53,10 @@ Priorities describe engineering sequence, not a vehicle safety classification. O
 | D-03: lifecycle failure policy | Define partial initialization cleanup, restart prohibition and failed durability-barrier handling before modifying native startup/stop. | Inject every IPC/worker/open failure; prove no live resource is freed and no incomplete stop reports success. Include stop during each blocking backend operation. |
 | D-04: real product qualification | Define actual protocol authority, diagnostics/safety policy, timing limits, bus-off behavior, NVM endurance and update authenticity/recovery requirements. | Approved requirements plus source/image-bound physical tests. Synthetic Demo traffic and existing single-bus measurements are not vehicle qualification. |
 
-The native update limitations in `docs/can-update.md` are explicit and significant: vendor early auto-confirmation, no claimed authenticated update or rollback, and unverified power interruption during download. Do not quietly change boot trust or recovery under a maintainability task.
+The native update limitations in `docs/ota/can-update.md` are explicit and significant: vendor early auto-confirmation, no claimed authenticated update or rollback, and unverified power interruption during download. Do not quietly change boot trust or recovery under a maintainability task.
 
 ## Verification and confidence
 
 Fresh Windows GNU 16.1.0 / Python 3.13.15 Debug headless build with optional update enabled passed **42/42 CTests** before edits in `build-maintainer-audit`. This rebuild used current sources, not an old executable. It covers portable behavior, deterministic native-port paths, public headers, generation and repository guards. Post-change results and exact commands belong in the [execution plan](maintenance-plan.md).
 
-The source-bound [validation record](validation.md) remains historical evidence for its named commits and images. This audit does not transfer that hardware verdict to the current tree. Linux sanitizers/analyzers, fresh firmware build, physical UI, dual-bus hardware, prolonged timing and power-loss tests are not established by this host run. The enclosing SDK and other application checkout had existing state; no configuration, gitlink or sibling-source change is part of this work.
+The source-bound [validation record](../testing/validation.md) remains historical evidence for its named commits and images. This audit does not transfer that hardware verdict to the current tree. Linux sanitizers/analyzers, fresh firmware build, physical UI, dual-bus hardware, prolonged timing and power-loss tests are not established by this host run. The enclosing SDK and other application checkout had existing state; no configuration, gitlink or sibling-source change is part of this work.

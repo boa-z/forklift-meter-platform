@@ -1,24 +1,34 @@
-# 文档索引
+# Framework 文档
 
-本目录维护现行契约、操作指南与验证记录。过时任务计划和重复阶段报告已收敛；历史测试原始 SHA 保留，不将旧镜像结果归于重写后的提交。完整旧版内容可从 Git 历史获取。
+> [English](README.md)
 
-- [Runtime 所有权与生命周期](runtime-production.zh-CN.md)
-- [维护者评估](maintainability.zh-CN.md)
-- [当前维护计划](maintenance-plan.zh-CN.md)
-- [参数事务与权限](parameter-service.zh-CN.md)
-- [动态周期 TX 契约](dynamic-periodic-tx.zh-CN.md)
-- [Domain、CANopen 与 Product 服务](protocols.zh-CN.md)
-- [External/私有 Product 集成](downstream.zh-CN.md)
-- [平台迁移](migration.zh-CN.md)
-- [Host 模拟器](simulator.zh-CN.md)
-- [SDK 板级集成](d133-integration.zh-CN.md)
-- [诊断与串口](diagnostics.zh-CN.md)
-- [NVM 持久化](nvm.zh-CN.md)
-- [CAN 固件升级](can-update.zh-CN.md)
-- [HIL 自动化](can-hil.zh-CN.md)
-- [治理状态与范围](compliance/status.zh-CN.md)
-- [依赖与工具来源](compliance/provenance.zh-CN.md)
-- [绑定源码身份的验证记录](validation.zh-CN.md)
-- [双语维护规则](bilingual-docs.zh-CN.md)
+先选择你要完成的任务，再进入对应模块。操作指南面向使用者；技术说明、历史验证和治理记录单独维护。
 
-- [Application 服务与 Product 展示](application-services.zh-CN.md)
+## 从任务开始
+
+- [构建第一个 Product](build/build.zh-CN.md)
+- [运行模拟器](build/simulator.zh-CN.md)
+- [构建 OTA 包并通过 CAN 刷入](ota/can-update.zh-CN.md)
+- [接入独立客户 Product](product/downstream.zh-CN.md)
+- [查看串口和运行诊断](runtime/diagnostics.zh-CN.md)
+- [执行 CAN 实板测试](testing/can-hil.zh-CN.md)
+
+## 按模块浏览
+
+| 目录 | 内容 | 入口 |
+|---|---|---|
+| `build/` | 构建与板端集成 | [模块索引](build/README.zh-CN.md) |
+| `product/` | Product 组合与服务 | [模块索引](product/README.zh-CN.md) |
+| `runtime/` | 运行时、协议与存储 | [模块索引](runtime/README.zh-CN.md) |
+| `ota/` | CAN OTA | [模块索引](ota/README.zh-CN.md) |
+| `testing/` | 测试与验证 | [模块索引](testing/README.zh-CN.md) |
+| `maintenance/` | 维护与文档 | [模块索引](maintenance/README.zh-CN.md) |
+| `compliance/` | 治理与来源 | [模块索引](compliance/README.zh-CN.md) |
+
+## 文档维护
+
+新增文档放入对应模块，不再平铺到本目录。中英文文件在同一文件夹成对维护；各模块索引与交叉链接一起更新。
+
+操作文档按“目标与产物 → 前提 → 步骤与通过判据 → 排错 → 术语 → 技术说明”组织。命令注明执行位置，结果注明检查字段。具体规则见[文档与双语规范](maintenance/bilingual-docs.zh-CN.md)。
+
+迁移保留原有测试 SHA、镜像身份和验收边界。历史验证不能直接归因于后续提交。

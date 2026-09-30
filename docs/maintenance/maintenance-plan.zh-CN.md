@@ -4,6 +4,20 @@
 
 根据[源码评估](maintainability.zh-CN.md) 于 2026-09-28 建立，基线 `81e5083`。这是当前续接记录；随代码变更同步更新此处的状态与证据，不依赖聊天历史。
 
+## 文档模块化与 OTA 操作流程（2026-09-30）
+
+维护者要求按模块建文件夹，并让 CAN OTA 文档优先服务操作。现按 build、product、runtime、ota、testing、maintenance、compliance 管理，各模块有双语索引；总入口按任务导航。相对链接和第一方引用跟随迁移，历史源码及镜像身份保持不变。
+
+CAN OTA 改为先介绍固件产物、打包和刷入命令，再明确候选验证、激活及重启后的判据，补齐排错和术语。SDK 审查与技术探索保留在独立说明中。命令字段与当前 CLI 和板端诊断核对；文档检查不构成新的硬件或掉电验证。
+
+验证：37 对双语文档和原有公开性检查通过；7 条 OTA 示例命令在无网络 I/O 条件下通过解析。使用 SDK cpio/mkenvimage 对已有 Demo OS 真实打包，并通过共享检查器的离线预检。包大小为 1,115,136 字节，SHA256 为 06b42453fb10c31efc9d1150ca07894c419ec4fda9281dcf0d519eb2476ef233。本次文档任务未传输或激活固件。
+
+## SDK 与 Host 构建兼容性（2026-09-30）
+
+Actions 运行 36659079158 暴露了 SDK Python 2 兼容修改引入的 Python 3 文本解码和 Product 路径类型回归。保持 Python 3 返回 Path、Python 2 返回字符串路径，并维持 CLI 的 JSON 序列化；生成身份头文件时仅解码 bytes。可选固件 OTA 路径改用兼容 Python 2 的完整版本匹配及 Unicode 文本输出。公开构建示例使用通用板卡别名，修正 Product 路径解析，并明确 SDK 环境前提；没有放宽公开性规则或 CI 检查。
+
+本次工作树补丁验证：Python 3 辅助工具回归 6/6 通过；完整 Host pytest 119 项通过、14 项因环境条件跳过；Debug/headless+update CTest 88/88 通过。两个辅助 CLI 均通过原有 SDK Python 2.7 运行。使用该解释器及 SDK Shell 环境构建启用 OTA 的 Demo，生成 image、ELF、map 和 OS；所有选定 Product 源文件通过链接映射核对，捕获 795 条编译命令，并恢复保存的 SDK 配置和头文件字节。本地构建报告记录了带修改的源码身份，只是构建证据，不是实板验收。本次修复未进行硬件刷写或 OTA 传输；远端 Actions 结果需针对推送版本确认。
+
 ## 可选存储升级屏障（2026-09-29）
 
 Framework `9b9e671` 修复未启用设置存储的 Product 无法完成激活屏障的问题。原先不能取得非零 revision，激活因此超时。现在仅在未配置或显式禁用存储时由 App 完成该屏障；启用存储仍须取得非零版本并通过 durable 检查，准入、取消和原生 ENV 验证保持不变。新增回归在旧实现上失败，修复后 Release/headless+update 全套 88/88 通过，覆盖无存储、禁用存储、无目标版本、持久化未完成与 durable 完成。实板验收单独记录，下游 Product 证据保持私有。
@@ -102,7 +116,7 @@ python -m pip install -r tools/hil/requirements.txt -r tools/ota/requirements.tx
 python -m pytest -q -ra
 ```
 
-对象共享 SHA256 `9bf4e998b6baedb2748863bf7f5eeb668dbf059852ad716d8341c0d09f83cfc9`。这仅是该宿主编译器的证据，不是目标时序测量。原始构建/配置日志及结果清单保留在忽略的 `build-maintainer-audit` 目录；本表是仓库中的持久摘要。不暗示当前源码固件/HIL、Linux 分析器或 sanitizer 已通过。已有[绑定源码的硬件证据](validation.zh-CN.md) 保留原始身份。
+对象共享 SHA256 `9bf4e998b6baedb2748863bf7f5eeb668dbf059852ad716d8341c0d09f83cfc9`。这仅是该宿主编译器的证据，不是目标时序测量。原始构建/配置日志及结果清单保留在忽略的 `build-maintainer-audit` 目录；本表是仓库中的持久摘要。不暗示当前源码固件/HIL、Linux 分析器或 sanitizer 已通过。已有[绑定源码的硬件证据](../testing/validation.zh-CN.md) 保留原始身份。
 
 ## 需求批次结果
 
@@ -115,7 +129,7 @@ python -m pytest -q -ra
 | F-02 | 属主限定数值目录、未确认条目默认拒绝、权限授权、已有账本、有界读重试及类型化保留结果 | 仅可选内部接口，无生产适配器、凭据、协议编码、持久化模式或 UI 接线 |
 | F-03 | 重叠总线/格式身份；UNKNOWN/STALE/ERROR、值/来源保留及恢复；独立 20/50 ms 调度 | 描述已有实现，不代表物理总线/时序/控制器验收 |
 
-[参数契约](parameter-service.zh-CN.md) 明确所有权、就绪状态、后端隔离、取消不确定性、浮点表示及期限限制。合成测试覆盖结果保留、错误属主/会话/序号/操作/尝试号、权限寿命、时钟回绕和耗尽。本地身份比较成功不能替代线上回复关联。
+[参数契约](../product/parameter-service.zh-CN.md) 明确所有权、就绪状态、后端隔离、取消不确定性、浮点表示及期限限制。合成测试覆盖结果保留、错误属主/会话/序号/操作/尝试号、权限寿命、时钟回绕和耗尽。本地身份比较成功不能替代线上回复关联。
 
 | 当前源码检查 | 结果 | 证据 |
 |---|---|---|
@@ -171,7 +185,7 @@ D-06 兼容性处置：保留现有公开名称及序列化表示。重叠是语
 
 ### App 边界与分析结果
 
-F-02 现有 `examples/parameter-workflow` 中的合成 App/传输/UI 边界见证，详见[参数服务指南](parameter-service.zh-CN.md)。它仅用于测试，不增加固件 Product，也不改变既有运行时回调。D-06 保留本地 Settings 名称/格式。D-07 仍是人工/Product 集成决策：生产绑定前确认描述符、认证、后端隔离及面板/配置生命周期。不选择私有编码、凭据或安全/健康策略。
+F-02 现有 `examples/parameter-workflow` 中的合成 App/传输/UI 边界见证，详见[参数服务指南](../product/parameter-service.zh-CN.md)。它仅用于测试，不增加固件 Product，也不改变既有运行时回调。D-06 保留本地 Settings 名称/格式。D-07 仍是人工/Product 集成决策：生产绑定前确认描述符、认证、后端隔离及面板/配置生命周期。不选择私有编码、凭据或安全/健康策略。
 
 H-06 增加七份明确手写源码：诊断、trace、通用路由、诊断命令、可移植 RT-Thread 适配、原生执行所有者及参考参数 App。`tools/analyze_handwritten.py` 记录源码 SHA256、实际分析器版本、命令、结果及包含上下文，保留原 portable/generated 范围。本地 Cppcheck 七份均通过。原生分析采用关闭 OTA 的宿主 RT-Thread 桩，不宣称本地执行了 Clang-tidy/Linux CI 或目标编译器分析。host 工作流保留原作业并增加 Release/无界面加 update 及明确范围分析。GCR-003 记录门禁变化。
 
@@ -204,7 +218,7 @@ H-06 增加七份明确手写源码：诊断、trace、通用路由、诊断命�
 
 ### 服务批次结果
 
-Demo 使用无头 Product 投影；profile generation、标定及诊断分类均为可选契约。[Application 服务](application-services.zh-CN.md) 记录所有权、重编译兼容性、D-01/D-05 决策表及身份评估。D-03 不变；D-07 生产映射/认证/缓存失效仍待决策。未实现持久计数器和客户适配器。
+Demo 使用无头 Product 投影；profile generation、标定及诊断分类均为可选契约。[Application 服务](../product/application-services.zh-CN.md) 记录所有权、重编译兼容性、D-01/D-05 决策表及身份评估。D-03 不变；D-07 生产映射/认证/缓存失效仍待决策。未实现持久计数器和客户适配器。
 
 | 检查 | 结果 | 证据 |
 |---|---|---|
@@ -220,7 +234,7 @@ Python Host 工具：114 PASS，9 项物理 HIL 跳过；证据 build-maintainer
 
 ### 服务实板收尾与下一步
 
-提交 1cf7aea（profile）、5342d4b（Product 展示）及 5cfa0bf（标定/分类）分为独立评审批次。已提交候选完成 reference-board 构建、CAN OTA 和源码身份核对重启，物理 HIL 9/9 通过；见[验证记录](validation.zh-CN.md)。板上保留 services-a，两个接口均已释放。默认 runtime/协议/时序/存储策略不变；新服务仍须 Product 显式接入。
+提交 1cf7aea（profile）、5342d4b（Product 展示）及 5cfa0bf（标定/分类）分为独立评审批次。已提交候选完成 reference-board 构建、CAN OTA 和源码身份核对重启，物理 HIL 9/9 通过；见[验证记录](../testing/validation.zh-CN.md)。板上保留 services-a，两个接口均已释放。默认 runtime/协议/时序/存储策略不变；新服务仍须 Product 显式接入。
 
 后续继续本计划：真实适配器前评审 D-07 Product 映射、测量/profile 失效和认证；修改健康策略或实现持久计数器前决定 D-01/D-05 表；保持 D-03 所有权/恢复语义不变。把既有 iso14229 文档子模块元数据列为依赖清单问题。本地未运行当前 HEAD Linux CI；不新增路线图、私有线端映射或自动依赖修复。
 
@@ -233,7 +247,7 @@ Python Host 工具：114 PASS，9 项物理 HIL 跳过；证据 build-maintainer
 批次 A 验证：全新 Debug/headless 构建中的参数 App、公共头文件、架构及负向守卫用例通过；有效零值与被拒绝的结果副本明确区分。AGENTS.md 现要求说明性代码注释使用中文，新增服务契约已单独提交注释修正。本批不新增硬件验收结论。
 
 
-批次 B 仅增加测试内的 Product App/ViewModel 组合，详见 [Application 服务](application-services.zh-CN.md)。映射和策略仍是显式 Product 代码，不新增通用运行时接口或生产线程。用例验证采集代数拒绝、发布前一致失效、保留不确定旧结果、独立后端排空、捕获值稳定性、可选回读及权限丢失分类。
+批次 B 仅增加测试内的 Product App/ViewModel 组合，详见 [Application 服务](../product/application-services.zh-CN.md)。映射和策略仍是显式 Product 代码，不新增通用运行时接口或生产线程。用例验证采集代数拒绝、发布前一致失效、保留不确定旧结果、独立后端排空、捕获值稳定性、可选回读及权限丢失分类。
 
 | 检查 | 结果 | evidence/adaptation/ 下的本地证据 |
 |---|---|---|

@@ -27,4 +27,4 @@
 | platform | Original | 主机和 RT-Thread 适配器 |
 | LVGL / lvgl-aic | Pinned public upstream | 渲染和单板适配 |
 
-初始提取后已增加 Reference-Mixed 中的独立 CANopenNode SDO 和可选 CAN 固件升级。当前实现与限制见[协议](protocols.zh-CN.md)及[升级集成](can-update.zh-CN.md)。这些参考实现并未证明完整 CANopen NMT/Heartbeat、客户协议或产品合格性。当前加固和集成缺口记录在[维护计划](maintenance-plan.zh-CN.md)。
+初始提取后已增加 Reference-Mixed 中的独立 CANopenNode SDO 和可选 CAN 固件升级。当前实现与限制见[协议](../runtime/protocols.zh-CN.md)及[升级集成](../ota/can-update.zh-CN.md)。这些参考实现并未证明完整 CANopen NMT/Heartbeat、客户协议或产品合格性。当前加固和集成缺口记录在[维护计划](../maintenance/maintenance-plan.zh-CN.md)。

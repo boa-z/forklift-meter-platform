@@ -10,7 +10,7 @@ Core and common runtime remain OS/LVGL independent. Protocol owns decoding and p
 
 ## Acceptance status
 
-Current Host, Linux analysis and single-bus hardware evidence is recorded in [validation](validation.md). Records retain original firmware SHA and image hashes; history consolidation does not change the installed firmware identity. Dual-bus hardware remains unverified; no formal MISRA, rollback or power-loss recovery claim is made.
+Current Host, Linux analysis and single-bus hardware evidence is recorded in [validation](../testing/validation.md). Records retain original firmware SHA and image hashes; history consolidation does not change the installed firmware identity. Dual-bus hardware remains unverified; no formal MISRA, rollback or power-loss recovery claim is made.
 
 ## Execution and ownership
 
@@ -37,7 +37,7 @@ Each bus has 16 ordinary and 16 urgent TX slots; at most four urgent frames prec
 
 ## Modes and deadlines
 
-App owns STARTUP, NORMAL, DEGRADED, UPDATE_MAINTENANCE and SHUTDOWN. Product supplies the capability matrix. An increase in the native queue-full counters (`batch_full`, `event_full`, `tx_full`) selects DEGRADED when maintenance is not selected; one second without another queue rejection permits recovery. Semantic batch validation and TX publication failures increment `batch_rejected`, which is not part of that overload calculation. Changing this boundary requires the product-policy review recorded as D-01 in the [maintainer assessment](maintainability.md). This is a reference policy, not a safety guarantee. Mode changes advance generation, stale old Domain signals and reset Protocol sessions and Product workflow. Returning from OTA requires ending the explicit maintenance request; Abort does not override a technician's maintenance selection.
+App owns STARTUP, NORMAL, DEGRADED, UPDATE_MAINTENANCE and SHUTDOWN. Product supplies the capability matrix. An increase in the native queue-full counters (`batch_full`, `event_full`, `tx_full`) selects DEGRADED when maintenance is not selected; one second without another queue rejection permits recovery. Semantic batch validation and TX publication failures increment `batch_rejected`, which is not part of that overload calculation. Changing this boundary requires the product-policy review recorded as D-01 in the [maintainer assessment](../maintenance/maintainability.md). This is a reference policy, not a safety guarantee. Mode changes advance generation, stale old Domain signals and reset Protocol sessions and Product workflow. Returning from OTA requires ending the explicit maintenance request; Abort does not override a technician's maintenance selection.
 
 Reference-Demo sends synthetic CAN0 0x3C0 every 50 ms and 0x2F0 every 100 ms. Only 0x3C0 is critical in maintenance. These public bench frames are not vehicle control. Deadlines advance from their previous planned value. Late runnables skip missed periods without catch-up bursts. Mode changes explicitly rearm phase. Mixed TPDO uses the same helper. Wire spacing still depends on queue and driver latency and requires PCAN measurement.
 
@@ -59,7 +59,7 @@ Windows Host, target build and physical HIL are reported separately with SHA-bou
 
 Product may declare command completion at APPLIED, TX_COMPLETED or REMOTE_CONFIRMED; the default requires the remote response. A transmit-only command retains TX_COMPLETED as its final result and does not later become a false timeout. Session adoption resets adapters and publishes the same generation as App even while telemetry is suppressed.
 
-Actual analyzer coverage, pending human approval of Annex K TAD-001 and required-check gaps are maintained in [governance status](compliance/status.md). The advisory exception is not an approved MISRA deviation.
+Actual analyzer coverage, pending human approval of Annex K TAD-001 and required-check gaps are maintained in [governance status](../compliance/status.md). The advisory exception is not an approved MISRA deviation.
 
 ## Build-time Product selection
 

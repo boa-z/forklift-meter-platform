@@ -79,4 +79,4 @@ HOST_PASS requires Demo, Reference-B, Reference-Mixed, public headers, architect
 
 IMAGE_READY requires the selected SDK firmware build plus artifact hash. BOARD_PASS additionally requires physical boot/MSH/fixture evidence tied to that image. Current work reports BOARD_NOT_RUN when no board port is available. Demo firmware has no CANopen adapter, so pdo/sdo unavailable is correct; Mixed host tests prove its SDO/PDO diagnostics, not the Demo image's hardware behavior. This task does not add Mixed firmware selection, persistent trace, coredump, network logging, custom UART parser or extra Demo pages.
 
-See the [RT-Thread adapter](../platform/rtthread/README.md) and [CANopenNode integration](protocols.md) for adjacent architecture.
+See the [RT-Thread adapter](../../platform/rtthread/README.md) and [CANopenNode integration](protocols.md) for adjacent architecture.

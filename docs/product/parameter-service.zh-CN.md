@@ -2,7 +2,7 @@
 
 > [English](parameter-service.md)
 
-此可选框架服务已有确定性的参考 App 与复制展示见证。Demo 在 `products/demo/services/settings_app.c` 绑定自己的合成目录；真实控制器传输及持久化参数后端不会自动绑定。优先级继续由[维护计划](maintenance-plan.zh-CN.md)维护。
+此可选框架服务已有确定性的参考 App 与复制展示见证。Demo 在 `products/demo/services/settings_app.c` 绑定自己的合成目录；真实控制器传输及持久化参数后端不会自动绑定。优先级继续由[维护计划](../maintenance/maintenance-plan.zh-CN.md)维护。
 
 ## Product 定义与独立后端
 

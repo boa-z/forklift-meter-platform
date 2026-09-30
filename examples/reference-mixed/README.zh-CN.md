@@ -8,4 +8,4 @@ cmake --build build-mixed
 ctest --test-dir build-mixed --output-on-failure
 ~~~
 
-清单启用客户端。资源限制、测试、迟到响应限制见[模块设计](../../docs/protocols.zh-CN.md)。宿主测试不代表实板验收。
+清单启用客户端。资源限制、测试、迟到响应限制见[模块设计](../../docs/runtime/protocols.zh-CN.md)。宿主测试不代表实板验收。

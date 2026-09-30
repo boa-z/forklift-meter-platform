@@ -27,4 +27,4 @@ Private inventory and donor baselines remain outside this repository. Existing p
 | platform | Original | Host and RT-Thread adapters |
 | LVGL / lvgl-aic | Pinned public upstream | Rendering and board adaptation |
 
-The original extraction has since gained standalone CANopenNode SDO in Reference-Mixed and optional CAN firmware update. See [protocols](protocols.md) and [update integration](can-update.md) for current implementation and limits. Full CANopen NMT/Heartbeat, customer protocols and product qualification are not established by these reference implementations. Current hardening and integration gaps are tracked in the [maintenance plan](maintenance-plan.md).
+The original extraction has since gained standalone CANopenNode SDO in Reference-Mixed and optional CAN firmware update. See [protocols](../runtime/protocols.md) and [update integration](../ota/can-update.md) for current implementation and limits. Full CANopen NMT/Heartbeat, customer protocols and product qualification are not established by these reference implementations. Current hardening and integration gaps are tracked in the [maintenance plan](../maintenance/maintenance-plan.md).

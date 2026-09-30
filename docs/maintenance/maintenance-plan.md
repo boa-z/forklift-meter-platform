@@ -4,6 +4,20 @@
 
 Established 2026-09-28 from the [source assessment](maintainability.md), baseline `81e5083`. This is the active continuation record. Update status and evidence here in the same change as the work; do not depend on chat history.
 
+## Documentation organization and OTA workflow (2026-09-30)
+
+The maintainer requested module folders and an operator-first CAN OTA guide. Documentation now uses build, product, runtime, ota, testing, maintenance and compliance modules, each with a bilingual index. Root navigation starts with tasks. Relative links and first-party references follow the moved files; historical source/image identities stay unchanged.
+
+CAN OTA now leads with firmware artifacts, packaging and installation commands, followed by explicit candidate/activation/reboot checks, failure actions and terms. SDK review and technical investigation are kept in a separate reference. Command fields were checked against the current CLI and board diagnostics. Documentation checks do not establish a new hardware or power-loss result.
+
+Validation: 37 bilingual pairs and the unchanged public-clean gate passed; seven documented OTA CLI invocations parsed without network I/O. The existing Demo OS was packaged using the SDK cpio/mkenvimage executables and passed real offline preflight with the shared inspector. Package size: 1,115,136 bytes; SHA256: 06b42453fb10c31efc9d1150ca07894c419ec4fda9281dcf0d519eb2476ef233. No firmware was transferred or activated during this documentation task.
+
+## SDK and host build compatibility (2026-09-30)
+
+Actions run 36659079158 exposed Python 3 text decoding and Product path-type regressions after the SDK Python 2 compatibility change. Preserve Python 3 Path return values, Python 2 string paths and JSON CLI serialization; decode only bytes when emitting identity headers. The optional firmware OTA path now uses a Python 2-compatible exact version match and Unicode text output. Public build examples use a generic board alias, correct Product path resolution and explicit SDK environment prerequisites; no cleanliness rule or CI check is weakened.
+
+Validation of this working-tree patch: Python 3 helper regressions passed 6/6; the full host pytest suite passed 119 with 14 environment-dependent skips; Debug/headless+update CTest passed 88/88. Both helper CLIs ran under the unchanged SDK Python 2.7. An OTA-enabled Demo build using that interpreter and the SDK shell environment produced the image, ELF, map and OS; all selected Product sources were verified in the link map, 795 compiler commands were captured and the saved SDK configuration/header bytes were restored. The local build report records the dirty source identity; it is build evidence, not board acceptance. No hardware flashing or OTA transfer was performed for this repair. Remote Actions results must be checked for the pushed revision.
+
 ## Optional-storage update barrier (2026-09-29)
 
 Framework `9b9e671` fixes the activation barrier for Products without enabled settings storage. Previously no nonzero revision could be produced, so activation would time out. The App now completes that barrier only when storage is absent or explicitly disabled; enabled storage still needs a nonzero revision and successful durable check. Admission, cancellation and native ENV verification remain unchanged. The added regression failed against the old implementation; Release/headless+update passed 88/88 after the fix, including absent/disabled storage, unavailable revision, pending persistence and durable completion. Hardware acceptance remains separate; downstream Product evidence stays private.
@@ -102,7 +116,7 @@ python -m pip install -r tools/hil/requirements.txt -r tools/ota/requirements.tx
 python -m pytest -q -ra
 ```
 
-Objects share SHA256 `9bf4e998b6baedb2748863bf7f5eeb668dbf059852ad716d8341c0d09f83cfc9`. This is evidence for this host compiler, not a target timing measurement. Raw build/configure logs and a result manifest remain in the ignored `build-maintainer-audit` directory; the table records the durable repository summary. No current-tree firmware/HIL, Linux analyzer or sanitizer acceptance is implied. Existing [source-bound hardware evidence](validation.md) retains its original identity.
+Objects share SHA256 `9bf4e998b6baedb2748863bf7f5eeb668dbf059852ad716d8341c0d09f83cfc9`. This is evidence for this host compiler, not a target timing measurement. Raw build/configure logs and a result manifest remain in the ignored `build-maintainer-audit` directory; the table records the durable repository summary. No current-tree firmware/HIL, Linux analyzer or sanitizer acceptance is implied. Existing [source-bound hardware evidence](../testing/validation.md) retains its original identity.
 
 ## Requirement batch outcome
 
@@ -115,7 +129,7 @@ The preceding audit is committed separately as `c3ddb09`; the SDK pins it in `81
 | F-02 | Owner-qualified numeric catalog, fail-closed unconfirmed entries, permission grants, existing ledger, bounded read retry, typed retained outcomes | Opt-in internal seam only; no production adapter, credentials, protocol encoding, persisted schema or UI binding |
 | F-03 | Overlapping bus/format identity; UNKNOWN/STALE/ERROR, value/source retention and recovery; independent 20/50 ms schedules | Existing implementation characterized; no physical bus/timing/controller acceptance |
 
-The [parameter contract](parameter-service.md) makes ownership, readiness, backend quarantine, cancellation uncertainty, float representation and deadline limitations explicit. Synthetic tests cover result retention, wrong owner/session/serial/operation/attempt, permission lifetime, clock wrap and exhaustion. A successful local token comparison never substitutes for wire-response correlation.
+The [parameter contract](../product/parameter-service.md) makes ownership, readiness, backend quarantine, cancellation uncertainty, float representation and deadline limitations explicit. Synthetic tests cover result retention, wrong owner/session/serial/operation/attempt, permission lifetime, clock wrap and exhaustion. A successful local token comparison never substitutes for wire-response correlation.
 
 | Current-tree check | Result | Evidence |
 |---|---|---|
@@ -171,7 +185,7 @@ Every firmware image selects exactly one Product. The singular `METER_PRODUCT_RO
 
 ### App boundary and analyzer outcome
 
-F-02 now has a synthetic App/transport/UI boundary witness in `examples/parameter-workflow`, described in the [parameter service guide](parameter-service.md). It is test-only and does not add another firmware Product or alter existing runtime callbacks. D-06 retains local Settings names/format. D-07 remains a human/Product integration decision: confirm descriptors, authentication, backend quarantine and panel/profile lifecycle before production binding. No private encoding, credential or safety/health policy is selected.
+F-02 now has a synthetic App/transport/UI boundary witness in `examples/parameter-workflow`, described in the [parameter service guide](../product/parameter-service.md). It is test-only and does not add another firmware Product or alter existing runtime callbacks. D-06 retains local Settings names/format. D-07 remains a human/Product integration decision: confirm descriptors, authentication, backend quarantine and panel/profile lifecycle before production binding. No private encoding, credential or safety/health policy is selected.
 
 H-06 adds seven explicit handwritten sources: diagnostics, trace, common routing, diagnostic commands, portable RT-Thread adapter, native execution owner and reference parameter App. `tools/analyze_handwritten.py` records source SHA256, actual analyzer version, command, result and include context; existing portable/generated scopes remain. Local Cppcheck passed all seven. Native analysis uses host RT-Thread stubs with OTA disabled; Clang-tidy/Linux CI and target compiler analysis are not claimed as run locally. The host workflow retains existing jobs and adds Release/headless + update and the explicit scope analysis. GCR-003 records the gate changes.
 
@@ -204,7 +218,7 @@ Private requirements are evidence only. Source freshness, feature visibility, pr
 
 ### Services batch outcome
 
-Demo now uses a headless Product projection; profile generation, calibration and diagnostic classification are opt-in contracts. See [Application services](application-services.md) for ownership, rebuild compatibility, D-01/D-05 decision tables and identity assessment. D-03 remains unchanged; D-07 production mapping/authentication/cache invalidation remain open. Persistent counters and customer adapters are not implemented.
+Demo now uses a headless Product projection; profile generation, calibration and diagnostic classification are opt-in contracts. See [Application services](../product/application-services.md) for ownership, rebuild compatibility, D-01/D-05 decision tables and identity assessment. D-03 remains unchanged; D-07 production mapping/authentication/cache invalidation remain open. Persistent counters and customer adapters are not implemented.
 
 | Check | Result | Evidence |
 |---|---|---|
@@ -220,7 +234,7 @@ Python host tools: 114 PASS, 9 physical HIL skipped; build-maintainer-audit/serv
 
 ### Services hardware closure and next work
 
-Commits 1cf7aea (profile), 5342d4b (Product presentation) and 5cfa0bf (calibration/classification) are separate review batches. The committed candidate built for reference-board and passed 9/9 physical HIL after CAN OTA and source-verified reboot; see [validation](validation.md). The board retains services-a and both interfaces are released. Default runtime/protocol/timing/storage policies remain intact; new services still require explicit Product binding.
+Commits 1cf7aea (profile), 5342d4b (Product presentation) and 5cfa0bf (calibration/classification) are separate review batches. The committed candidate built for reference-board and passed 9/9 physical HIL after CAN OTA and source-verified reboot; see [validation](../testing/validation.md). The board retains services-a and both interfaces are released. Default runtime/protocol/timing/storage policies remain intact; new services still require explicit Product binding.
 
 Next work belongs to this plan: review D-07 Product mapping, measurement/profile invalidation and authentication before real adapters; resolve D-01/D-05 policy tables before health changes or persistent counters; leave D-03 ownership/recovery semantics unchanged. Track inherited iso14229 documentation-submodule metadata as a dependency inventory issue. Current-head Linux CI remains unrun locally; no new roadmap, private wire mapping or automatic dependency repair is introduced.
 
@@ -233,7 +247,7 @@ Batch B now exercises the existing services together in the headless product-app
 Batch A verification: parameter App, public headers, architecture and negative guard fixtures pass on the fresh Debug/headless build; valid-zero and rejected-result copies are distinguished. Chinese explanatory comments are now required by AGENTS.md, with the new service contracts corrected in a separate comment-only commit. No current batch hardware result is claimed.
 
 
-Batch B adds only a test-local Product App/ViewModel composition, documented in [Application services](application-services.md). Mapping and policy remain explicit Product code; no new generic runtime interface or production worker is introduced. It demonstrates source-generation rejection, coherent invalidation before publication, retained uncertain old results, independent backend drain, capture stability, optional readback and permission-loss classification.
+Batch B adds only a test-local Product App/ViewModel composition, documented in [Application services](../product/application-services.md). Mapping and policy remain explicit Product code; no new generic runtime interface or production worker is introduced. It demonstrates source-generation rejection, coherent invalidation before publication, retained uncertain old results, independent backend drain, capture stability, optional readback and permission-loss classification.
 
 | Check | Result | Local evidence under evidence/adaptation/ |
 |---|---|---|

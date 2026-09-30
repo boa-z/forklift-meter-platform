@@ -6,11 +6,26 @@ Every first-party document ships as a pair: `X.md` (English, canonical) and
 `X.zh-CN.md` (Simplified Chinese translation). Update both in the same change;
 CI fails otherwise.
 
+## Organization and reader-first writing
+
+Use the module layout in the [documentation index](../README.md). Keep each bilingual pair together and add it to the module README. New top-level files are reserved for the documentation index.
+
+For operator guides:
+
+1. Start with the task and the artifact the user will produce or install.
+2. State prerequisites and distinguish host, SDK-shell and board-console commands.
+3. Give one operation at a time, followed by observable success criteria and the next action on failure.
+4. Use short paragraphs; move SDK investigations and implementation constraints into a linked technical reference.
+5. Define unfamiliar terms at first use or in a glossary. Add a small flowchart when branching matters; do not invent successful recovery paths.
+6. Preserve historical evidence and limits. A rewritten guide does not establish new hardware validation.
+
+Commands and Mermaid source remain byte-identical in the bilingual pair. Diagrams may use brief bilingual labels. Check moved relative links and explicit anchors as well as structural synchronization.
+
 ## Coverage
 
 - Root: `README.md`. (`AGENTS.md`, `THIRD_PARTY_DEPENDENCIES.md` and
   `THIRD_PARTY_ASSETS.md` stay English-only by policy.)
-- `docs/*.md`.
+- `docs/**/*.md`.
 - `examples/*/README.md` and `examples/*/assets/README.md`.
 - `platform/rtthread/README.md`.
 - `tools/product_template/README.md` and `tools/product_template/assets/README.md`.
