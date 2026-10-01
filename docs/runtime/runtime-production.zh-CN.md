@@ -63,7 +63,7 @@ Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，�
 
 ## 编译期 Product 选择
 
-每个实际固件镜像仅包含一个 Product，由 SCons 的单一 `METER_PRODUCT_ROOT` 环境变量选择。默认 `products/demo`，相对选择以应用根目录解析，也支持外部包根目录。不同 Product 使用独立构建/输出目录。宿主 CMake 每个配置同样仅选择一个 Product。多个独立验证的 Product 不代表同一固件包含多个 Product，也不支持运行时切换。
+每个实际固件镜像仅包含一个 Product，由 SCons 的单一 `METER_PRODUCT_ROOT` 环境变量选择。固件构建要求显式设置该变量：未设置或为空白时直接中止，而不是回落到 Demo；相对路径仍以应用根目录解析，同样支持外部包根目录。宿主 CMake 保留 `products/demo` 作为便利默认值。不同 Product 使用独立构建/输出目录。多个独立验证的 Product 不代表同一固件包含多个 Product，也不支持运行时切换。
 
 所选 `product/sources.json` 提供唯一固件组合实现，通过 `contracts/meter_firmware.h` 所有独立静态 Domain/发布/诊断/UI 存储及 Product 本地化初始化。通用启动只了解此契约。Demo 保留原存储容量与本地化初始化顺序，Reference-B 使用独立纯信号存储。用 `tools/firmware_product.py` 查看选中源码闭包，不支持的特性闭包或缺失/越界/重复源码将使构建选择失败。
 

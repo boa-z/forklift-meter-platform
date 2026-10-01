@@ -154,6 +154,7 @@ if(NOT application_error AND application_count GREATER 0)
     add_custom_target(meter-host-identity
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_identity.py
             --platform ${CMAKE_CURRENT_SOURCE_DIR} --board host
+            --product ${METER_PRODUCT_ROOT}
             --output ${CMAKE_CURRENT_BINARY_DIR}/identity/meter_build_identity.h
         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/identity/meter_build_identity.h)
     add_dependencies(meter_product_application meter-host-identity)

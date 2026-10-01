@@ -43,11 +43,11 @@ lunch 12
 m
 ```
 
-**通过判据：** SDK 报告构建成功，所选目标的 `output/.../images/` 包含 `d13x_os.itb` 和整板 `.img`。先把候选 OS 另存到独立目录，避免被下一次构建覆盖。
+**通过判据：** SDK 报告构建成功，所选目标的 `output/.../images/` 包含 `d13x_os.itb` 和整板 `.img`。编译开始前，SCons 会打印解析后的 Product 根目录、Product 身份和板卡别名，请确认这三项就是受测 Product；复用的 CMD 窗口往往还带着上一次的 `METER_PRODUCT_ROOT`。先把候选 OS 另存到独立目录，避免被下一次构建覆盖。
 
 候选固件也应启用 OTA，才能继续通过 CAN 升级。内嵌的 `METER_UPDATE_VERSION` 必须与打包版本相同：修改清单不会改变固件身份。版本可用字母、数字、`_`、`.`、`+`、`-`，长度为 1–31 个字符。
 
-其他 Product 应使用各自的 Product 目录和硬件别名。需要自动归档源码身份、摘要和链接映射检查时，可用构建指南中的 `tools.ota.build_board`。
+其他 Product 应使用各自的 Product 目录和硬件别名。需要自动归档源码身份、摘要、Product 身份与链接映射检查时，可用构建指南中的 `tools.ota.build_board`。
 
 <a id="package"></a>
 

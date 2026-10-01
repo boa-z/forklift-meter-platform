@@ -63,7 +63,7 @@ Actual analyzer coverage, pending human approval of Annex K TAD-001 and required
 
 ## Build-time Product selection
 
-Each firmware image contains exactly one Product, selected by the singular `METER_PRODUCT_ROOT` environment variable in SCons. The default is `products/demo`; relative selections resolve from the application root, and external package roots are supported. Use separate build/output directories for different Products. Host CMake likewise selects one Product per configuration. Multiple independently tested Products never imply multiple Products in one firmware or runtime switching.
+Each firmware image contains exactly one Product, selected by the singular `METER_PRODUCT_ROOT` environment variable in SCons. Firmware builds require that variable: an unset or blank value aborts instead of falling back to the Demo, while relative selections still resolve from the application root and external package roots are supported. Host CMake keeps `products/demo` as its convenience default. Use separate build/output directories for different Products. Multiple independently tested Products never imply multiple Products in one firmware or runtime switching.
 
 The selected `product/sources.json` supplies the unique firmware composition implementation. It owns independent static Domain/publication/diagnostic/UI storage and the Product locale setup callback through `contracts/meter_firmware.h`. Generic startup knows only that contract. Demo retains its original store capacities and locale initialization order; Reference-B has separate signal-only storage. Inspect the selected source closure with `tools/firmware_product.py`; unsupported feature closures and missing/escaping/duplicate sources fail the build selection.
 

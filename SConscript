@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # SPDX-License-Identifier: Apache-2.0
 """Luban-Lite product-aware source manifest; application owns LVGL; SDK supplies board interfaces."""
 from building import *
@@ -11,20 +12,31 @@ cwd = GetCurrentDir()
 Env.Append(CPPDEFINES=[
     'LV_USE_TRANSLATION=1',
     'AIC_LVGL_TOUCH_POLL_FALLBACK_MS=20',
+    # 主界面按设计稿字号需要 18/22/28/40，与 sim/lv_conf.h 保持同一集合。
     'LV_FONT_MONTSERRAT_12=1',
+    'LV_FONT_MONTSERRAT_14=1',
     'LV_FONT_MONTSERRAT_16=1',
+    'LV_FONT_MONTSERRAT_18=1',
     'LV_FONT_MONTSERRAT_20=1',
+    'LV_FONT_MONTSERRAT_22=1',
     'LV_FONT_MONTSERRAT_24=1',
+    'LV_FONT_MONTSERRAT_28=1',
+    'LV_FONT_MONTSERRAT_40=1',
 ])
 selection = imp.load_source('meter_firmware_product', os.path.join(cwd, 'tools', 'firmware_product.py'))
-product, product_sources = selection.select(cwd, os.environ.get('METER_PRODUCT_ROOT'))
-product = str(product)
-platform_manifest = json.load(io.open(os.path.join(cwd, 'cmake', 'sources.json'), encoding='utf-8'))
 identity = imp.load_source('meter_build_identity', os.path.join(cwd, 'tools', 'build_identity.py'))
+platform_manifest = json.load(io.open(os.path.join(cwd, 'cmake', 'sources.json'), encoding='utf-8'))
+# 固件必须显式选定唯一 Product；缺失即中止，避免静默产出 demo 镜像。
+product, product_sources = selection.select_firmware(cwd, os.environ.get('METER_PRODUCT_ROOT'))
+product = str(product)
 identity_dir = os.path.join(cwd, 'build-firmware')
 # 公开身份使用集成者指定的别名，不泄露 SDK 内部板型名称。
 board_id = os.environ.get('METER_BOARD_ID', 'reference-board')
-identity.generate(cwd, AIC_ROOT, board_id, os.path.join(identity_dir,'meter_build_identity.h'))
+identity.generate(cwd, AIC_ROOT, board_id, os.path.join(identity_dir,'meter_build_identity.h'), product)
+print('METER product   : ' + product)
+print('METER product id: ' + identity.product_identity(product))
+print('METER board id  : ' + board_id)
+print('METER sources   : ' + str(len(product_sources)))
 common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_board_port.c', 'platform/rtthread/meter_nvm_port.c',
           'platform/rtthread/meter_board_settings.c',

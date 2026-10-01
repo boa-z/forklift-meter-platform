@@ -13,7 +13,7 @@ python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requiremen
 
 ## 选择 Product
 
-每个固件只包含一个 Product。Product 是包含 `product/sources.json` 的目录；manifest 列出 `application`、`protocol`、`catalog`、`ui`、`product`、`firmware` 以及可选 `ui_binding` 的源码闭包。默认 Product 是 `products/demo`。
+每个固件只包含一个 Product。Product 是包含 `product/sources.json` 的目录；manifest 列出 `application`、`protocol`、`catalog`、`ui`、`product`、`firmware` 以及可选 `ui_binding` 的源码闭包。Host CMake 默认 `products/demo`；固件构建没有默认值，未设置或空白的 `METER_PRODUCT_ROOT` 会直接中止构建，而不是静默选择 Demo。
 
 参考 Demo 维护在公开仓库 [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo)，这里通过 Product submodule 引入。请使用 `--recurse-submodules` 克隆，或在配置 CMake 前初始化 `products/demo`。
 
@@ -22,6 +22,13 @@ python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requiremen
 ```text
 python tools/create_product.py --id my-product --output ../my-product
 python tools/firmware_product.py --product-root ../my-product
+```
+
+`--firmware` 对同一个解析器施加固件规则，未完成的选择会在构建前就失败，并列出可选的 Product 根目录，而不是等到编译阶段：
+
+```text
+python tools/firmware_product.py --firmware
+python tools/firmware_product.py --firmware --product-root products/demo
 ```
 
 客户协议表、素材和字体必须放在私有 Product 仓库。公开 Framework 只保留合成数据或参考数据。
@@ -51,13 +58,15 @@ m
 
 在 SDK 根目录运行这些命令。`12` 是菜单编号示例；先执行 `list`，选择对应板卡的 `rt-thread_forklift-meter-platform` 配置，使用实际显示的编号。`m` 会先构建匹配的 Bootloader，再构建应用。只有设置下面的环境变量才会启用 CAN OTA。固件选择器相对 Framework 目录解析 Product 相对路径，因此 SDK 根目录示例使用绝对路径。
 
+读取配置阶段，应用构建脚本会打印解析后的 Product 根目录、Product 身份、对外板卡别名和源码数量，请先确认这四行就是你要求的 Product；残留的旧 shell 往往还带着上一次的 `METER_PRODUCT_ROOT`。生成的 `build-firmware/meter_build_identity.h` 以 `METER_BUILD_PRODUCT` 和 `METER_BUILD_PRODUCT_REVISION` 记录同一身份，归档镜像因此自带“由哪个 Product 组成”的说明。在同一个 SDK 目录内切换 Product 会把上一个 Product 的目标文件留在磁盘上；它们不会参与链接，但会让 `git status`、链接映射和证据变得混乱，所以更换选择后请执行 `scons -c`。
+
 需要可复现构建记录时，从 Framework 目录运行：
 
 ```text
-python -m tools.ota.build_board --sdk-root SDK_ROOT --product-root products/demo --python SDK_ROOT/tools/env/tools/Python38/python3.exe --version demo-board-a --board-id reference-board --jobs 12 --output SDK_ROOT/output/demo-board-a
+python -m tools.ota.build_board --sdk-root SDK_ROOT --product-root products/demo --python SDK_ROOT/tools/env/tools/Python38/python3.exe --version demo-board-a --board-id reference-board --expect-product-id reference-demo --jobs 12 --output SDK_ROOT/output/demo-board-a
 ```
 
-将 `SDK_ROOT` 替换为 SDK 绝对路径，并指定实际存在的 SDK Python。包装器本身使用 Host Python 3 运行；`--python` 只选择 SCons 使用的解释器。包装器总会启用 CAN OTA。它记录 Product 源码 hash，检查每个选中源码都进入链接映射，归档 image/ELF/map/OS/ENV，并恢复 SDK 配置。输出目录必须是新的。板卡别名必须匹配 Product 的硬件身份。
+将 `SDK_ROOT` 替换为 SDK 绝对路径，并指定实际存在的 SDK Python。包装器本身使用 Host Python 3 运行；`--python` 只选择 SCons 使用的解释器。包装器总会启用 CAN OTA。它记录 Product 源码 hash 与 Product 身份，检查每个选中源码都进入链接映射，并拒绝出现其他 Product 目标文件的链接映射，随后归档 image/ELF/map/OS/ENV，并恢复 SDK 配置。`--expect-product-id` 额外要求所选 Product 声明该身份、且链接后的 ELF 中包含该身份字符串；它才把"构建通过"变成"这个镜像就是受测 Product"。Product 身份取自 `product/sources.json` 的 `identity.id`，或 `product/product.c` 中 `meter_product_t` 的字符串 `.id`。输出目录必须是新的。板卡别名必须匹配 Product 的硬件身份。
 
 ## 启用 CAN OTA
 

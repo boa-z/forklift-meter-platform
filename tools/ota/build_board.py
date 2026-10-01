@@ -8,9 +8,9 @@ import re
 import shutil
 import subprocess
 import sys
-from tools.build_identity import revision
+from tools.build_identity import product_identity, revision
 from tools.capture_target import capture
-from tools.firmware_product import select
+from tools.firmware_product import discover_products, select_firmware
 
 
 def project_name(config, app_name):
@@ -27,8 +27,24 @@ def project_name(config, app_name):
     return match[1]
 
 
-def verify_product_map(map_path, sdk, sources):
-    """要求选定 Product 的每个源文件都实际进入链接输入。"""
+def foreign_products(app_root, product):
+    """列出与选定 Product 不同的其它可选根，用于镜像唯一性核对。"""
+    selected = str(product).replace('\\', '/').rstrip('/')
+    root = str(app_root).replace('\\', '/').rstrip('/') + '/'
+    others = []
+    for candidate in discover_products(app_root):
+        absolute = (root + candidate).rstrip('/')
+        if absolute != selected and not selected.startswith(absolute + '/'):
+            others.append(candidate)
+    return others
+
+
+def verify_product_map(map_path, sdk, sources, foreign=()):
+    """要求选定 Product 的每个源文件都实际进入链接输入。
+
+    正向核对只证明"选中的进去了"；反向核对证明镜像里没有第二个 Product 的目标文件，
+    否则切换选择后残留的旧 .o 仍会被链接，而构建看起来完全成功。
+    """
     text = map_path.read_text(encoding='utf-8', errors='replace').replace('\\', '/')
     for source in sources:
         obj = source.with_suffix('.o')
@@ -39,6 +55,12 @@ def verify_product_map(map_path, sdk, sources):
             pass
         if not any(candidate in text for candidate in candidates):
             raise RuntimeError('Selected Product source is absent from link map: ' + str(source))
+    for product in foreign:
+        pattern = re.compile(r'(?<![A-Za-z0-9_.+-])' + re.escape(str(product).replace('\\', '/').strip('/'))
+                             + r'/[^\s"]*\.o')
+        match = pattern.search(text)
+        if match:
+            raise RuntimeError('Unexpected Product object is present in link map: ' + match.group(0))
 
 
 def sha(path):
@@ -59,6 +81,7 @@ def main():
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--config", type=Path, help="Resolved SDK configuration used only for this build")
     parser.add_argument("--product-root", type=Path)
+    parser.add_argument("--expect-product-id", help="Reject the build unless this Product id is selected and present in the ELF")
     parser.add_argument("--board-id")
     args = parser.parse_args()
     if not re.fullmatch(r"[A-Za-z0-9_.+-]{1,31}", args.version):
@@ -70,9 +93,12 @@ def main():
     effective = args.config.read_bytes() if args.config else original
     try:
         project = project_name(effective, root.name)
-        product, sources = select(root, args.product_root or os.environ.get('METER_PRODUCT_ROOT'))
+        product, sources = select_firmware(root, args.product_root or os.environ.get('METER_PRODUCT_ROOT'))
     except (OSError, ValueError) as error:
         parser.error(str(error))
+    product_id = product_identity(str(product))
+    if args.expect_product_id and product_id != args.expect_product_id:
+        parser.error('Selected Product identity is %r but --expect-product-id=%r' % (product_id, args.expect_product_id))
     images = sdk / "output" / project / "images"
     scons = args.scons.resolve() if args.scons else sdk / "tools/env/tools/Python27/Scripts/scons"
     output.mkdir(parents=True, exist_ok=False)
@@ -91,7 +117,7 @@ def main():
     report = {"version": args.version, "platform": revision(root), "sdk": revision(sdk),
               "sdk_sha": subprocess.check_output(["git", "-C", str(sdk), "rev-parse", "HEAD"], text=True).strip(),
               "hardware_validation": "NOT_RUN", "confirmation": "native_auto", "files": {}}
-    report.update(product_root=str(product), product_revision=revision(product),
+    report.update(product_root=str(product), product_id=product_id, product_revision=revision(product),
                   product_sources={str(path.relative_to(product)): sha(path) for path in sources})
     # SCons 会重新生成配置头；恢复时必须与原始 .config 保持同一组。
     saved = {sdk / name: (sdk / name).read_bytes() if (sdk / name).exists() else None
@@ -108,8 +134,15 @@ def main():
         firmware = images / "d13x.elf"
         if args.version.encode("ascii") + b"\0" not in firmware.read_bytes():
             raise RuntimeError("firmware does not contain requested version")
-        verify_product_map(images / 'd13x.map', sdk, sources)
+        foreign = foreign_products(root, product)
+        verify_product_map(images / 'd13x.map', sdk, sources, foreign)
         report['product_link_verified'] = True
+        report['product_foreign_roots'] = foreign
+        if args.expect_product_id:
+            elf = firmware.read_bytes()
+            if product_id.encode('ascii') + b'\0' not in elf:
+                raise RuntimeError('firmware does not contain selected Product identity: ' + product_id)
+            report['product_identity_verified'] = True
         delivered = list(images.glob("*.img")) + [images / "d13x_os.itb", firmware, images / "d13x.map", images / "env.bin"]
         if not list(images.glob("*.img")):
             raise RuntimeError("SDK produced no flash image")

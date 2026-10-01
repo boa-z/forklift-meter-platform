@@ -13,7 +13,7 @@ Keep the SDK-bundled Python/SCons/toolchain unchanged. SDK OneStep may invoke Py
 
 ## Choose a Product
 
-Every firmware contains exactly one Product. A Product is a directory with `product/sources.json`; the manifest lists the source closure for `application`, `protocol`, `catalog`, `ui`, `product`, `firmware` and optional `ui_binding` groups. The default is `products/demo`.
+Every firmware contains exactly one Product. A Product is a directory with `product/sources.json`; the manifest lists the source closure for `application`, `protocol`, `catalog`, `ui`, `product`, `firmware` and optional `ui_binding` groups. Host CMake defaults to `products/demo`. A firmware build has no default: an unset or blank `METER_PRODUCT_ROOT` stops the build instead of silently selecting the Demo.
 
 The reference Demo is maintained in the public [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo) repository and is included here as a Product submodule. Clone with `--recurse-submodules`, or initialize `products/demo` before configuring CMake.
 
@@ -22,6 +22,13 @@ Create a starting point and inspect its closure:
 ```text
 python tools/create_product.py --id my-product --output ../my-product
 python tools/firmware_product.py --product-root ../my-product
+```
+
+`--firmware` applies the firmware rule to the same resolver, so an unfinished selection fails during pre-flight with the list of selectable roots instead of during the build:
+
+```text
+python tools/firmware_product.py --firmware
+python tools/firmware_product.py --firmware --product-root products/demo
 ```
 
 Keep customer protocol tables, assets and fonts in a private Product repository. The public Framework must contain only synthetic or reference data.
@@ -51,13 +58,15 @@ m
 
 Run these commands from the SDK root. `12` is an example menu index; run `list` and select the board's `rt-thread_forklift-meter-platform` configuration using its displayed index. `m` builds the matching bootloader first and then the application. It enables CAN OTA only when the environment variable described below is set. Firmware selection resolves relative Product paths against the Framework directory, so the SDK-root example uses an absolute path.
 
+Before compiling, the application manifest prints the resolved Product root, the Product identity, the public board alias and the source count. Confirm those four lines belong to the Product you asked for; a stale shell keeps the previous `METER_PRODUCT_ROOT`. The generated `build-firmware/meter_build_identity.h` records the same identity as `METER_BUILD_PRODUCT` and `METER_BUILD_PRODUCT_REVISION`, so an archived image states which Product it was composed from. Switching Products inside one SDK tree leaves the previous Product's object files on disk; they are not linked, but they make `git status`, link maps and evidence confusing, so run `scons -c` after changing the selection.
+
 For a reproducible archived image, use the Framework wrapper from the Framework directory:
 
 ```text
-python -m tools.ota.build_board --sdk-root SDK_ROOT --product-root products/demo --python SDK_ROOT/tools/env/tools/Python38/python3.exe --version demo-board-a --board-id reference-board --jobs 12 --output SDK_ROOT/output/demo-board-a
+python -m tools.ota.build_board --sdk-root SDK_ROOT --product-root products/demo --python SDK_ROOT/tools/env/tools/Python38/python3.exe --version demo-board-a --board-id reference-board --expect-product-id reference-demo --jobs 12 --output SDK_ROOT/output/demo-board-a
 ```
 
-Replace `SDK_ROOT` with the absolute SDK path and select an existing SDK Python executable. Run the wrapper itself with host Python 3; `--python` selects the interpreter for SCons only. The wrapper always enables CAN OTA. It records Product source hashes, verifies that every selected source is in the link map, archives image/ELF/map/OS/ENV files and restores the SDK configuration. Its output directory must be new. The board alias must match the Product's hardware identity.
+Replace `SDK_ROOT` with the absolute SDK path and select an existing SDK Python executable. Run the wrapper itself with host Python 3; `--python` selects the interpreter for SCons only. The wrapper always enables CAN OTA. It records Product source hashes and the Product identity, verifies that every selected source is in the link map, rejects link maps that also contain another Product's objects, archives image/ELF/map/OS/ENV files and restores the SDK configuration. `--expect-product-id` additionally requires the selected Product to declare that identity and the linked ELF to contain it, which is the check that turns "the build passed" into "this image is the Product under test". A Product declares its identity in `product/sources.json` as `identity.id`, or as the string `.id` of `meter_product_t` in `product/product.c`. Its output directory must be new. The board alias must match the Product's hardware identity.
 
 ## Enable CAN OTA
 

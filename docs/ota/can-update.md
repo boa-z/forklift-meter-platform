@@ -43,11 +43,11 @@ lunch 12
 m
 ```
 
-**Pass:** the SDK reports a successful build and the selected target's `output/.../images/` contains `d13x_os.itb` and the board `.img`. Preserve the candidate OS in a separate directory before another build overwrites that output.
+**Pass:** the SDK reports a successful build and the selected target's `output/.../images/` contains `d13x_os.itb` and the board `.img`. Before the compiler starts, SCons prints the resolved Product root, its identity and the board alias — confirm those lines name the Product under test, because a reused CMD window keeps the previous `METER_PRODUCT_ROOT`. Preserve the candidate OS in a separate directory before another build overwrites that output.
 
 Keep OTA enabled in the candidate for future CAN updates. Its embedded `METER_UPDATE_VERSION` must equal the packaging version: changing a manifest does not change firmware identity. Use 1–31 characters from letters, digits, `_`, `.`, `+`, `-`.
 
-For another Product, use its Product directory and hardware alias. The build guide also documents `tools.ota.build_board` for automatic source/hash archiving and link-map checks.
+For another Product, use its Product directory and hardware alias. The build guide also documents `tools.ota.build_board` for automatic source/hash archiving, Product identity and link-map checks.
 
 <a id="package"></a>
 
