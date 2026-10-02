@@ -14,4 +14,5 @@ Understand runtime contracts and locate protocol, storage and diagnostic interfa
 | [protocols](protocols.md) | Domain routing and CANopen integration |
 | [dynamic-periodic-tx](dynamic-periodic-tx.md) | Periodic transmit timing and state |
 | [nvm](nvm.md) | Settings persistence and recovery |
+| [wall-clock](wall-clock.md) | UTC wall-clock contract and platform sourcing |
 | [diagnostics](diagnostics.md) | UART queries, logs and diagnostic evidence |

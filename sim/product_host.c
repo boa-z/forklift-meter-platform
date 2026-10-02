@@ -1,6 +1,7 @@
 #include "sim/product_host.h"
 #include "sim/domain_fixture.h"
 #include "platform/host/host_platform.h"
+#include "contracts/meter_wall_clock.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,23 @@
 static bool action(void *ctx, const meter_action_t *a)
 {
     return meter_product_host_action(ctx, meter_product_get(), a, lv_tick_get());
+}
+/* 主机没有硬件 RTC，也不该读到宿主机时间：截图与断言需要逐帧可复现。
+   固定源可写，用来覆盖 Product 的对时流程。 */
+static meter_wall_time_t sim_utc = {2026u, 10u, 1u, 0u, 30u, 0u, true};
+static bool sim_clock_read(meter_wall_time_t *out, void *context)
+{
+    (void)context;
+    *out = sim_utc;
+    return true;
+}
+static bool sim_clock_write(const meter_wall_time_t *utc, void *context)
+{
+    (void)context;
+    /* 与真实端口一致：日历字段越界由公共层拒绝，这里只接受合法读数。 */
+    sim_utc = *utc;
+    sim_utc.valid = true;
+    return true;
 }
 int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, uint32_t))
 {
@@ -50,6 +68,9 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     if (fixture && !meter_fixture_load(&core,fixture)) return 4;
     lv_init();
     if (!meter_i18n_init() || !meter_host_open(hidden)) return 5;
+    /* 端口层在固件里由 INIT_APP_EXPORT 绑定；主机侧必须显式绑定这个固定源。 */
+    meter_wall_clock_bind(sim_clock_read, NULL);
+    meter_wall_clock_bind_set(sim_clock_write, NULL);
     meter_ui_actions_t actions = {action,&core};
     void *ui = p->ui->create(lv_screen_active(),&actions);
     if (!ui) return 6;
