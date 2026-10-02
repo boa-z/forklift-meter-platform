@@ -15,4 +15,5 @@
 | [dynamic-periodic-tx](dynamic-periodic-tx.zh-CN.md) | 周期发送时序和状态 |
 | [nvm](nvm.zh-CN.md) | 设置持久化和恢复 |
 | [wall-clock](wall-clock.zh-CN.md) | UTC 墙上时钟契约与平台取数 |
+| [watchdog](watchdog.zh-CN.md) | owner 监督与硬件复位策略 |
 | [diagnostics](diagnostics.zh-CN.md) | 串口查询、日志和诊断证据 |

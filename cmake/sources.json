@@ -13,7 +13,8 @@
     "runtime/meter_parameters.c",
     "runtime/meter_batch_builder.c",
     "runtime/meter_calibration.c",
-    "runtime/meter_wall_clock.c"
+    "runtime/meter_wall_clock.c",
+    "runtime/meter_watchdog.c"
   ],
   "protocol_common": [
     "protocols/common/meter_frame_router.c"

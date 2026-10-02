@@ -15,4 +15,5 @@ Understand runtime contracts and locate protocol, storage and diagnostic interfa
 | [dynamic-periodic-tx](dynamic-periodic-tx.md) | Periodic transmit timing and state |
 | [nvm](nvm.md) | Settings persistence and recovery |
 | [wall-clock](wall-clock.md) | UTC wall-clock contract and platform sourcing |
+| [watchdog](watchdog.md) | Owner supervision and hardware reset policy |
 | [diagnostics](diagnostics.md) | UART queries, logs and diagnostic evidence |

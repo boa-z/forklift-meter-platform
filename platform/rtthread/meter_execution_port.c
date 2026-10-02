@@ -94,7 +94,7 @@ static struct
     uint64_t action_serial;
     uint32_t tx_ok[METER_BUS_COUNT], tx_error[METER_BUS_COUNT], tx_full, tx_cancelled, last_tx[METER_BUS_COUNT];
     uint32_t batch_high, tx_high[METER_BUS_COUNT], missed, max_late_ms;
-    uint32_t protocol_runs, app_runs, stop_wait_ms;
+    uint32_t protocol_runs, app_runs, ui_ticks, stop_wait_ms;
     meter_update_view_t update;
     bool command_reserved;
     meter_request_id_t command_id;
@@ -814,7 +814,11 @@ void meter_execution_ui_diagnostics(const meter_diagnostics_t *d)
     config.public_diagnostics->data.ui = d->data.ui;
     config.public_diagnostics->data.touch = d->data.touch;
     meter_debug_unlock();
-    lock_state(); shared.ui_healthy = d->data.ui.flush_count != 0u; unlock_state();
+    lock_state();
+    shared.ui_healthy = d->data.ui.flush_count != 0u;
+    /* UI owner 每轮发布一次；这个计数是看门狗监督的 UI 心跳，不借用刷屏计数。 */
+    ++shared.ui_ticks;
+    unlock_state();
 }
 void meter_execution_stop(void)
 {
@@ -826,6 +830,22 @@ bool meter_execution_stopped(void)
 {
     if (!initialized) return false;
     lock_state(); bool stopped = shared.state == METER_EXEC_STOPPED; unlock_state(); return stopped;
+}
+bool meter_execution_liveness(meter_execution_liveness_t *out)
+{
+    if (!out) return false;
+    *out = (meter_execution_liveness_t){0};
+    if (!initialized) return false;
+    lock_state();
+    out->protocol_runs = shared.protocol_runs;
+    out->app_runs = shared.app_runs;
+    out->ui_ticks = shared.ui_ticks;
+    bool stopping = shared.state == METER_EXEC_STOPPING || shared.state == METER_EXEC_STOPPED;
+    out->stopping = stopping;
+    out->started = true;
+    out->owners_expected = !stopping;
+    unlock_state();
+    return true;
 }
 bool meter_execution_ui_shutdown_requested(void)
 {

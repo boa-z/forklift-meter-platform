@@ -40,6 +40,7 @@ print('METER sources   : ' + str(len(product_sources)))
 common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_board_port.c', 'platform/rtthread/meter_nvm_port.c',
           'platform/rtthread/meter_rtc_port.c',
+          'platform/rtthread/meter_watchdog_port.c',
           'platform/rtthread/meter_board_settings.c',
           'platform/rtthread/meter_eeprom_i2c.c',
           'third_party/CANopenNode/301/crc16-ccitt.c', 'storage/meter_file.c', 'platform/common/meter_diag_commands.c',

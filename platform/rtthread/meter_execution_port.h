@@ -39,4 +39,17 @@ bool meter_execution_ui_shutdown_requested(void);
 void meter_execution_ui_stopped(void);
 /** @brief App/MSH 设置入口短锁查询统一模式准入；不读取可变 Core。 */
 bool meter_execution_settings_allowed(void);
+/**
+ * @brief 看门狗监督用的只读采样；短锁复制，不返回指针、不修改运行期状态。
+ *
+ * started 表示 runtime 已完成初始化（owner 已建立）；stopping 表示停止流程进行中，
+ * 此时禁止复位。owners_expected 是"常驻 owner 此刻应当推进"的唯一判据来源。
+ * 未启动时返回 false，调用方据此保持非监督态。
+ */
+typedef struct
+{
+    uint32_t protocol_runs, app_runs, ui_ticks;
+    bool started, owners_expected, stopping;
+} meter_execution_liveness_t;
+bool meter_execution_liveness(meter_execution_liveness_t *out);
 #endif
