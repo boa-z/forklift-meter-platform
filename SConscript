@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Luban-Lite product-aware source manifest; application owns LVGL; SDK supplies board interfaces."""
 from building import *
+import hashlib
 import json
 import os
 import imp
@@ -47,8 +48,52 @@ common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/debug/meter_debug_console.c', 'platform/rtthread/debug/meter_debug_log.c']
 common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protocol_common', 'ui_math', 'ui_common')
            for p in platform_manifest[group]]
-sources = common + [str(path) for path in product_sources]
-sources = [os.path.join(cwd, p) if not os.path.isabs(p) else p for p in sources]
+
+
+# SDK 的根 SConscript 用 variant_dir=output/<prj>、duplicate=0 加载整棵树。只有 Glob()
+# 返回的节点带这套 variant_dir 映射（SDK 自己的 SConscript 全部走 Glob）；DefineGroup 对
+# 字符串会调用 File()，那会解析成源码路径并**就地**编译，把 .o 写在源码旁边——这正是本仓库
+# 过去被污染的原因。应用目录内用变体感知的 Glob，目录外的 Product 先显式 VariantDir 再取节点。
+external_variants = {}
+
+
+def within(path, root):
+    return path == root or path.startswith(root + os.sep)
+
+
+def directory_tag(path):
+    """目录名的稳定短标签；SDK 的 scons 跑在 Python 2 上，因此两种 str 都要能处理。"""
+    raw = path if isinstance(path, bytes) else path.encode('utf-8')
+    return os.path.basename(path) + '-' + hashlib.sha1(raw).hexdigest()[:8]
+
+
+def mapped_node(variant_path, fallback):
+    """取变体目录里的源码节点；Glob 已经建立的映射必须沿用，否则对象会落回源码旁。"""
+    found = Glob(variant_path)
+    return found[0] if found else fallback
+
+
+def external_source(absolute):
+    """把应用目录外的源码映射进 output/<prj>，避免对象落进产品仓库。"""
+    source_dir = os.path.dirname(absolute)
+    variant = external_variants.get(source_dir)
+    if variant is None:
+        variant = os.path.join(AIC_ROOT, 'output', Env['PRJ_NAME'], 'external', directory_tag(source_dir))
+        Env.VariantDir(variant, source_dir, duplicate=0)
+        external_variants[source_dir] = variant
+    return os.path.join(variant, os.path.basename(absolute))
+
+
+def build_source(path):
+    absolute = os.path.abspath(path if os.path.isabs(str(path)) else os.path.join(cwd, str(path)))
+    if within(absolute, cwd):
+        relative = os.path.relpath(absolute, cwd).replace('\\', '/')
+        return mapped_node(relative, relative)
+    external = external_source(absolute)
+    return mapped_node(external, Env.File(external))
+
+
+sources = [build_source(p) for p in common + [str(path) for path in product_sources]]
 lvgl = os.path.join(cwd, 'third_party', 'lvgl-aic')
 group = SConscript('third_party/lvgl-aic/SConscript')
 group += DefineGroup('FORKLIFT-METER-PLATFORM', sources,
@@ -77,7 +122,7 @@ if os.environ.get('METER_CAN_UPDATE', '0') == '1':
     native_build = os.path.join(identity_dir, 'sdk-ota')
     Env.VariantDir(native_build, ota, duplicate=0)
     native_update = [os.path.join(native_build, 'ota.c'), os.path.join(native_build, 'burn.c')]
-    group += DefineGroup('METER-CAN-UPDATE', [os.path.join(cwd,p) for p in app_update] + upstream_update + native_update,
+    group += DefineGroup('METER-CAN-UPDATE', [build_source(p) for p in app_update + upstream_update] + native_update,
         depend=['AIC_FORKLIFT_METER_PLATFORM_APP'],
         CPPPATH=[cwd, product, identity_dir, protocol, ota, os.path.join(crypto,'include'), os.path.join(crypto,'library')],
         CPPDEFINES=['UDS_SYS=0', 'UDS_TP_ISOTP_C', 'UDS_LOG_LEVEL=0', 'UDS_SERVER_DEFAULT_P2_MS=1',
