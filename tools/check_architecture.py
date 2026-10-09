@@ -19,13 +19,13 @@ RULES = {
     'ui': ('contracts/', 'ui/', 'generated/'),
 }
 for product in PRODUCTS:
-    own = lambda *names: tuple(product + '/' + n + '/' for n in names)
+    # Product 内部如何分层由 Product 自己决定；框架只限制它能触及哪些框架目录。
+    own = (product + '/',)
     RULES.update({
-        product + '/ui': ('contracts/', 'ui/common/') + own('ui', 'application', 'generated'),
-        product + '/application': ('contracts/',) + own('application', 'generated'),
-        product + '/services': ('contracts/', 'runtime/') + own('services', 'application', 'generated'),
-        # 产品协议解析的是产品身份，这些身份位于产品自动生成的目录中。
-        product + '/protocol': ('contracts/', 'protocols/common/') + own('protocol', 'generated'),
+        product + '/ui': ('contracts/', 'ui/common/') + own,
+        product + '/application': ('contracts/',) + own,
+        product + '/services': ('contracts/', 'runtime/') + own,
+        product + '/protocol': ('contracts/', 'protocols/common/') + own,
     })
 errors=[]
 for area, allowed in RULES.items():
