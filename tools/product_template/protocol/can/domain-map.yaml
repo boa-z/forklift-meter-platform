@@ -1,0 +1,8 @@
+database: product
+bus: 0
+source: 3
+owner: 1
+decode: product_decode
+catalog_header: catalog/catalog.h
+signals:
+  telemetry.speed: PRODUCT_SPEED

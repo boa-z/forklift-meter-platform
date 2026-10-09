@@ -1,0 +1,13 @@
+name: demo-normal
+period_ms: 100
+messages:
+  - message: motion
+    signals: {speed: 25, steering: -45, hours: 1246}
+  - message: energy
+    signals: {soc: 78, voltage: 48, charging: 0}
+  - message: lift
+    signals: {height: 3}
+  - message: load
+    signals: {weight: 850}
+  - message: status
+    signals: {seat: 1, brake: 0, neutral: 0, warning: 0, motor_temp: 52, controller_temp: 43}

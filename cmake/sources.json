@@ -1,0 +1,47 @@
+{
+  "core": [
+    "core/meter_core.c",
+    "core/meter_settings.c",
+    "core/meter_snapshot.c"
+  ],
+  "runtime": [
+    "runtime/meter_execution.c",
+    "runtime/meter_periodic.c",
+    "runtime/meter_runtime.c",
+    "runtime/meter_requests.c",
+    "runtime/meter_authorization.c",
+    "runtime/meter_parameters.c",
+    "runtime/meter_batch_builder.c",
+    "runtime/meter_calibration.c",
+    "runtime/meter_wall_clock.c",
+    "runtime/meter_watchdog.c"
+  ],
+  "protocol_common": [
+    "protocols/common/meter_frame_router.c"
+  ],
+  "ui_math": [
+    "ui/common/formatter/meter_format.c"
+  ],
+  "ui_common": [
+    "ui/common/i18n/meter_i18n_runtime.c",
+    "ui/common/widgets/widget_common.c",
+    "ui/common/widgets/needle/meter_needle.c",
+    "ui/common/widgets/gauge/meter_gauge.c",
+    "ui/common/widgets/ring_meter/meter_ring.c",
+    "ui/common/widgets/bar_meter/meter_linear_meter.c",
+    "ui/common/widgets/status_indicator/meter_status.c",
+    "ui/common/widgets/value_label/meter_value_label.c",
+    "ui/common/widgets/update/meter_update_widget.c"
+  ],
+  "diagnostics": [
+    "diagnostics/meter_diagnostics.c",
+    "diagnostics/meter_trace.c",
+    "diagnostics/meter_classification.c"
+  ],
+  "storage": [
+    "storage/meter_record.c",
+    "storage/meter_slots.c",
+    "storage/meter_nvm.c",
+    "storage/meter_eeprom.c"
+  ]
+}

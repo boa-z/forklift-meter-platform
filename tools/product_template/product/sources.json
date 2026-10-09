@@ -1,0 +1,20 @@
+{
+  "protocol": [
+    "generated/can/product.c",
+    "generated/can/product_adapter.c"
+  ],
+  "catalog": [
+    "catalog/catalog.c"
+  ],
+  "product": [
+    "product/product.c"
+  ],
+  "ui": [
+    "ui/ui.c"
+  ],
+  "ui_binding": [],
+  "host": [
+    "sim/main.c"
+  ],
+  "firmware": ["product/firmware.c"]
+}

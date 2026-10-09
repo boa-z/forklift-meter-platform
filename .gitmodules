@@ -1,0 +1,16 @@
+[submodule "third_party/lvgl"]
+	path = third_party/lvgl
+	url = https://github.com/lvgl/lvgl.git
+[submodule "third_party/lvgl-aic"]
+	path = third_party/lvgl-aic
+	url = https://github.com/boa-z/lvgl-aic.git
+[submodule "third_party/iso14229"]
+	path = third_party/iso14229
+	url = https://github.com/driftregion/iso14229.git
+[submodule "products/demo"]
+	path = products/demo
+	url = https://github.com/boa-z/forklift-meter-platform-demo.git
+	branch = main
+[submodule "tools/ota"]
+	path = tools/ota
+	url = https://github.com/boa-z/meter-ota-host.git

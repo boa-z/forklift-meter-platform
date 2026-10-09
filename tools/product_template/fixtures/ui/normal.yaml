@@ -1,0 +1,3 @@
+vehicle.speed:
+  value: 10
+  state: valid
