@@ -25,6 +25,30 @@ int main(void)
         assert(!meter_core_init_with_settings(&core,&catalog,&storage,&invalid));
         assert(memcmp(&core,&before,sizeof(core))==0 && value.value==37);
     }
+    /* 语言数由目录声明：默认只有内置的 EN/ZH，产品声明 3 种后第 3 种（ID 2）才被接受；
+       动作与持久化记录用同一个上限。 */
+    {
+        meter_initial_settings_t third=settings;
+        third.language=(meter_language_t)2;
+        assert(!meter_core_init_with_settings(&core,&catalog,&storage,&third));
+        meter_catalog_t trilingual=catalog;
+        trilingual.language_count=3;
+        assert(meter_core_init_with_settings(&core,&trilingual,&storage,&third));
+        assert((unsigned)core.snapshot.language==2u);
+        meter_action_t action={.kind=METER_ACTION_LANGUAGE,.value=2.0f};
+        assert(meter_core_action(&core,&action));
+        action.value=3.0f;
+        assert(!meter_core_action(&core,&action));
+        action.value=1.5f;
+        assert(!meter_core_action(&core,&action));
+        action.value=-1.0f;
+        assert(!meter_core_action(&core,&action));
+        assert(meter_core_init_with_settings(&core,&catalog,&storage,&settings));
+        action.value=2.0f;
+        assert(!meter_core_action(&core,&action));
+        action.value=1.0f;
+        assert(meter_core_action(&core,&action));
+    }
     assert(!meter_core_init_with_settings(NULL,&catalog,&storage,&settings));
     assert(meter_core_init_with_settings(&core,&catalog,&storage,NULL));
     assert(core.snapshot.language==METER_LANGUAGE_EN && core.snapshot.can_rate==METER_CAN_RATE_500K);

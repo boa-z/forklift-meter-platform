@@ -34,6 +34,28 @@ meter_core_init(&core, &private_catalog, &storage);
 
 对于每次下游构建，记录公共平台提交、所有子模块 SHA、SDK 提交、所选产品、镜像 SHA256 和测试日志。公共平台变更经评审后向上游流入私有产品；客户代码永不自动向上游流动。私有单板验证仍为独立的 reference-board 预约，并附原始串口证据。
 
+### Product 语言资源
+
+框架只提供翻译**服务**（`ui/common/i18n/meter_i18n_runtime.h`），措辞属于 Product。框架唯一内置的文字是英文：框架控件自己渲染的
+`meter.*` 词汇（`meter.validity.live`、`meter.state.on`、`meter.value.error` 等）。Product 注册含同名标签的包即可覆盖其措辞。
+
+```text
+键  →  语言目录（生成的静态数组）  →  文字
+```
+
+- **目录**：按 LVGL `lv_translation_add_static` 的版式生成静态包（语言码、以 NULL 结尾的键、键×语言行主序）。运行时没有 JSON 或文件解析；
+  来源（JSON、CSV、客户表）留在 Product 里，生成 C 数组。
+- **注册**：在 `meter_firmware_composition_t.locale_init` 里对每种语言调用 `meter_i18n_register_language()`（持久化 id、包列名、可选的标签/数值字体），
+  对每个包调用 `meter_i18n_register_pack()`。注册幂等，`meter_i18n_init()` 之后每个 LVGL 生命周期注册一次。
+- **唯一来源**：持久化的 `snapshot.language` 决定语言。主循环在 `present_update()` 与 `present()` 之前调用 `meter_i18n_set_language()`，
+  LVGL 随后向每个对象发送 `LV_EVENT_TRANSLATION_LANGUAGE_CHANGED`。
+- **绑定而不是重建**：`meter_i18n_bind_text(label, tag, role)` 一次绑定翻译键与随语言变化的字体；`meter_i18n_bind_font()` 只绑字体。语言没有该角色的字体时，
+  对象恢复设计时的字体。
+- **回退**：`meter_i18n_tr()` 先取当前语言，再取已注册包的英文列，最后返回标签本身。生成完整矩阵（每列在构建时指定回退语言），绑定的标签就不会显示键名。
+- **多于两种语言**：`meter_language_t` 仍是持久化字节（`0` EN、`1` ZH）；Product 用 `meter_catalog_t.language_count` 声明目录接受多少个 id，核心据此校验保存的语言字节、
+  语言动作与初始设置。`0` 保持内置的两个 id。用位置初始化器写目录的 Product 现在要补上这个新的末尾字段（指定初始化器不受影响）。
+- **溢出文字**：换语言可能让标签变长。给所有译文标签一个统一策略（例如 `LV_LABEL_LONG_SCROLL_CIRCULAR`），不要逐页改版式。
+
 ### Product 字体输入
 
 在 **assets/font-config.json** 中使用可选的 **text_sources** 列表声明动态 UI 文本目录。每项都是 Product 内的 UTF-8 源文件相对路径。现有 **translations** 文件仍是主要输入；生成器合并两组输入、去除注释，生成相同的 14/20 px 字体子集。路径必须位于 Product 内。已声明文件缺失时，生成和检查都会失败。

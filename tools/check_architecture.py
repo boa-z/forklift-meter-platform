@@ -122,11 +122,19 @@ for area in ('ui','products','protocols','platform'):
         for match in re.findall(r'snapshot(?:\.|->)\w+\s*\[\s*(?:METER|DEMO)_[A-Z0-9_]+', file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} indexes domain storage by identity: {match}')
 # lv_translation 会遍历所有已注册的翻译包查找标签，被重复声明的标签将按注册顺序而非设计意图命中。
+# 唯一的例外是 Product 有意用同名标签覆盖框架 meter.* 词汇的措辞（框架只内置英文）；其余重复一律报错。
+def tag_arrays(text):
+    return re.findall(r'\w*tags\[\]\s*=\s*\{(.*?)\}\s*;', text, re.S)
+framework_tags=set()
+for block in tag_arrays((ROOT/'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8')):
+    framework_tags.update(re.findall(r'"([^"]+)"', block))
 owners={}
-for file in list((ROOT/'ui/common/i18n').glob('*.c')) + list((ROOT/'products').glob('*/ui/*_i18n.c')):
-    for block in re.findall(r'tags\[\]\s*=\s*\{(.*?)\n\};', file.read_text(encoding='utf-8'), re.S):
+for file in list((ROOT/'products').glob('*/ui/*_i18n.c')) + list((ROOT/'products').glob('*/generated/*i18n*.c')):
+    for block in tag_arrays(file.read_text(encoding='utf-8')):
         for tag in re.findall(r'"([^"]+)"', block):
-            if tag in owners and owners[tag] != file.name:
+            if tag in framework_tags:
+                continue
+            if tag in owners:
                 errors.append(f'Translation tag {tag} claimed by {owners[tag]} and {file.name}')
             owners[tag]=file.name
 for group, files in manifest.items():

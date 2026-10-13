@@ -88,6 +88,8 @@ static void meter_thread(void *parameter)
             memset(&update, 0, sizeof(update));
             snprintf(update.current_version, sizeof(update.current_version), "%s", METER_FIRMWARE_DISPLAY_VERSION);
 #endif
+            /* 语言只有一个来源：持久化的快照。UI 与升级页都在这之后才取词，LVGL 随之刷新已绑定的标签。 */
+            (void)meter_i18n_set_language(snapshot.language);
             if (product->ui->present_update) product->ui->present_update(ui, &update, snapshot.language);
             if (normal)
             {

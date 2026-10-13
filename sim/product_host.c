@@ -68,6 +68,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     if (fixture && !meter_fixture_load(&core,fixture)) return 4;
     lv_init();
     if (!meter_i18n_init() || !meter_host_open(hidden)) return 5;
+    (void)meter_i18n_set_language(language);
     /* 端口层在固件里由 INIT_APP_EXPORT 绑定；主机侧必须显式绑定这个固定源。 */
     meter_wall_clock_bind(sim_clock_read, NULL);
     meter_wall_clock_bind_set(sim_clock_write, NULL);
@@ -84,6 +85,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
         meter_core_tick(&core, now);
         if(p->app_tick) p->app_tick(&core.snapshot,now);
         if(p->evaluate) p->evaluate(&core.snapshot);
+        (void)meter_i18n_set_language(core.snapshot.language);
         p->ui->present(ui,&core.snapshot,now);
         lv_tick_inc(16); lv_timer_handler();
         if(!frames) meter_host_delay(16);

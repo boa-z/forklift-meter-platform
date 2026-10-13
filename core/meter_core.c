@@ -90,7 +90,7 @@ bool meter_core_init_with_settings(meter_core_t *core, const meter_catalog_t *ca
                                   const meter_core_storage_t *storage,
                                   const meter_initial_settings_t *settings)
 {
-    if (settings && ((unsigned)settings->language > METER_LANGUAGE_ZH ||
+    if (settings && ((unsigned)settings->language >= meter_catalog_language_count(catalog) ||
                      (unsigned)settings->can_rate > METER_CAN_RATE_500K ||
                      settings->brightness < 10u || settings->brightness > 100u))
         return false;
@@ -259,7 +259,9 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
     case METER_ACTION_PARAMETER:
         return meter_core_parameter(core, action->id, action->value);
     case METER_ACTION_LANGUAGE:
-        if (action->value != METER_LANGUAGE_EN && action->value != METER_LANGUAGE_ZH)
+        if (!(action->value >= 0.0f) ||
+            action->value >= (float)meter_catalog_language_count(core->snapshot.catalog) ||
+            action->value != (float)(unsigned)action->value)
             return false;
         meter_language_t next_language = (meter_language_t)action->value;
         if (core->snapshot.language == next_language)
