@@ -51,7 +51,9 @@ meter_core_init(&core, &private_catalog, &storage);
   LVGL 随后向每个对象发送 `LV_EVENT_TRANSLATION_LANGUAGE_CHANGED`。
 - **绑定而不是重建**：`meter_i18n_bind_text(label, tag, role)` 一次绑定翻译键与随语言变化的字体；`meter_i18n_bind_font()` 只绑字体。语言没有该角色的字体时，
   对象恢复设计时的字体。
-- **回退**：`meter_i18n_tr()` 先取当前语言，再取已注册包的英文列，最后返回标签本身。生成完整矩阵（每列在构建时指定回退语言），绑定的标签就不会显示键名。
+- **回退**：`meter_i18n_tr()` 先取当前语言，再取已注册包的英文列，最后返回标签本身。生成完整矩阵（并让声明译全的语言缺译文即构建错误），绑定的标签就不会显示键名。
+- **模板与复数**：模板是数据：`{0}`–`{9}` 位置占位符，由 `meter_i18n_format()` 按带类型的参数（`meter_i18n_arg_u/s/str`）展开，不经 printf，译者可以重排参数。
+  复数文字是基标签加 `.one` / `.other`，`meter_i18n_tr_plural()` 按当前语言的 `meter_plural_rule_t` 选形式。
 - **多于两种语言**：`meter_language_t` 仍是持久化字节（`0` EN、`1` ZH）；Product 用 `meter_catalog_t.language_count` 声明目录接受多少个 id，核心据此校验保存的语言字节、
   语言动作与初始设置。`0` 保持内置的两个 id。用位置初始化器写目录的 Product 现在要补上这个新的末尾字段（指定初始化器不受影响）。
 - **溢出文字**：换语言可能让标签变长。给所有译文标签一个统一策略（例如 `LV_LABEL_LONG_SCROLL_CIRCULAR`），不要逐页改版式。

@@ -9,12 +9,15 @@
 
 /* 与框架同名的标签用来覆盖措辞；demo.* 是 Product 自己的键。第三种语言 de 只翻译了一半。 */
 static const char *const pack_languages[] = {METER_LANGUAGE_CODE_EN, METER_LANGUAGE_CODE_ZH, "de", NULL};
-static const char *const pack_tags[] = {"meter.validity.stale", "meter.value.error", "demo.title", "demo.only_en", NULL};
+static const char *const pack_tags[] = {"meter.validity.stale", "meter.value.error", "demo.title", "demo.only_en",
+                                        "demo.count.one", "demo.count.other", NULL};
 static const char *const pack_texts[] = {
     "STALE", "过期", "veraltet",         /* meter.validity.stale */
-    "ERR %s", "错误 %s", "Fehler %s",    /* meter.value.error */
+    "ERR {0}", "错误 {0}", "Fehler {0}", /* meter.value.error */
     "Title", "标题", "Titel",            /* demo.title */
     "English only", NULL, NULL,          /* 其余语言没有这一行：回退到英文 */
+    "{0} item", "{0} 项", "{0} Eintrag", /* demo.count.one */
+    "{0} items", "{0} 项", "{0} Einträge", /* demo.count.other */
 };
 static const meter_i18n_pack_t pack = {pack_languages, pack_tags, pack_texts};
 static const meter_language_t LANGUAGE_DE = (meter_language_t)2;
@@ -53,7 +56,7 @@ static int language_flow(void)
     /* 第三种语言：先要注册，未注册的 ID 拒绝且不改当前语言。 */
     CHECK(!meter_i18n_set_language(LANGUAGE_DE));
     CHECK(meter_i18n_selected_language() == METER_LANGUAGE_ZH);
-    const meter_i18n_language_t german = {LANGUAGE_DE, "de", NULL, NULL};
+    const meter_i18n_language_t german = {LANGUAGE_DE, "de", NULL, NULL, METER_PLURAL_ONE_OTHER};
     CHECK(meter_i18n_register_language(&german));
     CHECK(meter_i18n_set_language(LANGUAGE_DE));
     CHECK(meter_i18n_selected_language() == LANGUAGE_DE);
@@ -70,11 +73,48 @@ static int language_flow(void)
     return 0;
 }
 
+/* 模板是数据：位置占位符、可重排、花括号转义、缺参数原样保留、截断仍以 NUL 结尾。 */
+static int format_flow(void)
+{
+    char text[32];
+    const meter_i18n_arg_t args[] = {meter_i18n_arg_u(3u), meter_i18n_arg_str("kg"), meter_i18n_arg_s(-45)};
+    CHECK(meter_i18n_format(text, sizeof(text), "At most {0} {1}, {2}", args, 3u) == 17u);
+    CHECK(!strcmp(text, "At most 3 kg, -45"));
+    CHECK(meter_i18n_format(text, sizeof(text), "{1} comes before {0}", args, 3u) > 0u);
+    CHECK(!strcmp(text, "kg comes before 3"));
+    CHECK(meter_i18n_format(text, sizeof(text), "{{0}} {3} {x} {", args, 3u) > 0u);
+    CHECK(!strcmp(text, "{0} {3} {x} {"));
+    CHECK(meter_i18n_format(text, 6u, "At most {0}", args, 3u) == 5u);
+    CHECK(!strcmp(text, "At mo"));
+    CHECK(meter_i18n_format(text, sizeof(text), "{0}", NULL, 0u) == 3u && !strcmp(text, "{0}"));
+    CHECK(meter_i18n_format(text, sizeof(text), "{0}", &(meter_i18n_arg_t){METER_I18N_ARG_U32, {.u32 = 4294967295u}},
+                            1u) == 10u &&
+          !strcmp(text, "4294967295"));
+    CHECK(meter_i18n_format(NULL, 0u, "x", NULL, 0u) == 0u);
+    return 0;
+}
+/* 复数：按当前语言的规则选 .one / .other；规则只有 other 的语言恒取 other；缺 .one 时退到 .other。 */
+static int plural_flow(void)
+{
+    CHECK(meter_i18n_set_language(METER_LANGUAGE_EN));
+    CHECK(!strcmp(meter_i18n_tr_plural("demo.count", 1u), "{0} item"));
+    CHECK(!strcmp(meter_i18n_tr_plural("demo.count", 0u), "{0} items"));
+    CHECK(!strcmp(meter_i18n_tr_plural("demo.count", 2u), "{0} items"));
+    CHECK(meter_i18n_set_language(METER_LANGUAGE_ZH));
+    CHECK(!strcmp(meter_i18n_tr_plural("demo.count", 1u), "{0} 项"));
+    CHECK(!strcmp(meter_i18n_tr_plural("demo.count", 5u), "{0} 项"));
+    /* 没有这个键：返回基标签本身，而不是局部缓冲区。 */
+    CHECK(!strcmp(meter_i18n_tr_plural("demo.nothing", 1u), "demo.nothing"));
+    CHECK(!strcmp(meter_i18n_tr_plural("", 1u), ""));
+    CHECK(meter_i18n_set_language(METER_LANGUAGE_EN));
+    return 0;
+}
 static int binding_flow(void)
 {
     static const lv_font_t *const designed = &lv_font_montserrat_16;
     const lv_font_t *substitute = &lv_font_montserrat_20;
-    const meter_i18n_language_t chinese = {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, substitute, substitute};
+    const meter_i18n_language_t chinese = {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, substitute, substitute,
+                                           METER_PLURAL_OTHER_ONLY};
     CHECK(meter_i18n_register_language(&chinese));
     lv_obj_t *screen = lv_obj_create(NULL);
     lv_obj_t *label = lv_label_create(screen);
@@ -114,6 +154,8 @@ int main(void)
     CHECK(meter_i18n_init());
     CHECK(meter_i18n_init()); /* 同一次 LVGL 生命周期内重复初始化不丢注册 */
     if (language_flow())
+        return 1;
+    if (format_flow() || plural_flow())
         return 1;
     if (binding_flow())
         return 1;

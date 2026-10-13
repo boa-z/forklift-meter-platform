@@ -1,6 +1,7 @@
 #ifndef METER_I18N_RUNTIME_H
 #define METER_I18N_RUNTIME_H
 #include <stddef.h>
+#include <stdint.h>
 #include "contracts/meter_domain.h"
 typedef struct _lv_obj_t lv_obj_t;
 typedef struct _lv_font_t lv_font_t;
@@ -19,13 +20,20 @@ typedef enum
     METER_TXT_VALIDITY_ERROR,
     METER_TXT_STATE_ON,
     METER_TXT_STATE_OFF,
-    METER_TXT_VALUE_ERROR, /* template with one %s for the unit, e.g. "ERR %s" */
+    METER_TXT_VALUE_ERROR, /* template with one {0} for the unit, e.g. "ERR {0}" */
     METER_TXT_COUNT
 } meter_text_id_t;
 /* Size classes a widget asks for. The product decides which face answers them, so
    widgets never name a product font. */
 typedef enum { METER_FONT_LABEL, METER_FONT_VALUE } meter_font_role_t;
 typedef const lv_font_t *(*meter_font_resolver_t)(meter_language_t language, meter_font_role_t role);
+/* Plural categories a language distinguishes. A plural text is the base tag plus ".one" / ".other"
+   (see meter_i18n_tr_plural); more rules are added when a shipped language needs them. */
+typedef enum
+{
+    METER_PLURAL_ONE_OTHER = 0, /* en, de, ...: a count of 1 is "one", everything else "other" */
+    METER_PLURAL_OTHER_ONLY     /* zh, ja, ko: no grammatical number, always "other" */
+} meter_plural_rule_t;
 /* One selectable language. id is the persisted language byte (meter_language_t, extended by the
    Product); code is the pack column. A NULL face means "keep the face the widget was designed with"
    for that role. */
@@ -35,6 +43,7 @@ typedef struct
     const char *code;
     const lv_font_t *label_font;
     const lv_font_t *value_font;
+    meter_plural_rule_t plural;
 } meter_i18n_language_t;
 /* A static translation pack in LVGL's lv_translation_add_static layout: languages and tags are NULL
    terminated, translations is tags x languages, row-major. Storage must outlive LVGL. */
@@ -62,6 +71,45 @@ const char *meter_i18n_text(meter_text_id_t id);
 const char *meter_i18n_tr(const char *tag);
 /* Same lookup for an explicit language (registered packs only). */
 const char *meter_i18n_tr_in(meter_language_t language, const char *tag);
+/* Plural lookup: the text for the form the selected language uses for count, taken from the tags
+   "<tag>.one" / "<tag>.other". Never returns a pointer into caller storage. */
+const char *meter_i18n_tr_plural(const char *tag, unsigned count);
+
+/* Typed template arguments. Templates use {0}..{9}; "{{" and "}}" are literal braces. Unlike printf
+   the template is data, so a translator can reorder arguments and a bad template cannot read the
+   stack. */
+typedef struct
+{
+    enum { METER_I18N_ARG_U32, METER_I18N_ARG_S32, METER_I18N_ARG_STR } kind;
+    union
+    {
+        uint32_t u32;
+        int32_t s32;
+        const char *str;
+    } value;
+} meter_i18n_arg_t;
+static inline meter_i18n_arg_t meter_i18n_arg_u(uint32_t value)
+{
+    meter_i18n_arg_t arg = {METER_I18N_ARG_U32, {0}};
+    arg.value.u32 = value;
+    return arg;
+}
+static inline meter_i18n_arg_t meter_i18n_arg_s(int32_t value)
+{
+    meter_i18n_arg_t arg = {METER_I18N_ARG_S32, {0}};
+    arg.value.s32 = value;
+    return arg;
+}
+static inline meter_i18n_arg_t meter_i18n_arg_str(const char *value)
+{
+    meter_i18n_arg_t arg = {METER_I18N_ARG_STR, {0}};
+    arg.value.str = value;
+    return arg;
+}
+/* Expand a template into out (always NUL terminated when size > 0). A placeholder without an argument
+   is copied verbatim. Returns the number of characters written. */
+size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_i18n_arg_t *args,
+                         size_t count);
 const char *meter_i18n_state(meter_value_state_t state);
 /* Bind the translation tag and the language-dependent face of a label in one call. */
 void meter_i18n_bind_text(lv_obj_t *label, const char *tag, meter_font_role_t role);

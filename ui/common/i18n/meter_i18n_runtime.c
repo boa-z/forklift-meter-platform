@@ -13,7 +13,7 @@ static const char *const vocabulary_languages[] = {METER_LANGUAGE_CODE_EN, NULL}
 static const char *const vocabulary_tags[] = {
     "meter.validity.live",    "meter.validity.stale", "meter.validity.unknown", "meter.validity.error",
     "meter.state.on",         "meter.state.off",      "meter.value.error",      NULL};
-static const char *const vocabulary_texts[] = {"LIVE", "STALE", "NO DATA", "SENSOR ERROR", "ON", "OFF", "ERR %s"};
+static const char *const vocabulary_texts[] = {"LIVE", "STALE", "NO DATA", "SENSOR ERROR", "ON", "OFF", "ERR {0}"};
 _Static_assert(sizeof(vocabulary_tags) / sizeof(vocabulary_tags[0]) == METER_TXT_COUNT + 1, "vocabulary tag count");
 _Static_assert(sizeof(vocabulary_texts) / sizeof(vocabulary_texts[0]) == METER_TXT_COUNT,
                "vocabulary text count");
@@ -38,8 +38,10 @@ static void reset_registry(void)
     language_total = 0u;
     pack_total = 0u;
     /* The two ids the persisted language byte always understands. */
-    languages[language_total++] = (meter_i18n_language_t){METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL};
-    languages[language_total++] = (meter_i18n_language_t){METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL};
+    languages[language_total++] =
+        (meter_i18n_language_t){METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER};
+    languages[language_total++] =
+        (meter_i18n_language_t){METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL, METER_PLURAL_OTHER_ONLY};
 }
 /* The built-in languages exist from the first use, so a Product that registers before
    meter_i18n_init() (or a unit test that skips it) still finds English and Chinese. */
@@ -180,6 +182,26 @@ const char *meter_i18n_tr(const char *tag)
         return text;
     return meter_i18n_tr_in(meter_i18n_selected_language(), tag);
 }
+const char *meter_i18n_tr_plural(const char *tag, unsigned count)
+{
+    if (!tag || !tag[0])
+        return "";
+    const meter_i18n_language_t *known = find_language(meter_i18n_selected_language());
+    const bool one = known && known->plural == METER_PLURAL_ONE_OTHER && count == 1u;
+    char variant[96];
+    /* The variant buffer is only a lookup key: a miss makes lv_tr() hand the key back, and that
+       pointer must never escape, so a miss returns the base tag instead. */
+    if (one)
+    {
+        snprintf(variant, sizeof(variant), "%s.one", tag);
+        const char *text = meter_i18n_tr(variant);
+        if (text != variant)
+            return text;
+    }
+    snprintf(variant, sizeof(variant), "%s.other", tag);
+    const char *text = meter_i18n_tr(variant);
+    return text != variant ? text : tag;
+}
 const char *meter_i18n_text(meter_text_id_t id)
 {
     return meter_i18n_tr(meter_i18n_tag(id));
@@ -269,17 +291,65 @@ void meter_i18n_bind_label(lv_obj_t *label, const char *tag)
         return;
     meter_i18n_bind_text(label, tag, meter_font_role_of(lv_obj_get_style_text_font(label, 0)));
 }
-/* Replace the first %s of a template; the catalog is the only source of templates, so a plain
-   substitution keeps untrusted format strings out of printf. */
-static void expand_template(char *out, size_t size, const char *format, const char *argument)
+static size_t put_char(char *out, size_t size, size_t used, char c)
 {
-    const char *marker = strstr(format, "%s");
-    if (!marker)
+    if (used + 1u < size)
+        out[used] = c;
+    return used + 1u;
+}
+static size_t put_text(char *out, size_t size, size_t used, const char *text)
+{
+    for (; text && *text; ++text)
+        used = put_char(out, size, used, *text);
+    return used;
+}
+static size_t put_number(char *out, size_t size, size_t used, uint32_t value, bool negative)
+{
+    char digits[11];
+    size_t n = 0u;
+    do
     {
-        snprintf(out, size, "%s", format);
-        return;
+        digits[n++] = (char)('0' + (value % 10u));
+        value /= 10u;
+    } while (value != 0u);
+    if (negative)
+        used = put_char(out, size, used, '-');
+    while (n != 0u)
+        used = put_char(out, size, used, digits[--n]);
+    return used;
+}
+size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_i18n_arg_t *args,
+                         size_t count)
+{
+    if (!out || size == 0u)
+        return 0u;
+    size_t used = 0u;
+    for (const char *c = templ ? templ : ""; *c; ++c)
+    {
+        if ((c[0] == '{' && c[1] == '{') || (c[0] == '}' && c[1] == '}'))
+        {
+            used = put_char(out, size, used, c[0]);
+            ++c;
+        }
+        else if (c[0] == '{' && c[1] >= '0' && c[1] <= '9' && c[2] == '}' && args &&
+                 (size_t)(c[1] - '0') < count)
+        {
+            const meter_i18n_arg_t *arg = &args[c[1] - '0'];
+            if (arg->kind == METER_I18N_ARG_STR)
+                used = put_text(out, size, used, arg->value.str);
+            else if (arg->kind == METER_I18N_ARG_S32)
+                used = put_number(out, size, used,
+                                  arg->value.s32 < 0 ? 0u - (uint32_t)arg->value.s32 : (uint32_t)arg->value.s32,
+                                  arg->value.s32 < 0);
+            else
+                used = put_number(out, size, used, arg->value.u32, false);
+            c += 2;
+        }
+        else
+            used = put_char(out, size, used, *c);
     }
-    snprintf(out, size, "%.*s%s%s", (int)(marker - format), format, argument ? argument : "", marker + 2);
+    out[used < size ? used : size - 1u] = '\0';
+    return used < size ? used : size - 1u;
 }
 void meter_i18n_format_value(char *out, size_t size, float value, meter_value_state_t state,
                              const char *unit, unsigned decimals, meter_language_t language)
@@ -288,7 +358,9 @@ void meter_i18n_format_value(char *out, size_t size, float value, meter_value_st
         return;
     if (state == METER_VALUE_ERROR || (state != METER_VALUE_UNKNOWN && !isfinite(value)))
     {
-        expand_template(out, size, meter_i18n_tr_in(language, vocabulary_tags[METER_TXT_VALUE_ERROR]), unit);
+        const meter_i18n_arg_t argument = meter_i18n_arg_str(unit);
+        (void)meter_i18n_format(out, size, meter_i18n_tr_in(language, vocabulary_tags[METER_TXT_VALUE_ERROR]),
+                                &argument, 1u);
         return;
     }
     meter_format_value(out, size, value, state == METER_VALUE_STALE ? METER_VALUE_VALID : state, unit, decimals);
