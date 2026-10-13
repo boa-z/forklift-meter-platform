@@ -11,10 +11,12 @@
    namespace so a Product pack can override a word without a naming clash with its own keys. */
 static const char *const vocabulary_languages[] = {METER_LANGUAGE_CODE_EN, NULL};
 static const char *const vocabulary_tags[] = {
-    "meter.validity.live",    "meter.validity.stale", "meter.validity.unknown", "meter.validity.error",
-    "meter.state.on",         "meter.state.off",      "meter.value.error",      NULL};
-static const char *const vocabulary_texts[] = {"LIVE", "STALE", "NO DATA", "SENSOR ERROR", "ON", "OFF", "ERR {0}"};
-_Static_assert(sizeof(vocabulary_tags) / sizeof(vocabulary_tags[0]) == METER_TXT_COUNT + 1, "vocabulary tag count");
+    "meter.validity.live", "meter.validity.stale", "meter.validity.unknown", "meter.validity.error",
+    "meter.state.on",      "meter.state.off",      "meter.value.error",      NULL};
+static const char *const vocabulary_texts[] = {"LIVE", "STALE", "NO DATA", "SENSOR ERROR",
+                                               "ON",   "OFF",   "ERR {0}"};
+_Static_assert(sizeof(vocabulary_tags) / sizeof(vocabulary_tags[0]) == METER_TXT_COUNT + 1,
+               "vocabulary tag count");
 _Static_assert(sizeof(vocabulary_texts) / sizeof(vocabulary_texts[0]) == METER_TXT_COUNT,
                "vocabulary text count");
 static const meter_i18n_pack_t vocabulary = {vocabulary_languages, vocabulary_tags, vocabulary_texts};
@@ -38,10 +40,10 @@ static void reset_registry(void)
     language_total = 0u;
     pack_total = 0u;
     /* The two ids the persisted language byte always understands. */
-    languages[language_total++] =
-        (meter_i18n_language_t){METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER};
-    languages[language_total++] =
-        (meter_i18n_language_t){METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL, METER_PLURAL_OTHER_ONLY};
+    languages[language_total++] = (meter_i18n_language_t){METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL,
+                                                          NULL, METER_PLURAL_ONE_OTHER};
+    languages[language_total++] = (meter_i18n_language_t){METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL,
+                                                          NULL, METER_PLURAL_OTHER_ONLY};
 }
 /* The built-in languages exist from the first use, so a Product that registers before
    meter_i18n_init() (or a unit test that skips it) still finds English and Chinese. */
@@ -96,7 +98,8 @@ bool meter_i18n_register_pack(const meter_i18n_pack_t *pack)
     for (size_t i = 0u; i < pack_total; ++i)
         if (packs[i]->tags == pack->tags)
             return true;
-    if (pack_total == MAX_PACKS || !lv_translation_add_static(pack->languages, pack->tags, pack->translations))
+    if (pack_total == MAX_PACKS ||
+        !lv_translation_add_static(pack->languages, pack->tags, pack->translations))
         return false;
     packs[pack_total++] = pack;
     return true;
@@ -338,9 +341,10 @@ size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_
             if (arg->kind == METER_I18N_ARG_STR)
                 used = put_text(out, size, used, arg->value.str);
             else if (arg->kind == METER_I18N_ARG_S32)
-                used = put_number(out, size, used,
-                                  arg->value.s32 < 0 ? 0u - (uint32_t)arg->value.s32 : (uint32_t)arg->value.s32,
-                                  arg->value.s32 < 0);
+                used =
+                    put_number(out, size, used,
+                               arg->value.s32 < 0 ? 0u - (uint32_t)arg->value.s32 : (uint32_t)arg->value.s32,
+                               arg->value.s32 < 0);
             else
                 used = put_number(out, size, used, arg->value.u32, false);
             c += 2;
@@ -363,7 +367,8 @@ void meter_i18n_format_value(char *out, size_t size, float value, meter_value_st
                                 &argument, 1u);
         return;
     }
-    meter_format_value(out, size, value, state == METER_VALUE_STALE ? METER_VALUE_VALID : state, unit, decimals);
+    meter_format_value(out, size, value, state == METER_VALUE_STALE ? METER_VALUE_VALID : state, unit,
+                       decimals);
     if (state == METER_VALUE_STALE)
     {
         size_t used = strlen(out);

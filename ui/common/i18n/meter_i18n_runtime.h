@@ -1,8 +1,8 @@
 #ifndef METER_I18N_RUNTIME_H
 #define METER_I18N_RUNTIME_H
+#include "contracts/meter_domain.h"
 #include <stddef.h>
 #include <stdint.h>
-#include "contracts/meter_domain.h"
 typedef struct _lv_obj_t lv_obj_t;
 typedef struct _lv_font_t lv_font_t;
 /* Language codes name the columns of a translation pack. The framework ships no wording for any
@@ -80,7 +80,12 @@ const char *meter_i18n_tr_plural(const char *tag, unsigned count);
    stack. */
 typedef struct
 {
-    enum { METER_I18N_ARG_U32, METER_I18N_ARG_S32, METER_I18N_ARG_STR } kind;
+    enum
+    {
+        METER_I18N_ARG_U32,
+        METER_I18N_ARG_S32,
+        METER_I18N_ARG_STR
+    } kind;
     union
     {
         uint32_t u32;

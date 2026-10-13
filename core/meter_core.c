@@ -91,8 +91,8 @@ bool meter_core_init_with_settings(meter_core_t *core, const meter_catalog_t *ca
                                   const meter_initial_settings_t *settings)
 {
     if (settings && ((unsigned)settings->language >= meter_catalog_language_count(catalog) ||
-                     (unsigned)settings->can_rate > METER_CAN_RATE_500K ||
-                     settings->brightness < 10u || settings->brightness > 100u))
+                     (unsigned)settings->can_rate > METER_CAN_RATE_500K || settings->brightness < 10u ||
+                     settings->brightness > 100u))
         return false;
     if (!meter_core_init(core, catalog, storage))
         return false;

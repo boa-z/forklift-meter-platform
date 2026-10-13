@@ -5,19 +5,28 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(condition) do { if (!(condition)) { fprintf(stderr, "line %d: %s\n", __LINE__, #condition); return 1; } } while (0)
+#define CHECK(condition)                                                                                     \
+    do                                                                                                       \
+    {                                                                                                        \
+        if (!(condition))                                                                                    \
+        {                                                                                                    \
+            fprintf(stderr, "line %d: %s\n", __LINE__, #condition);                                          \
+            return 1;                                                                                        \
+        }                                                                                                    \
+    } while (0)
 
 /* 与框架同名的标签用来覆盖措辞；demo.* 是 Product 自己的键。第三种语言 de 只翻译了一半。 */
 static const char *const pack_languages[] = {METER_LANGUAGE_CODE_EN, METER_LANGUAGE_CODE_ZH, "de", NULL};
-static const char *const pack_tags[] = {"meter.validity.stale", "meter.value.error", "demo.title", "demo.only_en",
-                                        "demo.count.one", "demo.count.other", NULL};
+static const char *const pack_tags[] = {
+    "meter.validity.stale", "meter.value.error", "demo.title", "demo.only_en",
+    "demo.count.one",       "demo.count.other",  NULL};
 static const char *const pack_texts[] = {
-    "STALE", "过期", "veraltet",         /* meter.validity.stale */
-    "ERR {0}", "错误 {0}", "Fehler {0}", /* meter.value.error */
-    "Title", "标题", "Titel",            /* demo.title */
-    "English only", NULL, NULL,          /* 其余语言没有这一行：回退到英文 */
-    "{0} item", "{0} 项", "{0} Eintrag", /* demo.count.one */
-    "{0} items", "{0} 项", "{0} Einträge", /* demo.count.other */
+    "STALE",        "过期",     "veraltet",     /* meter.validity.stale */
+    "ERR {0}",      "错误 {0}", "Fehler {0}",   /* meter.value.error */
+    "Title",        "标题",     "Titel",        /* demo.title */
+    "English only", NULL,       NULL,           /* 其余语言没有这一行：回退到英文 */
+    "{0} item",     "{0} 项",   "{0} Eintrag",  /* demo.count.one */
+    "{0} items",    "{0} 项",   "{0} Einträge", /* demo.count.other */
 };
 static const meter_i18n_pack_t pack = {pack_languages, pack_tags, pack_texts};
 static const meter_language_t LANGUAGE_DE = (meter_language_t)2;
@@ -87,8 +96,8 @@ static int format_flow(void)
     CHECK(meter_i18n_format(text, 6u, "At most {0}", args, 3u) == 5u);
     CHECK(!strcmp(text, "At mo"));
     CHECK(meter_i18n_format(text, sizeof(text), "{0}", NULL, 0u) == 3u && !strcmp(text, "{0}"));
-    CHECK(meter_i18n_format(text, sizeof(text), "{0}", &(meter_i18n_arg_t){METER_I18N_ARG_U32, {.u32 = 4294967295u}},
-                            1u) == 10u &&
+    CHECK(meter_i18n_format(text, sizeof(text), "{0}",
+                            &(meter_i18n_arg_t){METER_I18N_ARG_U32, {.u32 = 4294967295u}}, 1u) == 10u &&
           !strcmp(text, "4294967295"));
     CHECK(meter_i18n_format(NULL, 0u, "x", NULL, 0u) == 0u);
     return 0;
@@ -168,6 +177,7 @@ int main(void)
     CHECK(meter_i18n_selected_language() == METER_LANGUAGE_EN);
     CHECK(!strcmp(meter_i18n_tr("demo.title"), "demo.title"));
     lv_deinit();
-    puts("Framework i18n: English-only vocabulary, registered packs and languages, runtime switch and face binding PASS");
+    puts("Framework i18n: English-only vocabulary, registered packs and languages, runtime switch and face "
+         "binding PASS");
     return 0;
 }

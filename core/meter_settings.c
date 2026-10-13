@@ -59,9 +59,8 @@ static bool decode(meter_core_t *core, const uint8_t *data, size_t size, bool ap
     const size_t capacity = meter_settings_size(core);
     if (!capacity || !data || size < METER_SETTINGS_OVERHEAD || size > capacity ||
         (!append_only && size != capacity) ||
-        (size - METER_SETTINGS_OVERHEAD) % METER_SETTINGS_ENTRY_SIZE != 0u ||
-        memcmp(data, "MSP3", 4) || data[7] > METER_CAN_RATE_500K ||
-        data[4] > 1 || data[5] < 10 || data[5] > 100 ||
+        (size - METER_SETTINGS_OVERHEAD) % METER_SETTINGS_ENTRY_SIZE != 0u || memcmp(data, "MSP3", 4) ||
+        data[7] > METER_CAN_RATE_500K || data[4] > 1 || data[5] < 10 || data[5] > 100 ||
         data[6] >= meter_catalog_language_count(core->snapshot.catalog) ||
         get32(data + size - 4) != checksum(data, size - 4))
         return false;
