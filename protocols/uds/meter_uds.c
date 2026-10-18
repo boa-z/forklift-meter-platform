@@ -1,6 +1,23 @@
 #include "protocols/uds/meter_uds.h"
 #include "util.h"
 #include <string.h>
+/* 线协议编号必须与 C 枚举解耦：表用指定初始化器，重排枚举不会改变线上字节。 */
+static const uint8_t state_code[] = {
+    [METER_UPDATE_IDLE] = 0u,       [METER_UPDATE_DOWNLOADING] = 1u, [METER_UPDATE_TRANSFERRED] = 2u,
+    [METER_UPDATE_VERIFYING] = 3u,  [METER_UPDATE_CANDIDATE] = 4u,   [METER_UPDATE_WAIT_DURABLE] = 5u,
+    [METER_UPDATE_ACTIVATING] = 6u, [METER_UPDATE_ACTIVATED] = 7u,   [METER_UPDATE_CONFIRMED] = 8u,
+    [METER_UPDATE_ABORTED] = 9u,    [METER_UPDATE_FAILED] = 10u,
+};
+static const uint8_t error_code[] = {
+    [METER_UPDATE_OK] = 0u,           [METER_UPDATE_STATE] = 1u,    [METER_UPDATE_COMPATIBILITY] = 2u,
+    [METER_UPDATE_DENIED] = 3u,       [METER_UPDATE_LENGTH] = 4u,   [METER_UPDATE_ORDER] = 5u,
+    [METER_UPDATE_BACKEND] = 6u,      [METER_UPDATE_HASH] = 7u,     [METER_UPDATE_TIMEOUT] = 8u,
+    [METER_UPDATE_NVM] = 9u,          [METER_UPDATE_SESSION] = 10u, [METER_UPDATE_FORMAT] = 11u,
+    [METER_UPDATE_UNSUPPORTED] = 12u,
+};
+_Static_assert(sizeof(state_code) == METER_UPDATE_FAILED + 1u, "state wire table must cover every state");
+_Static_assert(sizeof(error_code) == METER_UPDATE_UNSUPPORTED + 1u,
+               "error wire table must cover every error");
 static UDSErr_t map_error(meter_update_error_t e)
 {
     switch (e)
@@ -23,6 +40,120 @@ static UDSErr_t map_error(meter_update_error_t e)
         return UDS_NRC_GeneralProgrammingFailure;
     }
 }
+static void put_be32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v >> 24);
+    p[1] = (uint8_t)(v >> 16);
+    p[2] = (uint8_t)(v >> 8);
+    p[3] = (uint8_t)v;
+}
+/* 定长字段只允许 ASCII 且必须 NUL 终止；超长在 init 阶段已被拒绝，这里只做防御。 */
+static bool put_text(uint8_t *dst, size_t capacity, const char *src)
+{
+    size_t n = strlen(src);
+    if (n >= capacity)
+        return false;
+    memset(dst, 0, capacity);
+    memcpy(dst, src, n);
+    return true;
+}
+static bool valid_ident(const char *s, size_t capacity)
+{
+    size_t n = 0;
+    while (n < capacity && s[n] != '\0')
+    {
+        char c = s[n];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' ||
+              c == '_' || c == '+' || c == '-'))
+            return false;
+        ++n;
+    }
+    return n != 0 && n < capacity;
+}
+static bool encode_manifest(uint8_t *out, const meter_update_manifest_t *m)
+{
+    if (!put_text(out, 32u, m->product) || !put_text(out + 32u, 32u, m->hardware) ||
+        !put_text(out + 64u, 48u, m->version))
+        return false;
+    put_be32(out + 112u, m->size);
+    memcpy(out + 116u, m->sha256, 32u);
+    return true;
+}
+/* 0x2E 只做语法与字段合法性；Product/Hardware 匹配、容量与准入由 0x34 决定。 */
+static bool parse_manifest(const uint8_t *p, meter_update_manifest_t *m)
+{
+    memset(m, 0, sizeof(*m));
+    memcpy(m->product, p, 32u);
+    memcpy(m->hardware, p + 32u, 32u);
+    memcpy(m->version, p + 64u, 48u);
+    m->size = ((uint32_t)p[112] << 24) | ((uint32_t)p[113] << 16) | ((uint32_t)p[114] << 8) | p[115];
+    memcpy(m->sha256, p + 116u, 32u);
+    return valid_ident(m->product, sizeof(m->product)) && valid_ident(m->hardware, sizeof(m->hardware)) &&
+           valid_ident(m->version, sizeof(m->version)) && m->size != 0u;
+}
+static UDSErr_t snapshot(meter_uds_t *u, meter_uds_snapshot_t *s)
+{
+    return u->port.snapshot(u->port.context, s) ? UDS_PositiveResponse : UDS_NRC_ConditionsNotCorrect;
+}
+static UDSErr_t read_manifest(meter_uds_t *u, UDSServer_t *srv, UDSRDBIArgs_t *a)
+{
+    uint8_t out[METER_UDS_MANIFEST_SIZE];
+    meter_uds_snapshot_t s;
+    UDSErr_t e = snapshot(u, &s);
+    if (e != UDS_PositiveResponse)
+        return e;
+    /* worker 权威候选优先；staged 只覆盖"已提交、尚未 Begin"的窗口。 */
+    const meter_update_manifest_t *m = s.manifest_valid ? &s.manifest : (u->staged_valid ? &u->staged : NULL);
+    if (!m)
+        memset(out, 0, sizeof(out));
+    else if (!encode_manifest(out, m))
+        return UDS_NRC_ConditionsNotCorrect;
+    return a->copy(srv, out, (uint16_t)sizeof(out));
+}
+static UDSErr_t read_status(meter_uds_t *u, UDSServer_t *srv, UDSRDBIArgs_t *a)
+{
+    uint8_t out[METER_UDS_STATUS_SIZE];
+    meter_uds_snapshot_t s;
+    UDSErr_t e = snapshot(u, &s);
+    if (e != UDS_PositiveResponse)
+        return e;
+    out[0] = s.state < sizeof(state_code) ? state_code[s.state] : 0xffu;
+    out[1] = s.error < sizeof(error_code) ? error_code[s.error] : 0xffu;
+    out[2] = (uint8_t)((s.backend_supported ? METER_UDS_FLAG_BACKEND_SUPPORTED : 0u) |
+                       (s.maintenance ? METER_UDS_FLAG_MAINTENANCE : 0u) |
+                       (s.exclusive ? METER_UDS_FLAG_EXCLUSIVE : 0u) |
+                       (s.admitted ? METER_UDS_FLAG_ADMISSION : 0u) |
+                       ((s.manifest_valid || u->staged_valid) ? METER_UDS_FLAG_MANIFEST_PRESENT : 0u) |
+                       (s.candidate_verified ? METER_UDS_FLAG_CANDIDATE_VERIFIED : 0u));
+    out[3] = 0u;
+    put_be32(out + 4u, s.received);
+    put_be32(out + 8u, s.total);
+    return a->copy(srv, out, (uint16_t)sizeof(out));
+}
+static UDSErr_t read_endpoint(meter_uds_t *u, UDSServer_t *srv, UDSRDBIArgs_t *a)
+{
+    uint8_t out[METER_UDS_ENDPOINT_SIZE];
+    meter_uds_snapshot_t s;
+    UDSErr_t e = snapshot(u, &s);
+    if (e != UDS_PositiveResponse)
+        return e;
+    if (!put_text(out, 32u, s.product) || !put_text(out + 32u, 32u, s.hardware) ||
+        !put_text(out + 64u, 48u, s.version) ||
+        !put_text(out + 112u, METER_UDS_ENDPOINT_OS_FILE, s.os_file) ||
+        !put_text(out + 132u, METER_UDS_ENDPOINT_REASON, s.reason))
+        return UDS_NRC_ConditionsNotCorrect;
+    put_be32(out + 128u, s.capacity);
+    return a->copy(srv, out, (uint16_t)sizeof(out));
+}
+static UDSErr_t read_ident(meter_uds_t *u, UDSServer_t *srv, UDSRDBIArgs_t *a, size_t capacity,
+                           const char *src)
+{
+    uint8_t out[METER_UDS_SOFTWARE_SIZE];
+    (void)u;
+    if (capacity > sizeof(out) || !put_text(out, capacity, src))
+        return UDS_NRC_ConditionsNotCorrect;
+    return a->copy(srv, out, (uint16_t)capacity);
+}
 static UDSErr_t dispatch(meter_uds_t *u, const meter_update_job_t *j)
 {
     if (!u->pending)
@@ -38,6 +169,10 @@ static UDSErr_t dispatch(meter_uds_t *u, const meter_update_job_t *j)
     if (!u->port.result(u->port.context, &e, &u->generation, &u->offset))
         return UDS_NRC_RequestCorrectlyReceived_ResponsePending;
     u->pending = false;
+    /* Begin 完成即转移权威：成功由 worker 持有候选，失败则该 Manifest 未成为候选。
+     * 两种情况都必须停止回读 staged，否则 FAILED/ABORTED 会暴露上一任务的旧值。 */
+    if (u->pending_kind == METER_UPDATE_JOB_BEGIN)
+        u->staged_valid = false;
     return map_error(e);
 }
 static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
@@ -61,7 +196,7 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
         if (a->type == 1u)
         {
             u->port.cancel(u->port.context);
-            u->manifest_valid = false;
+            u->staged_valid = false;
             u->pending = false;
             srv->xferIsActive = false;
         }
@@ -70,42 +205,68 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
     case UDS_EVT_WriteDataByIdent:
     {
         UDSWDBIArgs_t *a = arg;
+        /* 只写 FD10；其余 DID 只读或不存在，统一 0x31。 */
+        if (a->dataId != METER_UDS_DID_UPDATE_MANIFEST)
+            return UDS_NRC_RequestOutOfRange;
         if (srv->sessionType != 2u)
+            return UDS_NRC_ServiceNotSupportedInActiveSession;
+        if (a->len != METER_UDS_MANIFEST_SIZE)
+            return UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
+        meter_uds_snapshot_t s;
+        UDSErr_t e = snapshot(u, &s);
+        if (e != UDS_PositiveResponse)
+            return e;
+        /* 下载中、已存在候选或请求未完成时不得覆盖候选身份。 */
+        if (s.manifest_valid || srv->xferIsActive || u->pending)
             return UDS_NRC_ConditionsNotCorrect;
-        if (a->dataId != 0xf180u || a->len != METER_UDS_MANIFEST_SIZE || srv->xferIsActive || u->pending)
+        meter_update_manifest_t m;
+        if (!parse_manifest(a->data, &m))
             return UDS_NRC_RequestOutOfRange;
-        const uint8_t *p = a->data;
-        meter_update_manifest_t m = {0};
-        memcpy(m.product, p, 32);
-        memcpy(m.hardware, p + 32, 32);
-        memcpy(m.version, p + 64, 48);
-        m.size = ((uint32_t)p[112] << 24) | ((uint32_t)p[113] << 16) | ((uint32_t)p[114] << 8) | p[115];
-        memcpy(m.sha256, p + 116, 32);
-        if (!memchr(m.product, 0, 32) || !memchr(m.hardware, 0, 32) || !memchr(m.version, 0, 48) || !m.size)
-            return UDS_NRC_RequestOutOfRange;
-        u->manifest = m;
-        u->manifest_valid = true;
+        u->staged = m;
+        u->staged_valid = true;
         return UDS_PositiveResponse;
     }
     case UDS_EVT_ReadDataByIdent:
     {
         UDSRDBIArgs_t *a = arg;
-        if (a->dataId != 0xf180u)
+        meter_uds_snapshot_t s;
+        switch (a->dataId)
+        {
+        case METER_UDS_DID_UPDATE_MANIFEST:
+            return read_manifest(u, srv, a);
+        case METER_UDS_DID_UPDATE_STATUS:
+            return read_status(u, srv, a);
+        case METER_UDS_DID_UPDATE_ENDPOINT:
+            return read_endpoint(u, srv, a);
+        case METER_UDS_DID_ACTIVE_SESSION:
+        {
+            uint8_t session = (uint8_t)srv->sessionType;
+            return a->copy(srv, &session, 1u);
+        }
+        case METER_UDS_DID_HARDWARE_NUMBER:
+            if (snapshot(u, &s) != UDS_PositiveResponse)
+                return UDS_NRC_ConditionsNotCorrect;
+            return read_ident(u, srv, a, METER_UDS_HARDWARE_SIZE, s.hardware);
+        case METER_UDS_DID_SOFTWARE_VERSION:
+            if (snapshot(u, &s) != UDS_PositiveResponse)
+                return UDS_NRC_ConditionsNotCorrect;
+            return read_ident(u, srv, a, METER_UDS_SOFTWARE_SIZE, s.version);
+        default:
             return UDS_NRC_RequestOutOfRange;
-        size_t n = u->port.info(u->port.context, u->info, sizeof(u->info));
-        if (n > sizeof(u->info))
-            return UDS_NRC_ResponseTooLong;
-        return a->copy(srv, u->info, (uint16_t)n);
+        }
     }
     case UDS_EVT_RequestDownload:
     {
         UDSRequestDownloadArgs_t *a = arg;
-        if (srv->sessionType != 2u || !u->manifest_valid || a->addr || a->dataFormatIdentifier ||
-            a->size != u->manifest.size)
+        if (srv->sessionType != 2u)
+            return UDS_NRC_ServiceNotSupportedInActiveSession;
+        if (!u->staged_valid)
+            return UDS_NRC_ConditionsNotCorrect;
+        if (a->addr || a->dataFormatIdentifier || a->size != u->staged.size)
             return UDS_NRC_RequestOutOfRange;
         a->maxNumberOfBlockLength = METER_UPDATE_BLOCK_SIZE + 2u;
         j.kind = METER_UPDATE_JOB_BEGIN;
-        j.manifest = u->manifest;
+        j.manifest = u->staged;
         return dispatch(u, &j);
     }
     case UDS_EVT_TransferData:
@@ -129,7 +290,9 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
     case UDS_EVT_RoutineCtrl:
     {
         UDSRoutineCtrlArgs_t *a = arg;
-        if (srv->sessionType != 2u || a->ctrlType != 1u || a->len)
+        if (srv->sessionType != 2u)
+            return UDS_NRC_ServiceNotSupportedInActiveSession;
+        if (a->ctrlType != 1u || a->len)
             return UDS_NRC_RequestOutOfRange;
         if (a->id == 0xf001u)
             j.kind = METER_UPDATE_JOB_ACTIVATE;
@@ -143,7 +306,7 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
         if (e == UDS_PositiveResponse && j.kind == METER_UPDATE_JOB_ABORT)
         {
             srv->xferIsActive = false;
-            u->manifest_valid = false;
+            u->staged_valid = false;
         }
         return e;
     }
@@ -160,7 +323,8 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
         return UDS_PositiveResponse;
     case UDS_EVT_SessionTimeout:
     {
-        u->manifest_valid = false;
+        /* 只丢弃诊断会话里的临时 Manifest；已验证候选属于 worker，必须继续可读。 */
+        u->staged_valid = false;
         u->pending = false;
         if (u->port.maintenance)
             u->port.maintenance(u->port.context, false);
@@ -179,7 +343,8 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
 }
 bool meter_uds_init(meter_uds_t *u, UDSTp_t *tp, const meter_uds_port_t *p)
 {
-    if (!u || !tp || !p || !p->submit || !p->result || !p->info || !p->can_reset || !p->reset || !p->cancel)
+    if (!u || !tp || !p || !p->submit || !p->result || !p->snapshot || !p->can_reset || !p->reset ||
+        !p->cancel)
         return false;
     memset(u, 0, sizeof(*u));
     if (UDSServerInit(&u->server) != UDS_OK)
@@ -188,5 +353,13 @@ bool meter_uds_init(meter_uds_t *u, UDSTp_t *tp, const meter_uds_port_t *p)
     u->server.fn = event;
     u->server.fn_data = u;
     u->server.tp = tp;
+    /* 身份字符串超长必须拒绝启动，不能截断成错误的线协议身份。 */
+    meter_uds_snapshot_t s;
+    if (!p->snapshot(p->context, &s))
+        return false;
+    if (strlen(s.product) >= sizeof(s.product) || strlen(s.hardware) >= sizeof(s.hardware) ||
+        strlen(s.version) >= sizeof(s.version) || strlen(s.os_file) >= sizeof(s.os_file) ||
+        strlen(s.reason) >= sizeof(s.reason))
+        return false;
     return true;
 }

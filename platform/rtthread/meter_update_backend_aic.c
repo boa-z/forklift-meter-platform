@@ -142,8 +142,8 @@ bool meter_aic_update_supported(void)
 }
 const char *meter_aic_update_reason(void)
 {
-    return state.supported ? "board_validation_required_native_auto_confirm"
-                           : "env_or_candidate_geometry_unavailable";
+    /* 线协议定长 32B，CAN 与 UART 共用同一字符串，不保留长名称。 */
+    return state.supported ? "native_auto_unverified" : "env_or_slot_invalid";
 }
 int meter_aic_update_confirm(void)
 {

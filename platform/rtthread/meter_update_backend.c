@@ -35,7 +35,8 @@ bool meter_aic_update_supported(void)
 }
 const char *meter_aic_update_reason(void)
 {
-    return "sdk_candidate_validation_and_explicit_confirmation_unavailable";
+    /* 30 字符，加 NUL 正好落在 FD12 的 32B reason 字段内。 */
+    return "sdk_validation_confirm_unavail";
 }
 int meter_aic_update_confirm(void)
 {

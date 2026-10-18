@@ -1,9 +1,9 @@
-#include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_update_port.h"
 #include "contracts/meter_product.h"
 #include "meter_build_identity.h"
-#include "meter_update_build.h"
 #include "meter_display_version.h"
+#include "meter_update_build.h"
+#include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_execution_port.h"
 #include "platform/rtthread/meter_nvm_port.h"
 #include "platform/rtthread/meter_update_backend.h"
@@ -16,6 +16,7 @@
 #include <string.h>
 #define RX_ID 0x7e0u
 #define TX_ID 0x7e8u
+#define METER_UPDATE_OS_FILE "d13x_os.itb"
 #define POOL(name, type, count)                                                                              \
     static rt_ubase_t                                                                                        \
         name[((sizeof(type) + sizeof(void *) + sizeof(rt_ubase_t) - 1u) / sizeof(rt_ubase_t)) * (count)]
@@ -38,11 +39,15 @@ static meter_uds_t uds;
 static UDSTpISOTpC_t transport;
 typedef struct
 {
-    bool started, maintenance, session_maintenance, admitted, healthy, cancel, abandon, barrier_requested, busy, exclusive;
+    bool started, maintenance, session_maintenance, admitted, healthy, cancel, abandon, barrier_requested,
+        busy, exclusive;
     bool stopping, stopped;
+    /* worker 权威 Manifest 的只读副本：UDS 与 UART 都只读快照，不碰 service。 */
+    bool manifest_valid, candidate_verified;
     uint64_t barrier_target;
     meter_update_state_t state;
     meter_update_error_t error;
+    meter_update_manifest_t manifest;
     uint32_t generation, received, total, rx, tx, drops, tx_errors, suppressed;
     char target[METER_UPDATE_VERSION_SIZE];
 } update_shared_t;
@@ -70,10 +75,57 @@ int isotp_user_send_can(uint32_t id, const uint8_t *data, uint8_t size)
     memcpy(f.data, data, size);
     bool queued = meter_execution_can_submit(&f, true);
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    if (queued) meter_diag_increment(&shared.tx);
-    else meter_diag_increment(&shared.drops);
+    if (queued)
+        meter_diag_increment(&shared.tx);
+    else
+        meter_diag_increment(&shared.drops);
     rt_mutex_release(&lock);
     return queued ? ISOTP_RET_OK : ISOTP_RET_NOSPACE;
+}
+/* 已验证候选：只差 NVM barrier 或已激活，跨诊断连接保留。 */
+static bool candidate_state(meter_update_state_t s)
+{
+    return s == METER_UPDATE_CANDIDATE || s == METER_UPDATE_WAIT_DURABLE || s == METER_UPDATE_ACTIVATING ||
+           s == METER_UPDATE_ACTIVATED;
+}
+/* worker Manifest 只在下载到激活区间有效；FAILED/ABORTED/CONFIRMED 不得回读旧值。 */
+static bool manifest_state(meter_update_state_t s)
+{
+    return s == METER_UPDATE_DOWNLOADING || s == METER_UPDATE_TRANSFERRED || s == METER_UPDATE_VERIFYING ||
+           candidate_state(s);
+}
+/* 进度语义：空闲/撤销归零，下载中为实际值，其余为完成态满值，失败保留诊断值。 */
+static void progress_of(meter_update_state_t s, uint32_t received, uint32_t total, uint32_t *out_received,
+                        uint32_t *out_total)
+{
+    switch (s)
+    {
+    case METER_UPDATE_IDLE:
+    case METER_UPDATE_ABORTED:
+    case METER_UPDATE_CONFIRMED:
+        *out_received = 0u;
+        *out_total = 0u;
+        break;
+    case METER_UPDATE_DOWNLOADING:
+    case METER_UPDATE_FAILED:
+        *out_received = received;
+        *out_total = total;
+        break;
+    default:
+        *out_received = total;
+        *out_total = total;
+        break;
+    }
+}
+static bool copy_text(char *dst, size_t capacity, const char *src)
+{
+    size_t n = src ? strlen(src) : 0u;
+    if (n >= capacity)
+        return false;
+    memset(dst, 0, capacity);
+    if (n)
+        memcpy(dst, src, n);
+    return true;
 }
 static void publish(void)
 {
@@ -81,9 +133,13 @@ static void publish(void)
     shared.state = service.state;
     shared.error = service.error;
     shared.generation = service.generation;
-    shared.received = service.received;
-    shared.total = service.manifest.size;
-    memcpy(shared.target, service.manifest.version, sizeof(shared.target));
+    shared.manifest = service.manifest;
+    shared.manifest_valid = manifest_state(service.state);
+    shared.candidate_verified = candidate_state(service.state);
+    progress_of(service.state, service.received, service.manifest.size, &shared.received, &shared.total);
+    memset(shared.target, 0, sizeof(shared.target));
+    if (shared.manifest_valid)
+        memcpy(shared.target, service.manifest.version, sizeof(shared.target));
     rt_mutex_release(&lock);
 }
 static bool durable_barrier(void)
@@ -104,8 +160,10 @@ static bool durable_barrier(void)
 }
 static void cancel_work(meter_update_job_t *job)
 {
-    /* 已验证候选可跨诊断连接保留；显式 Abort 仍销毁候选。 */
-    if (service.state != METER_UPDATE_CANDIDATE && service.state != METER_UPDATE_ACTIVATED)
+    /* 已验证候选可跨诊断连接保留；显式 Abort 仍销毁候选。
+     * WAIT_DURABLE 同样是已校验候选（只等 NVM barrier），会话超时/离开编程会话不得销毁它。 */
+    if (service.state != METER_UPDATE_CANDIDATE && service.state != METER_UPDATE_WAIT_DURABLE &&
+        service.state != METER_UPDATE_ACTIVATED)
         (void)meter_update_abort(&service, service.generation);
     completion_t discarded;
     while (rt_mq_recv(&results, &discarded, sizeof(discarded), 0) == RT_EOK)
@@ -203,7 +261,8 @@ static bool submit(void *ctx, const meter_update_job_t *job)
 {
     (void)ctx;
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    bool accepted = !shared.stopping && !shared.cancel && !shared.busy && rt_mq_send(&jobs, job, sizeof(*job)) == RT_EOK;
+    bool accepted =
+        !shared.stopping && !shared.cancel && !shared.busy && rt_mq_send(&jobs, job, sizeof(*job)) == RT_EOK;
     if (accepted)
         shared.busy = true;
     rt_mutex_release(&lock);
@@ -226,28 +285,58 @@ static bool result(void *ctx, meter_update_error_t *error, uint32_t *gen, uint32
     rt_mutex_release(&lock);
     return true;
 }
-static size_t info(void *ctx, uint8_t *out, size_t capacity)
+static bool snapshot(void *ctx, meter_uds_snapshot_t *out)
 {
     (void)ctx;
     const meter_product_t *p = meter_product_get();
+    if (!out || !p || !p->update)
+        return false;
+    memset(out, 0, sizeof(*out));
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    update_shared_t snapshot = shared;
-    snapshot.maintenance = shared.maintenance || shared.session_maintenance;
+    out->state = (uint8_t)shared.state;
+    out->error = (uint8_t)shared.error;
+    out->received = shared.received;
+    out->total = shared.total;
+    out->manifest = shared.manifest;
+    out->manifest_valid = shared.manifest_valid;
+    out->candidate_verified = shared.candidate_verified;
+    out->maintenance = shared.maintenance || shared.session_maintenance;
+    out->exclusive = shared.exclusive;
+    out->admitted = shared.admitted;
+    rt_mutex_release(&lock);
+    /* 身份与后端能力在启动后不变，直接取权威来源，不进锁也不复制进 shared。 */
+    out->backend_supported = meter_aic_update_supported();
+    out->capacity = meter_aic_update_capacity();
+    return copy_text(out->product, sizeof(out->product), p->update->product) &&
+           copy_text(out->hardware, sizeof(out->hardware), p->update->hardware) &&
+           copy_text(out->version, sizeof(out->version), METER_UPDATE_FIRMWARE_VERSION) &&
+           copy_text(out->os_file, sizeof(out->os_file), METER_UPDATE_OS_FILE) &&
+           copy_text(out->reason, sizeof(out->reason), meter_aic_update_reason());
+}
+/* UART 与 CAN 共用同一份快照，键名保持既有诊断输出不变。 */
+static size_t info(void *ctx, uint8_t *out, size_t capacity)
+{
+    meter_uds_snapshot_t s;
+    if (!snapshot(ctx, &s))
+        return 0;
+    rt_mutex_take(&lock, RT_WAITING_FOREVER);
+    update_shared_t counters = shared;
     rt_mutex_release(&lock);
     int n = snprintf(
         (char *)out, capacity,
         "{\"product\":\"%s\",\"hardware\":\"%s\",\"version\":\"%s\",\"platform\":\"%s\",\"sdk\":\"%s\","
-        "\"target\":\"%s\","
-        "\"state\":\"%s\",\"error\":%u,\"received\":%u,\"total\":%u,\"backend_supported\":%s,\"backend_"
-        "reason\":\"%s\",\"maintenance\":%u,\"exclusive\":%u,\"suppressed\":%u,\"rx\":%u,\"tx_queued\":%u,\"queue_rejected\":"
-        "%u,\"tx_errors\":%u,\"os_file\":"
-        "\"d13x_os.itb\",\"candidate_capacity\":%u,\"confirmation\":\"native_auto\"}",
-        p->id, METER_BUILD_BOARD, METER_UPDATE_FIRMWARE_VERSION, METER_BUILD_PLATFORM, METER_BUILD_SDK,
-        snapshot.target, meter_update_state_name(snapshot.state), (unsigned)snapshot.error,
-        (unsigned)snapshot.received, (unsigned)snapshot.total, meter_aic_update_supported() ? "true" : "false",
-        meter_aic_update_reason(), snapshot.maintenance, snapshot.exclusive, (unsigned)snapshot.suppressed,
-        (unsigned)snapshot.rx, (unsigned)snapshot.tx, (unsigned)snapshot.drops, (unsigned)snapshot.tx_errors,
-        (unsigned)meter_aic_update_capacity());
+        "\"target\":\"%s\",\"state\":\"%s\",\"error\":%u,\"received\":%u,\"total\":%u,\"manifest_present\":%"
+        "u,"
+        "\"candidate_verified\":%u,\"backend_supported\":%s,\"backend_reason\":\"%s\",\"maintenance\":%u,"
+        "\"exclusive\":%u,\"admitted\":%u,\"suppressed\":%u,\"rx\":%u,\"tx_queued\":%u,\"queue_rejected\":"
+        "%u,\"tx_errors\":%u,\"os_file\":\"%s\",\"candidate_capacity\":%u,\"confirmation\":\"native_auto\"}",
+        s.product, s.hardware, s.version, METER_BUILD_PLATFORM, METER_BUILD_SDK,
+        s.manifest_valid ? s.manifest.version : "", meter_update_state_name((meter_update_state_t)s.state),
+        (unsigned)s.error, (unsigned)s.received, (unsigned)s.total, s.manifest_valid ? 1u : 0u,
+        s.candidate_verified ? 1u : 0u, s.backend_supported ? "true" : "false", s.reason,
+        s.maintenance ? 1u : 0u, s.exclusive ? 1u : 0u, s.admitted ? 1u : 0u, (unsigned)counters.suppressed,
+        (unsigned)counters.rx, (unsigned)counters.tx, (unsigned)counters.drops, (unsigned)counters.tx_errors,
+        s.os_file, (unsigned)s.capacity);
     return n >= 0 && (size_t)n < capacity ? (size_t)n : 0;
 }
 static bool can_reset(void *ctx)
@@ -280,8 +369,9 @@ static void session_maintenance_request(void *ctx, bool on)
 }
 bool meter_board_update_frame(const meter_can_frame_t *frame)
 {
-    if (!shared.started || frame->bus != METER_BUS_CAN0 || frame->id != RX_ID ||
-        frame->extended || frame->remote || frame->size > 8u) return false;
+    if (!shared.started || frame->bus != METER_BUS_CAN0 || frame->id != RX_ID || frame->extended ||
+        frame->remote || frame->size > 8u)
+        return false;
     isotp_on_can_message(&transport.phys_link, frame->data, frame->size);
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
     shared.rx++;
@@ -290,11 +380,13 @@ bool meter_board_update_frame(const meter_can_frame_t *frame)
 }
 void meter_board_update_protocol(void)
 {
-    if (shared.started) UDSServerPoll(&uds.server);
+    if (shared.started)
+        UDSServerPoll(&uds.server);
 }
 void meter_board_update_stop(void)
 {
-    if (!shared.started) return;
+    if (!shared.started)
+        return;
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
     shared.stopping = true;
     shared.admitted = false;
@@ -302,7 +394,8 @@ void meter_board_update_stop(void)
 }
 bool meter_board_update_stopped(void)
 {
-    if (!shared.started) return true;
+    if (!shared.started)
+        return true;
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
     bool value = shared.stopped;
     rt_mutex_release(&lock);
@@ -325,12 +418,14 @@ bool meter_board_update_start(void)
         rt_mq_init(&results, "ota_res", result_pool, sizeof(completion_t), sizeof(result_pool),
                    RT_IPC_FLAG_FIFO) != RT_EOK)
         return false;
-    meter_uds_port_t port = {NULL, submit, result, info, can_reset, reset, cancel, session_maintenance_request};
+    meter_uds_port_t port = {NULL,      submit, result, snapshot,
+                             can_reset, reset,  cancel, session_maintenance_request};
     if (UDSServerTpISOTpCInit(&transport, RX_ID, TX_ID, UDS_TP_NOOP_ADDR) != UDS_OK ||
         !meter_uds_init(&uds, &transport.hdl, &port))
         return false;
     if (rt_thread_init(&update_thread, "meter_upd", update_entry, NULL, update_stack, sizeof(update_stack),
-                       25, 10) != RT_EOK || rt_thread_startup(&update_thread) != RT_EOK)
+                       25, 10) != RT_EOK ||
+        rt_thread_startup(&update_thread) != RT_EOK)
         return false;
     shared.started = true;
     return true;
@@ -423,7 +518,7 @@ static int meter_update(int argc, char **argv)
     }
     if (argc == 2 && !strcmp(argv[1], "info"))
     {
-        uint8_t text[896];
+        uint8_t text[1024];
         size_t n = info(NULL, text, sizeof(text));
         if (!n)
             return -1;

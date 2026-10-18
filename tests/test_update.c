@@ -102,5 +102,14 @@ int main(void)
     f.result = METER_UPDATE_OK;
     u.generation = UINT32_MAX;
     assert(meter_update_begin(&u, &m, true, 4) == METER_UPDATE_SESSION);
+    /* WAIT_DURABLE 仍可被显式 Abort 销毁；会话超时走的是 port 的取消路径，不经过这里。 */
+    assert(meter_update_init(&u, &p, &b));
+    assert(meter_update_begin(&u, &m, true, 0) == METER_UPDATE_OK);
+    gen = u.generation;
+    assert(meter_update_write(&u, gen, 0, block, 512, 1) == METER_UPDATE_OK);
+    assert(meter_update_write(&u, gen, 512, block, 512, 2) == METER_UPDATE_OK);
+    assert(meter_update_verify(&u, gen, 3) == METER_UPDATE_OK);
+    assert(meter_update_activate(&u, gen, false) == METER_UPDATE_NVM && u.state == METER_UPDATE_WAIT_DURABLE);
+    assert(meter_update_abort(&u, gen) == METER_UPDATE_OK && u.state == METER_UPDATE_ABORTED && !u.opened);
     return 0;
 }

@@ -13,6 +13,10 @@ SConscript 只调用 prepare() 与 register_packaging()；本文件在 SDK 自�
   1. 用户指定：环境变量 METER_VERSION_SEQUENCE 或 defconfig 的 AIC_FORKLIFT_VERSION_SEQUENCE（1–99，0 表示自动）；
   2. 自动：源码与配置没有变化（指纹相同）时沿用上一次成功构建的序号，有变化时加一，换天从 1 开始。
 序号只在构建成功并产生新镜像后写入，失败或只是查看配置的 scons 调用不消耗序号。
+
+自动打包前还会校验包版本与 meter_update_build.h 中的 METER_UPDATE_FIRMWARE_VERSION 一致，并确认该
+字符串确实存在于本次镜像里；不一致时中止打包，绝不产出"包版本与设备 F195 不一致"的 OTA 包。
+显示版本 METER_FIRMWARE_DISPLAY_VERSION 只影响界面文本，不参与该校验。
 """
 from __future__ import print_function
 import io
@@ -27,9 +31,11 @@ import hashlib
 import atexit
 
 STATE_FILE = 'version-state.json'
+UPDATE_HEADER = 'meter_update_build.h'
 FALLBACK = 'ota-development'
 OTA_RE = re.compile(r'[A-Za-z0-9_.+-]{1,31}\Z')
 DISPLAY_RE = re.compile(r'[A-Za-z0-9_.+-]{1,47}\Z')
+UPDATE_DEFINE_RE = re.compile(r'#define\s+METER_UPDATE_FIRMWARE_VERSION\s+"([^"]*)"')
 
 
 def declared_tool(product_root):
@@ -204,6 +210,46 @@ def prepare(app_root, sdk_root, product, output_dir, can_update, environment, co
     return release
 
 
+def declared_update_version(output_dir):
+    """读取本次构建真正编进固件的 OTA 版本（F195 与升级身份比对的唯一来源）。"""
+    with io.open(os.path.join(output_dir, UPDATE_HEADER), encoding='utf-8') as stream:
+        match = UPDATE_DEFINE_RE.search(stream.read())
+    if not match:
+        raise ValueError(UPDATE_HEADER + ' does not declare METER_UPDATE_FIRMWARE_VERSION')
+    return match.group(1)
+
+
+def image_contains(image, needle):
+    """分块查找字符串，不把整个镜像读进内存。"""
+    size = max(len(needle), 1)
+    tail = b''
+    with open(image, 'rb') as stream:
+        while True:
+            block = stream.read(1 << 20)
+            if not block:
+                return False
+            data = tail + block
+            if needle in data:
+                return True
+            tail = data[-size:]
+
+
+def verify_release_version(release, image):
+    """自动打包前校验包版本、固件声明和镜像内容三者一致。
+
+    包版本来自 version['ota']，设备通过 F195（METER_UPDATE_FIRMWARE_VERSION）上报同一串，
+    两者不同就是"包装成 v2、设备自称 v1"的升级事故。METER_FIRMWARE_DISPLAY_VERSION 只是界面
+    文本，不参与本校验。镜像里必须真的含有该字符串，否则说明打包的是上一轮的旧镜像。
+    """
+    version = release['version']['ota']
+    declared = declared_update_version(release['output_dir'])
+    if declared != version:
+        raise ValueError('OTA package version %r does not match the built firmware %r' % (version, declared))
+    if not image_contains(image, version.encode('ascii')):
+        raise ValueError('built image does not contain the OTA version %r' % (version,))
+    return version
+
+
 def finish(release, images_dir, os_image):
     """构建产生新镜像后：记录当日序号，带 CAN 升级时生成 OTA 包（METER_OTA_PACKAGE=0 关闭）。"""
     image = os.path.join(images_dir, os_image)
@@ -214,6 +260,7 @@ def finish(release, images_dir, os_image):
     if version['sequence'] is not None:
         commit(release['output_dir'], version['date'], version['sequence'], release['fingerprint'])
     if release['can_update'] and os.environ.get('METER_OTA_PACKAGE', '1') != '0':
+        verify_release_version(release, image)
         subprocess.call([release['python'], os.path.join(release['app_root'], 'tools', 'firmware_package.py'),
                          '--images', images_dir, '--sdk-root', release['sdk_root'], '--os-file', os_image,
                          '--product', release['product_id'], '--hardware', release['board'],

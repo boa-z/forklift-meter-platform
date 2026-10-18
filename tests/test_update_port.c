@@ -13,8 +13,9 @@ static bool admission(const meter_snapshot_t *snapshot, bool maintenance)
     (void)snapshot;
     return maintenance;
 }
+static const meter_update_policy_t test_policy = {"synthetic", "reference-board", 4096, 1000};
 static meter_product_t test_product = {
-    .id = "synthetic", .update_admission = admission, .update_exclusive = true};
+    .id = "synthetic", .update = &test_policy, .update_admission = admission, .update_exclusive = true};
 static unsigned released;
 int rt_mutex_take(struct rt_mutex *mutex, int timeout)
 {
@@ -94,6 +95,52 @@ static void test_optional_storage_barrier(void)
     test_product.storage = NULL;
     barrier_test = false;
 }
+/* 进度语义、候选/Manifest 有效性与身份字符串必须来自同一份快照，CAN 与 UART 同源。 */
+static void test_snapshot_contract(void)
+{
+    meter_uds_snapshot_t s;
+    uint8_t json[1024];
+    diagnostic_test = true;
+    setup();
+    service.state = METER_UPDATE_IDLE;
+    publish();
+    assert(snapshot(NULL, &s) && s.received == 0 && s.total == 0 && !s.manifest_valid &&
+           !s.candidate_verified);
+    service.state = METER_UPDATE_DOWNLOADING;
+    service.received = 100;
+    service.manifest.size = 260;
+    publish();
+    assert(snapshot(NULL, &s) && s.received == 100 && s.total == 260 && s.manifest_valid &&
+           !s.candidate_verified);
+    service.state = METER_UPDATE_CANDIDATE;
+    publish();
+    assert(snapshot(NULL, &s) && s.received == 260 && s.total == 260 && s.manifest_valid &&
+           s.candidate_verified);
+    service.state = METER_UPDATE_WAIT_DURABLE;
+    publish();
+    assert(snapshot(NULL, &s) && s.manifest_valid && s.candidate_verified);
+    service.state = METER_UPDATE_ACTIVATED;
+    publish();
+    assert(snapshot(NULL, &s) && s.manifest_valid && s.candidate_verified);
+    service.state = METER_UPDATE_CONFIRMED;
+    publish();
+    assert(snapshot(NULL, &s) && s.received == 0 && s.total == 0 && !s.manifest_valid &&
+           !s.candidate_verified);
+    service.state = METER_UPDATE_FAILED;
+    service.received = 128;
+    publish();
+    assert(snapshot(NULL, &s) && s.received == 128 && s.total == 260 && !s.manifest_valid &&
+           !s.candidate_verified);
+    service.state = METER_UPDATE_ABORTED;
+    publish();
+    assert(snapshot(NULL, &s) && s.received == 0 && s.total == 0 && !s.manifest_valid);
+    assert(strcmp(s.hardware, "reference-board") == 0 && strcmp(s.version, "test") == 0 &&
+           strcmp(s.reason, "test") == 0 && strcmp(s.os_file, "d13x_os.itb") == 0);
+    size_t n = info(NULL, json, sizeof(json));
+    assert(n > 0 && strstr((char *)json, "\"hardware\":\"reference-board\"") &&
+           strstr((char *)json, "\"os_file\":\"d13x_os.itb\"") &&
+           strstr((char *)json, "\"backend_reason\":\"test\""));
+}
 int main(void)
 {
     meter_update_job_t job = {.kind = METER_UPDATE_JOB_WRITE}, discarded;
@@ -124,6 +171,12 @@ int main(void)
     cancel(NULL);
     cancel_work(&discarded);
     assert(service.state == METER_UPDATE_CANDIDATE && released == 0);
+    /* WAIT_DURABLE 只差 NVM barrier，仍属已验证候选：会话超时/取消必须保留。 */
+    setup();
+    service.state = METER_UPDATE_WAIT_DURABLE;
+    cancel(NULL);
+    cancel_work(&discarded);
+    assert(service.state == METER_UPDATE_WAIT_DURABLE && released == 0);
     setup();
     service.state = METER_UPDATE_ACTIVATED;
     cancel(NULL);
@@ -133,7 +186,7 @@ int main(void)
     diagnostic_test = true;
     shared.started = true;
     char *args[] = {"meter_update", "info"};
-    uint8_t expected[896];
+    uint8_t expected[1024];
     size_t expected_size = info(NULL, expected, sizeof(expected));
     assert(expected_size > 128);
     assert(meter_update(2, args) == 0);
@@ -189,6 +242,7 @@ int main(void)
     assert(shared.stopping && !shared.admitted && !meter_board_update_stopped());
     assert(!submit(NULL, &job));
     test_optional_storage_barrier();
+    test_snapshot_contract();
     return 0;
 }
 
@@ -358,7 +412,13 @@ bool meter_board_can_send(const meter_can_frame_t *f)
 
 bool meter_execution_can_submit(const meter_can_frame_t *frame, bool urgent)
 {
-    (void)frame; (void)urgent; UNEXPECTED(); return false;
+    (void)frame;
+    (void)urgent;
+    UNEXPECTED();
+    return false;
 }
 
-uint32_t meter_board_now_ms(void) { return rt_tick_get_millisecond(); }
+uint32_t meter_board_now_ms(void)
+{
+    return rt_tick_get_millisecond();
+}

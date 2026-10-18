@@ -164,3 +164,47 @@ def test_finish_commits_the_sequence_only_for_a_new_image(tmp_path, monkeypatch)
     (images / "d13x_os.itb").write_bytes(b"itb")
     version.finish(release, str(images), "d13x_os.itb")
     assert version.load_state(str(tmp_path / "out"))["sequence"] == 1
+
+
+def packaged(tmp_path, monkeypatch, header=None, image=None):
+    """准备一次"新镜像 + 自动打包"的现场，并拦截真正的打包脚本调用。"""
+    monkeypatch.delenv("METER_OTA_PACKAGE", raising=False)
+    release = prepare(tmp_path)
+    ota = release["version"]["ota"]
+    images = tmp_path / "images"
+    images.mkdir()
+    (images / "d13x_os.itb").write_bytes(image if image is not None else b"\x00" + ota.encode("ascii") + b"\x00")
+    if header is not None:
+        (tmp_path / "out" / "meter_update_build.h").write_text(header, encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(version.subprocess, "call", lambda args: calls.append(args) or 0)
+    return release, str(images), calls
+
+
+def test_finish_packages_exactly_the_version_the_firmware_reports(tmp_path, monkeypatch):
+    release, images, calls = packaged(tmp_path, monkeypatch)
+    version.finish(release, images, "d13x_os.itb")
+    assert len(calls) == 1, "版本一致时才打包"
+    assert calls[0][-2:] == ["--version", release["version"]["ota"]]
+
+
+def test_packaging_refuses_a_version_the_firmware_does_not_declare(tmp_path, monkeypatch):
+    release, images, calls = packaged(tmp_path, monkeypatch,
+                                      header='#define METER_UPDATE_FIRMWARE_VERSION "other"\n')
+    with pytest.raises(ValueError, match="does not match the built firmware"):
+        version.finish(release, images, "d13x_os.itb")
+    assert calls == [], "包版本与 F195 不一致时不得产出 OTA 包"
+
+
+def test_packaging_refuses_an_image_built_before_the_version_changed(tmp_path, monkeypatch):
+    release, images, calls = packaged(tmp_path, monkeypatch, image=b"stale image without the version")
+    with pytest.raises(ValueError, match="does not contain the OTA version"):
+        version.finish(release, images, "d13x_os.itb")
+    assert calls == []
+
+
+def test_a_missing_version_header_stops_packaging(tmp_path, monkeypatch):
+    release, images, calls = packaged(tmp_path, monkeypatch, header="#define METER_DISPLAY_ONLY 1\n")
+    with pytest.raises(ValueError, match="does not declare METER_UPDATE_FIRMWARE_VERSION"):
+        version.finish(release, images, "d13x_os.itb")
+    assert calls == []

@@ -48,13 +48,7 @@ The firmware protocol reuses iso14229 release 0.11.0 (commit 8a7eb23d6ab9d52f66c
 
 Host dependencies are pinned in tools/ota/requirements.txt: python-can 4.6.1 (LGPL-3.0), can-isotp 2.0.7 (MIT), udsoncan 1.25.1 (MIT). These are host dependencies, not firmware libraries.
 
-UDS receive/send buffers are 1024 bytes each; each copied update block is at most 512 bytes. The 148-byte manifest is Product[32], Hardware[32], Version[48], uint32 big-endian package length and SHA256[32].
-
-DID 0xF180 writes the manifest and reads JSON diagnostics. RequestDownload uses address zero and the exact declared length.
-
-TransferData uses the standard modulo-256 counter; TransferExit requests device verification. StartRoutine 0xF001 activates, 0xF002 aborts, 0xF003 is reserved for device confirmation.
-
-ECUReset is permitted only after device activation. CLI never treats sending a reset as new-firmware confirmation.
+UDS receive/send buffers are 1024 bytes each; each copied update block is at most 512 bytes. The wire contract for every identifier is defined once, in protocols/uds/meter_uds_did.h, and is documented in [UDS DID reference](#uds-did-reference).
 
 Host preflight reads at most 64 KiB at a time; transfer blocks are at most 512 bytes. The same open file is rehashed during transfer and changed content aborts before verification.
 
@@ -63,6 +57,96 @@ The CLI respects the device block limit and receiver STmin/flow control. The exc
 It never overrides a slower receiver STmin. Firmware uses the upstream configurable one-millisecond response scheduling delay; pending operations retain the original bounded timeout.
 
 Normal/Burst HIL thresholds outside maintenance remain unchanged.
+
+## UDS DID reference
+
+protocols/uds/meter_uds_did.h is the only definition of this contract; the tables below must match it. 0xF180 (bootSoftwareIdentification) is removed and must not be reintroduced. 0xFD00-0xFEFF is the range ISO 14229-1 reserves for system suppliers, so the update identifiers live there; F186/F192/F195 are the standard supplier identifiers.
+
+| DID | Name | Length | Services | Restriction |
+|---|---|---|---|---|
+| 0xFD10 | update manifest | 148 | 0x22 read, 0x2E write | 0x2E only in the programming session |
+| 0xFD11 | update status | 12 | 0x22 read | none |
+| 0xFD12 | update endpoint | 164 | 0x22 read | none |
+| 0xF186 | active diagnostic session | 1 | 0x22 read | none |
+| 0xF192 | hardware number | 32 | 0x22 read | none |
+| 0xF195 | software version | 48 | 0x22 read | none |
+
+One 0x22 may carry several identifiers; the response concatenates them in request order. Every identifier is fixed length, and a Host that expects another length is a protocol error rather than a longer or shorter value. CAN never carries JSON: the UART `meter_update info` command still emits JSON, but it is built from the same device snapshot the identifiers encode.
+
+### FD10 update manifest (148 bytes)
+
+| Offset | Length | Field |
+|---|---|---|
+| 0 | 32 | Product id |
+| 32 | 32 | Hardware id |
+| 64 | 48 | Package version |
+| 112 | 4 | Package length, big-endian uint32, non-zero |
+| 116 | 32 | SHA256 of the complete package |
+
+Text fields are ASCII, NUL terminated and zero padded to the field width; the allowed characters are A-Z a-z 0-9 . _ + -. A field with no NUL inside its width, a non-ASCII byte, an empty field or a zero length rejects the write. Strings are never truncated: an over-long Product identity fails at start-up instead. Reading FD10 while no manifest is authoritative returns 148 zero bytes.
+
+### FD11 update status (12 bytes)
+
+| Offset | Length | Field |
+|---|---|---|
+| 0 | 1 | Update state |
+| 1 | 1 | Last error |
+| 2 | 1 | Flags |
+| 3 | 1 | Reserved, zero |
+| 4 | 4 | Received bytes, big-endian |
+| 8 | 4 | Total bytes, big-endian |
+
+States: 0 idle, 1 downloading, 2 transferred, 3 verifying, 4 candidate verified, 5 waiting for the durable barrier, 6 activating, 7 activated, 8 confirmed, 9 aborted, 10 failed. Errors: 0 none, 1 state, 2 compatibility, 3 denied, 4 length, 5 order, 6 backend, 7 hash, 8 timeout, 9 NVM, 10 session, 11 format, 12 unsupported. Both numbering tables use designated initializers, so reordering a C enum cannot change a wire byte.
+
+Flags: bit0 backend supported, bit1 maintenance active, bit2 exclusive maintenance, bit3 admission passed, bit4 manifest present, bit5 candidate verified. Bits 6-7 are reserved and always zero.
+
+Progress is defined per state: idle, aborted and confirmed report 0/0; downloading reports the live values; transferred, verifying, candidate, waiting, activating and activated report total/total; failed keeps the values at the moment of failure for diagnosis. Total is never inferred from "a manifest exists".
+
+### FD12 update endpoint (164 bytes)
+
+| Offset | Length | Field |
+|---|---|---|
+| 0 | 32 | Product id |
+| 32 | 32 | Hardware id |
+| 64 | 48 | Running firmware version |
+| 112 | 16 | OS member name inside the package |
+| 128 | 4 | Inactive slot capacity, big-endian |
+| 132 | 32 | Admission rejection reason |
+
+Text uses the same encoding as FD10. The OS member name and the rejection reason are sized to these fixed fields; no longer diagnostic string exists, so the native backend reports env_or_slot_invalid or native_auto_unverified and the rejecting backend reports sdk_validation_confirm_unavail. An empty reason means no rejection.
+
+### F186, F192, F195
+
+F186 returns the one-byte session type. F192 returns the 32-byte hardware identity and F195 the 48-byte OTA firmware version taken from METER_UPDATE_FIRMWARE_VERSION. The display version METER_FIRMWARE_DISPLAY_VERSION is UI text only and is never exposed through F195.
+
+### Services, permissions and NRC
+
+0x2E FD10 checks only the identifier, the programming session, the 148-byte length and the field syntax: a different or non-writable identifier is 0x31, a non-programming session is 0x7F, a wrong length is 0x13, malformed text or a zero package length is 0x31, and an existing candidate, an active transfer or an unfinished request is 0x22. It does not check Product/Hardware match, capacity or admission, and it never touches Flash.
+
+0x34 owns admission and the transfer itself: without a staged manifest it is 0x22; a non-zero address, a non-zero data format identifier or a length that differs from the manifest is 0x31; Product/Hardware mismatch, capacity and admission failures come back through the worker error mapping. The two services therefore do not share one NRC table by design.
+
+Manifest lifecycle:
+
+- 0x2E FD10 stores a staged manifest that FD10 can read back before any download starts.
+- 0x34 moves authority to the worker. When the asynchronous Begin finally completes, successfully or not, the staged copy is dropped, so a later failed or aborted state cannot expose the previous request's manifest. A pending 0x78 does not drop it early.
+- The worker manifest is valid only while downloading, transferred, verifying, candidate, waiting for the durable barrier, activating or activated. Failed and aborted read as 148 zero bytes.
+- After a failure a new 0x2E FD10 succeeds, and FD10 becomes readable again even before a new download begins.
+- Session timeout and 0x10 01 drop the staged manifest and any incomplete transfer but keep a verified candidate, which the worker still owns.
+
+Normal sequence:
+
+```text
+0x10 02                     enter the programming session
+0x22 FD12 FD11              optional preflight: endpoint and status
+0x2E FD10 <148 bytes>       submit the manifest
+0x34                        address zero, the declared length
+0x36 <1..512 bytes> x N     transfer, standard modulo-256 counter
+0x37                        device verification
+0x31 01 F001                activate
+0x11 01                     reset, then observe the new version through F195
+```
+
+0x31 01 F002 aborts and discards a candidate; 0x31 01 F003 is reserved for device confirmation. ECUReset is accepted only after activation, and the CLI never treats sending a reset as new-firmware confirmation.
 
 ## OS-only package policy
 
@@ -104,7 +188,7 @@ Additional tests cover chunk boundaries, CPIO/metadata faults, aligned capacity,
 
 A python-can virtual bus test exchanges an actual segmented ISO-TP response using can-isotp and udsoncan and parses the resulting CAN evidence. This is a host transport test, not PCAN hardware or an OTA installation.
 
-C tests cover state transitions, worker completion, malformed UDS requests and the real rejecting backend without SDK linkage. Linux CI adds the optional update configuration; local tests do not mean remote CI has run.
+C tests cover state transitions, worker completion, malformed UDS requests and the real rejecting backend without SDK linkage. They also pin the DID contract: identifier lengths, NRC per service, the per-state progress semantics, manifest lifecycle across Begin, session timeout and failure, and the refusal to start with an over-long identity. Linux CI adds the optional update configuration; local tests do not mean remote CI has run.
 
 Native-parser/crypto Host regression covers arbitrary chunks, invalid ENV, unsafe geometry, malformed metadata/FIT/trailer, bad blocks, erase/write/read failures, readback corruption, hash mismatch, Abort and lost ENV flush. Flash/ENV in those tests are doubles.
 
