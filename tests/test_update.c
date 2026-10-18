@@ -48,6 +48,10 @@ int main(void)
     m.product[0] = 'x';
     assert(meter_update_begin(&u, &m, true, 0) == METER_UPDATE_COMPATIBILITY && f.begins == 0);
     m.product[0] = 's';
+    /* 硬件身份与 Product 策略不一致同样拒绝：升级包的身份必须等于设备上报的 F192/FD12。 */
+    m.hardware[0] = 'x';
+    assert(meter_update_begin(&u, &m, true, 0) == METER_UPDATE_COMPATIBILITY && f.begins == 0);
+    m.hardware[0] = 'b';
     assert(meter_update_begin(&u, &m, true, UINT32_MAX - 20) == METER_UPDATE_OK);
     uint32_t gen = u.generation;
     assert(meter_update_write(&u, gen - 1, 0, block, 512, 0) == METER_UPDATE_SESSION && u.received == 0);

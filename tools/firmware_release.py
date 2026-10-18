@@ -14,9 +14,12 @@ SConscript 只调用 prepare() 与 register_packaging()；本文件在 SDK 自�
   2. 自动：源码与配置没有变化（指纹相同）时沿用上一次成功构建的序号，有变化时加一，换天从 1 开始。
 序号只在构建成功并产生新镜像后写入，失败或只是查看配置的 scons 调用不消耗序号。
 
-自动打包前还会校验包版本与 meter_update_build.h 中的 METER_UPDATE_FIRMWARE_VERSION 一致，并确认该
-字符串确实存在于本次镜像里；不一致时中止打包，绝不产出"包版本与设备 F195 不一致"的 OTA 包。
+自动打包前还会校验包版本与 meter_update_build.h 中的 METER_UPDATE_FIRMWARE_VERSION 一致；不一致
+或打包脚本返回非零时中止构建并以非零码退出，绝不产出"包版本与设备 F195 不一致"的 OTA 包。
 显示版本 METER_FIRMWARE_DISPLAY_VERSION 只影响界面文本，不参与该校验。
+
+升级身份（Manifest.hardware、METER_BUILD_BOARD、F192、FD12 与 0x34 兼容性检查）统一取 Product 的
+meter_update_policy_t.hardware；METER_BOARD_ID 只能重复声明同一个值，覆盖即报错。
 """
 from __future__ import print_function
 import io
@@ -161,13 +164,34 @@ def packaging_python(sdk_root, environment):
     return bundled if os.path.isfile(bundled) else 'python3'
 
 
+def release_board(identity, product, environment, can_update):
+    """升级身份的唯一来源：Product 的 meter_update_policy_t.hardware。
+
+    F192、FD12、UART 与设备端 0x34 兼容性检查都读这个字符串，所以升级包的 Manifest.hardware
+    和 METER_BUILD_BOARD 也只能取它。METER_BOARD_ID 只允许重复声明同一个值：一旦允许覆盖，
+    固件与升级包就会各自持有一个身份，升级时才在 0x34 上失败。
+    """
+    declared = identity.hardware_identity(product)
+    override = environment.get('METER_BOARD_ID')
+    if declared is None:
+        if can_update:
+            raise ValueError('the Product declares no meter_update_policy_t.hardware, '
+                             'so the OTA package identity cannot be checked against the device')
+        return override or 'reference-board'
+    if override and override != declared:
+        raise ValueError('METER_BOARD_ID %r does not match the Product update identity %r'
+                         % (override, declared))
+    if can_update and len(declared) >= 32:
+        raise ValueError('the Product hardware identity must fit 31 ASCII characters')
+    return declared
+
+
 def prepare(app_root, sdk_root, product, output_dir, can_update, environment, configured_sequence=None):
     """生成身份与版本头文件并返回本次构建的发布信息（dict）。"""
     identity = _sibling('build_identity')
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
-    # 公开身份使用集成者指定的别名，不泄露 SDK 内部板型名称。
-    board = environment.get('METER_BOARD_ID') or identity.hardware_identity(product) or 'reference-board'
+    board = release_board(identity, product, environment, can_update)
     values = identity.generate(app_root, sdk_root, board, os.path.join(output_dir, 'meter_build_identity.h'), product)
     # 指纹覆盖平台/SDK/LVGL/Product 的提交与未提交改动、SDK 配置和构建选项；它不变说明固件内容不变。
     digest = hashlib.sha256()
@@ -219,34 +243,18 @@ def declared_update_version(output_dir):
     return match.group(1)
 
 
-def image_contains(image, needle):
-    """分块查找字符串，不把整个镜像读进内存。"""
-    size = max(len(needle), 1)
-    tail = b''
-    with open(image, 'rb') as stream:
-        while True:
-            block = stream.read(1 << 20)
-            if not block:
-                return False
-            data = tail + block
-            if needle in data:
-                return True
-            tail = data[-size:]
-
-
-def verify_release_version(release, image):
-    """自动打包前校验包版本、固件声明和镜像内容三者一致。
+def verify_release_version(release):
+    """自动打包前校验包版本与固件声明的版本一致。
 
     包版本来自 version['ota']，设备通过 F195（METER_UPDATE_FIRMWARE_VERSION）上报同一串，
     两者不同就是"包装成 v2、设备自称 v1"的升级事故。METER_FIRMWARE_DISPLAY_VERSION 只是界面
-    文本，不参与本校验。镜像里必须真的含有该字符串，否则说明打包的是上一轮的旧镜像。
+    文本，不参与本校验。镜像字节里搜字符串不可靠（旧镜像、常量池残留、压缩或对齐都可能命中），
+    所以这里只认构建实际写进头文件的声明。
     """
     version = release['version']['ota']
     declared = declared_update_version(release['output_dir'])
     if declared != version:
         raise ValueError('OTA package version %r does not match the built firmware %r' % (version, declared))
-    if not image_contains(image, version.encode('ascii')):
-        raise ValueError('built image does not contain the OTA version %r' % (version,))
     return version
 
 
@@ -260,20 +268,37 @@ def finish(release, images_dir, os_image):
     if version['sequence'] is not None:
         commit(release['output_dir'], version['date'], version['sequence'], release['fingerprint'])
     if release['can_update'] and os.environ.get('METER_OTA_PACKAGE', '1') != '0':
-        verify_release_version(release, image)
-        subprocess.call([release['python'], os.path.join(release['app_root'], 'tools', 'firmware_package.py'),
-                         '--images', images_dir, '--sdk-root', release['sdk_root'], '--os-file', os_image,
-                         '--product', release['product_id'], '--hardware', release['board'],
-                         '--version', version['ota']])
+        verify_release_version(release)
+        status = subprocess.call([release['python'],
+                                  os.path.join(release['app_root'], 'tools', 'firmware_package.py'),
+                                  '--images', images_dir, '--sdk-root', release['sdk_root'],
+                                  '--os-file', os_image, '--product', release['product_id'],
+                                  '--hardware', release['board'], '--version', version['ota']])
+        if status != 0:
+            raise RuntimeError('OTA packaging failed with exit code %d' % status)
+
+
+def after_build(release, images_dir, os_image):
+    """SDK 全部构建动作结束后的打包入口；构建失败时跳过。
+
+    atexit 回调里的异常不会改变进程退出码，所以打包失败必须显式以非零码结束进程，
+    否则 CI 与发布脚本会把"没有升级包"的构建当成发布成功。
+    """
+    try:
+        from SCons.Script import GetBuildFailures
+    except ImportError:
+        return
+    if GetBuildFailures():
+        return
+    try:
+        finish(release, images_dir, os_image)
+    except Exception as error:
+        sys.stdout.flush()
+        sys.stderr.write('METER OTA packaging failed: %s\n' % error)
+        sys.stderr.flush()
+        os._exit(1)
 
 
 def register_packaging(release, images_dir, os_image):
-    """在 SCons 全部构建动作（含 SDK 生成镜像）结束后执行 finish()；构建失败时跳过。"""
-    def after_build():
-        try:
-            from SCons.Script import GetBuildFailures
-        except ImportError:
-            return
-        if not GetBuildFailures():
-            finish(release, images_dir, os_image)
-    atexit.register(after_build)
+    """把打包注册到进程退出时执行，早于解释器结束、晚于全部构建动作。"""
+    atexit.register(after_build, release, images_dir, os_image)

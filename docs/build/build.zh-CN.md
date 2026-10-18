@@ -87,7 +87,7 @@ CONFIG_AIC_FORKLIFT_CAN_UPDATE=y
 
 当日序号 `V<n>` 默认自动确定。构建会对平台、SDK、LVGL 和 Product（已提交与未提交的改动）、SDK 配置以及构建选项取指纹：与上一次成功构建相比指纹不变就沿用序号，有任何变化加一，换天从 1 开始。状态保存在 `output/<project>/meter/version-state.json`，只在构建成功后写入，所以失败的构建和只读取配置的命令不会占用序号。需要自己指定时，在 defconfig 里设置 `CONFIG_AIC_FORKLIFT_VERSION_SEQUENCE=<1-99>`（0 表示自动），或对单次构建设置环境变量 `METER_VERSION_SEQUENCE=<1-99>`；之后的自动构建从它继续。SCons 会打印 `METER sequence` 一行，说明序号及其来源。
 
-构建成功且启用了 CAN OTA 时，升级包会自动写到 `output/<工程>/ota/<版本>/`（`ota.cpio`、`ota.manifest.json`、`package-report.json`），并打印使用方法。Product 与硬件标识取自 Product（`identity.hardware`，或 `product.c` 中的 `.hardware`），设置了 `METER_BOARD_ID` 时以它为准。打包需要主机检查器，只需准备一次：`cmake -S . -B build-package -G Ninja -DMETER_BUILD_UI=OFF`，再 `cmake --build build-package --target meter-ota-inspect`。没有它时构建仍然成功，并打印这两条命令。设置 `METER_OTA_PACKAGE=0` 可跳过打包。
+构建成功且启用了 CAN OTA 时，升级包会自动写到 `output/<工程>/ota/<版本>/`（`ota.cpio`、`ota.manifest.json`、`package-report.json`），并打印使用方法。Product 与硬件标识取自 Product：`identity.id` 与 `product.c` 中的 `meter_update_policy_t.hardware`，后者也正是 F192、FD12 和设备端准入检查使用的字符串。`METER_BOARD_ID` 只能重复这个硬件值，填成别的值会直接构建失败，而不是产出一个设备会拒绝的包。打包需要主机检查器，只需准备一次：`cmake -S . -B build-package -G Ninja -DMETER_BUILD_UI=OFF`，再 `cmake --build build-package --target meter-ota-inspect`。没有它时构建仍然成功，并打印这两条命令。设置 `METER_OTA_PACKAGE=0` 可跳过打包；打包失败会让构建以非零码结束，并且不留下半个包。
 
 ## 验证边界
 

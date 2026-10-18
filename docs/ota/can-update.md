@@ -41,6 +41,7 @@ rem The Product comes from CONFIG_AIC_FORKLIFT_PRODUCT_ROOT in the defconfig. Un
 rem set "METER_PRODUCT_ROOT=%CD%/application/rt-thread/forklift-meter-platform/products/demo"
 set "METER_CAN_UPDATE=1"
 set "METER_UPDATE_VERSION=ota-demo-b"
+rem Must equal the Product's meter_update_policy_t.hardware; any other value fails the build.
 set "METER_BOARD_ID=reference-board"
 lunch 12
 m

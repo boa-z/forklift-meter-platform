@@ -2,7 +2,8 @@
 
 输入是 SDK 刚生成的 d13x_os.itb；输出目录 <images 的上一级>/ota/<版本>/ 含 ota.cpio、
 ota.manifest.json、package-report.json，可直接交给 `python -m tools.ota update` 或升级界面。
-同一版本再次构建会替换上一次的包（目录由本脚本独占）。缺少打包工具时只提示，不让固件构建失败。
+同一版本再次构建会替换上一次的包（目录由本脚本独占）。缺少打包工具时只提示，不让固件构建失败；
+打包本身失败时返回 1 并清掉输出目录，由调用方（tools/firmware_release.py）让构建以非零码结束。
 """
 import argparse
 from pathlib import Path
@@ -53,6 +54,9 @@ def main(argv=None):
         result = pack(image, destination, args.product, args.hardware, args.version, policy,
                       cpio=scripts / "cpio.exe", mkenvimage=scripts / "mkenvimage.exe")
     except (UpdateError, ValueError, OSError) as error:
+        # 失败时连半个包也不留：残留目录会被后续脚本当成可发布的产物。
+        if destination.exists():
+            shutil.rmtree(destination, ignore_errors=True)
         print("[OTA 打包] 失败：%s" % error)
         return 1
     print("[OTA 打包] 已生成升级包：%s" % result["directory"])

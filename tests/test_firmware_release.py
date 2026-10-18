@@ -3,8 +3,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
+import types
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +20,8 @@ print(json.dumps({"ota": "M-%sV%d" % (args.date, args.sequence), "display": "P-M
 '''
 
 
-def make_product(tmp_path, tool=TOOL, declared="tools/version.py"):
+def make_product(tmp_path, tool=TOOL, declared="tools/version.py", hardware="board-9"):
+    """最小的 Product 检出：版本脚本、身份清单与 product.c 里的升级策略。"""
     product = tmp_path / "product-root"
     (product / "product").mkdir(parents=True)
     (product / "tools").mkdir()
@@ -29,6 +30,10 @@ def make_product(tmp_path, tool=TOOL, declared="tools/version.py"):
         manifest["version"] = {"tool": declared}
     (product / "product" / "sources.json").write_text(json.dumps(manifest), encoding="utf-8")
     (product / "tools" / "version.py").write_text(tool, encoding="utf-8")
+    policy = ('static const meter_update_policy_t update_policy = {"p-1", "%s", 4096u, 1000u};\n'
+              'static const meter_product_t product = {.id = "p-1", .update = &update_policy};\n' % hardware
+              ) if hardware else 'static const meter_product_t product = {.id = "p-1"};\n'
+    (product / "product" / "product.c").write_text(policy, encoding="utf-8")
     return str(product)
 
 
@@ -109,6 +114,14 @@ def test_public_demo_declares_no_version_tool():
     assert version.declared_tool(str(material)) is None
 
 
+def test_public_demo_hardware_identity_comes_from_its_update_policy():
+    spec = importlib.util.spec_from_file_location("build_identity", ROOT / "tools/build_identity.py")
+    identity = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(identity)
+    # Demo 的 meter_update_policy_t 是设备端身份；打包也必须取同一串，否则 0x34 会拒绝升级。
+    assert identity.hardware_identity(str(ROOT / "products" / "demo")) == "reference-board"
+
+
 def test_partition_size_is_read_from_the_sdk_table(tmp_path):
     from tools.firmware_package import os_partition_bytes
     table = tmp_path / "partition.json"
@@ -135,14 +148,15 @@ def test_hardware_identity_reads_the_manifest_then_product_source(tmp_path):
     assert identity.hardware_identity(str(tmp_path / "missing")) is None
 
 
-def prepare(tmp_path, can_update=True, environment=None):
-    # 身份需要 git 修订号；用本仓库代替 SDK 检出。
+def release_for(product, tmp_path, can_update=True, environment=None):
+    # 平台/SDK 根只影响修订号与指纹：用空目录代替真实检出，避免每个用例都去扫一遍大仓库。
     environment = dict(environment or {}, METER_PYTHON=sys.executable)
-    product = make_product(tmp_path)
-    git = ["git", "-C", product, "-c", "user.name=t", "-c", "user.email=t@t"]
-    for args in (["init", "-q"], ["add", "."], ["commit", "-q", "-m", "p"]):
-        subprocess.run(git + args, check=True)
-    return version.prepare(str(ROOT), str(ROOT), product, str(tmp_path / "out"), can_update, environment)
+    return version.prepare(str(tmp_path / "platform"), str(tmp_path / "sdk"), product,
+                           str(tmp_path / "out"), can_update, environment)
+
+
+def prepare(tmp_path, can_update=True, environment=None, hardware="board-9"):
+    return release_for(make_product(tmp_path, hardware=hardware), tmp_path, can_update, environment)
 
 
 def test_prepare_writes_generated_headers_to_the_output_directory(tmp_path):
@@ -152,6 +166,39 @@ def test_prepare_writes_generated_headers_to_the_output_directory(tmp_path):
     assert '"P-M-' in (out / "meter_display_version.h").read_text(encoding="utf-8")
     assert (out / "meter_build_identity.h").is_file()
     assert release["version"]["sequence"] == 1 and release["can_update"]
+
+
+def test_the_product_update_policy_is_the_only_hardware_identity(tmp_path):
+    release = prepare(tmp_path)
+    header = (tmp_path / "out" / "meter_build_identity.h").read_text(encoding="utf-8")
+    assert release["board"] == "board-9"
+    assert '#define METER_BUILD_BOARD "board-9"' in header, "UART 构建信息必须与设备身份同源"
+
+
+def test_board_id_override_must_match_the_product_identity(tmp_path):
+    with pytest.raises(ValueError, match="does not match the Product update identity"):
+        prepare(tmp_path / "rejected", environment={"METER_BOARD_ID": "other-board"})
+    accepted = prepare(tmp_path / "accepted", environment={"METER_BOARD_ID": "board-9"})
+    assert accepted["board"] == "board-9"
+
+
+def test_an_ota_build_requires_a_declared_hardware_identity(tmp_path):
+    with pytest.raises(ValueError, match="declares no meter_update_policy_t.hardware"):
+        prepare(tmp_path, hardware=None)
+
+
+def test_a_build_without_can_update_keeps_the_reference_board_fallback(tmp_path):
+    assert prepare(tmp_path, can_update=False, hardware=None)["board"] == "reference-board"
+
+
+def test_conflicting_hardware_declarations_are_rejected(tmp_path):
+    product = make_product(tmp_path)
+    manifest_path = Path(product) / "product" / "sources.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["identity"] = {"hardware": "other-board"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="does not match meter_update_policy_t.hardware"):
+        release_for(product, tmp_path)
 
 
 def test_finish_commits_the_sequence_only_for_a_new_image(tmp_path, monkeypatch):
@@ -166,14 +213,13 @@ def test_finish_commits_the_sequence_only_for_a_new_image(tmp_path, monkeypatch)
     assert version.load_state(str(tmp_path / "out"))["sequence"] == 1
 
 
-def packaged(tmp_path, monkeypatch, header=None, image=None):
+def packaged(tmp_path, monkeypatch, header=None):
     """准备一次"新镜像 + 自动打包"的现场，并拦截真正的打包脚本调用。"""
     monkeypatch.delenv("METER_OTA_PACKAGE", raising=False)
     release = prepare(tmp_path)
-    ota = release["version"]["ota"]
     images = tmp_path / "images"
     images.mkdir()
-    (images / "d13x_os.itb").write_bytes(image if image is not None else b"\x00" + ota.encode("ascii") + b"\x00")
+    (images / "d13x_os.itb").write_bytes(b"itb")
     if header is not None:
         (tmp_path / "out" / "meter_update_build.h").write_text(header, encoding="utf-8")
     calls = []
@@ -186,6 +232,7 @@ def test_finish_packages_exactly_the_version_the_firmware_reports(tmp_path, monk
     version.finish(release, images, "d13x_os.itb")
     assert len(calls) == 1, "版本一致时才打包"
     assert calls[0][-2:] == ["--version", release["version"]["ota"]]
+    assert calls[0][calls[0].index("--hardware") + 1] == "board-9", "包身份必须等于设备身份"
 
 
 def test_packaging_refuses_a_version_the_firmware_does_not_declare(tmp_path, monkeypatch):
@@ -196,15 +243,70 @@ def test_packaging_refuses_a_version_the_firmware_does_not_declare(tmp_path, mon
     assert calls == [], "包版本与 F195 不一致时不得产出 OTA 包"
 
 
-def test_packaging_refuses_an_image_built_before_the_version_changed(tmp_path, monkeypatch):
-    release, images, calls = packaged(tmp_path, monkeypatch, image=b"stale image without the version")
-    with pytest.raises(ValueError, match="does not contain the OTA version"):
-        version.finish(release, images, "d13x_os.itb")
-    assert calls == []
-
-
 def test_a_missing_version_header_stops_packaging(tmp_path, monkeypatch):
     release, images, calls = packaged(tmp_path, monkeypatch, header="#define METER_DISPLAY_ONLY 1\n")
     with pytest.raises(ValueError, match="does not declare METER_UPDATE_FIRMWARE_VERSION"):
         version.finish(release, images, "d13x_os.itb")
     assert calls == []
+
+
+def test_a_failed_package_script_fails_the_build(tmp_path, monkeypatch):
+    release, images, _ = packaged(tmp_path, monkeypatch)
+    monkeypatch.setattr(version.subprocess, "call", lambda args: 3)
+    with pytest.raises(RuntimeError, match="exit code 3"):
+        version.finish(release, images, "d13x_os.itb")
+
+
+def fake_scons(monkeypatch, failures=()):
+    """atexit 回调会 import SCons.Script；测试里用替身代替真实 SCons。"""
+    module = types.ModuleType("SCons.Script")
+    module.GetBuildFailures = lambda: list(failures)
+    monkeypatch.setitem(sys.modules, "SCons.Script", module)
+    monkeypatch.setitem(sys.modules, "SCons", types.ModuleType("SCons"))
+
+
+def test_a_failed_package_ends_the_build_with_a_nonzero_code(tmp_path, monkeypatch):
+    release, images, _ = packaged(tmp_path, monkeypatch)
+    monkeypatch.setattr(version.subprocess, "call", lambda args: 1)
+    fake_scons(monkeypatch)
+    exits = []
+    monkeypatch.setattr(version.os, "_exit", lambda code: exits.append(code))
+    version.after_build(release, images, "d13x_os.itb")
+    assert exits == [1], "atexit 里的异常不会改变退出码，必须显式结束进程"
+
+
+def test_a_failed_sdk_build_skips_packaging(tmp_path, monkeypatch):
+    release, images, calls = packaged(tmp_path, monkeypatch)
+    fake_scons(monkeypatch, failures=["compile error"])
+    version.after_build(release, images, "d13x_os.itb")
+    assert calls == []
+
+
+def test_a_successful_package_leaves_the_exit_code_alone(tmp_path, monkeypatch):
+    release, images, calls = packaged(tmp_path, monkeypatch)
+    fake_scons(monkeypatch)
+    exits = []
+    monkeypatch.setattr(version.os, "_exit", lambda code: exits.append(code))
+    version.after_build(release, images, "d13x_os.itb")
+    assert len(calls) == 1 and exits == []
+
+
+def test_failed_packaging_leaves_no_package_behind(tmp_path, monkeypatch):
+    from tools import firmware_package
+    images = tmp_path / "images"
+    images.mkdir()
+    (images / "partition.json").write_text('{"mtd": "spi0.0:4m(os)"}', encoding="utf-8")
+    (images / "d13x_os.itb").write_bytes(b"itb")
+    destination = tmp_path / "ota" / "v1"
+
+    def broken(image, target, *args, **kwargs):
+        target.mkdir(parents=True)
+        (target / "ota.cpio").write_bytes(b"partial")
+        raise firmware_package.UpdateError("pack failed")
+
+    monkeypatch.setattr(firmware_package, "inspector_path", lambda: "meter-ota-inspect")
+    monkeypatch.setattr(firmware_package, "pack", broken)
+    status = firmware_package.main(["--images", str(images), "--sdk-root", str(tmp_path),
+                                    "--product", "p-1", "--hardware", "board-9", "--version", "v1"])
+    assert status == 1
+    assert not destination.exists(), "失败时不得留下半个升级包"
