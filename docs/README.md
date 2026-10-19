@@ -9,6 +9,7 @@ Choose the task you need to complete, then open its module. Operator guides are 
 - [Build the first Product](build/build.md)
 - [Run the simulator](build/simulator.md)
 - [Build an OTA package and install over CAN](ota/can-update.md)
+- [Flash from EcuBus-Pro instead of the CLI](../tools/ecubus/README.md)
 - [Integrate an independent customer Product](product/downstream.md)
 - [Inspect UART and runtime diagnostics](runtime/diagnostics.md)
 - [Run CAN hardware tests](testing/can-hil.md)

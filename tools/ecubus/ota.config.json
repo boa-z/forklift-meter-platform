@@ -1,0 +1,4 @@
+{
+  "firmware": "firmware/d13x_os.itb",
+  "manifest": "firmware/ota.manifest.json"
+}

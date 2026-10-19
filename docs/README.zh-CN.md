@@ -9,6 +9,7 @@
 - [构建第一个 Product](build/build.zh-CN.md)
 - [运行模拟器](build/simulator.zh-CN.md)
 - [构建 OTA 包并通过 CAN 刷入](ota/can-update.zh-CN.md)
+- [用 EcuBus-Pro 代替 CLI 刷写](../tools/ecubus/README.zh-CN.md)
 - [接入独立客户 Product](product/downstream.zh-CN.md)
 - [查看串口和运行诊断](runtime/diagnostics.zh-CN.md)
 - [执行 CAN 实板测试](testing/can-hil.zh-CN.md)
