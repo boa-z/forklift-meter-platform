@@ -10,9 +10,8 @@
 
 | 文档 | 用途 |
 |---|---|
-| [runtime-production](runtime-production.zh-CN.md) | 所有权、生命周期和线程边界 |
+| [runtime-production](runtime-production.zh-CN.md) | 线程、每轮顺序、命令、周期帧、会话 |
 | [protocols](protocols.zh-CN.md) | Domain 路由与协议服务契约 |
-| [dynamic-periodic-tx](dynamic-periodic-tx.zh-CN.md) | 周期发送时序和状态 |
 | [nvm](nvm.zh-CN.md) | 设置持久化和恢复 |
 | [wall-clock](wall-clock.zh-CN.md) | UTC 墙上时钟契约与平台取数 |
 | [watchdog](watchdog.zh-CN.md) | owner 监督与硬件复位策略 |

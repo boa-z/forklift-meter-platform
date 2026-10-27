@@ -11,6 +11,4 @@
 | 文档 | 用途 |
 |---|---|
 | [Demo Product](demo-and-examples.zh-CN.md) | 开发 Demo，维护独立 Product |
-| [downstream](downstream.zh-CN.md) | 接入外部 Product |
-| [application-services](application-services.zh-CN.md) | 划分服务、呈现和渲染职责 |
-| [parameter-service](parameter-service.zh-CN.md) | 实现参数事务与权限 |
+| [downstream](downstream.zh-CN.md) | Product 契约、线程规则、硬件差异、多语言 |

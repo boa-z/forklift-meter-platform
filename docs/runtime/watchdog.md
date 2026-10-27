@@ -10,21 +10,21 @@ watchdog may be fed. It opens no device, creates no thread and holds no lock, so
 drive every branch. `platform/rtthread/meter_watchdog_port.c` owns the board half: the `"wdt"`
 device, one lowest-priority thread, the keepalive call and the `meter_watchdog` shell command.
 
-The watch list is the three resident owners that must keep running for the instrument to stay
-truthful: Protocol, App and UI. Counters come from `meter_execution_liveness()`, which copies them
-under the existing state lock. The watchdog never inspects another owner's internals.
+The watch list is the two resident threads that must keep running for the instrument to stay
+truthful: the runtime thread (`app`) and the UI. Counters come from `meter_execution_liveness()`,
+which reads their loop counters. The watchdog never inspects another owner's internals.
 
 ## When the watchdog is armed
 
 | Execution state | Supervised | Hardware watchdog |
 |---|---|---|
 | Runtime not started (bring-up) | no | not armed |
-| Started, not stopping | Protocol, App, UI | armed |
-| Stopping or stopped | no | armed, fed unconditionally |
+| Started | runtime (app), UI | armed |
+| Startup failed | no | not armed |
 
 The hardware watchdog is armed the first time the supervisor observes a started runtime. Before that
-the port only polls, so a slow boot cannot be reset. Once armed it stays armed: a requested stop keeps
-being fed, because a technician-initiated shutdown must never look like a hang.
+the port only polls, so a slow boot (for example a long EEPROM initialization) cannot be reset. There
+is no runtime stop, so once armed the watchdog stays armed until reset.
 
 Bring-up itself is therefore outside the supervised window. A hidden fatal condition before the
 runtime starts is not converted into a reset by this mechanism; it is reported by the start-up path
@@ -42,8 +42,7 @@ stall.
 |---|---|---|
 | `METER_WATCHDOG_TIMEOUT_S` | 8 | Hardware timeout in seconds |
 | `METER_WATCHDOG_POLL_MS` | 200 | Supervisor sampling period |
-| `METER_WATCHDOG_PROTOCOL_STALL_MS` | 4000 | Protocol heartbeat limit |
-| `METER_WATCHDOG_APP_STALL_MS` | 4000 | App heartbeat limit |
+| `METER_WATCHDOG_APP_STALL_MS` | 4000 | Runtime-thread heartbeat limit |
 | `METER_WATCHDOG_UI_STALL_MS` | 3000 | UI heartbeat limit |
 | `METER_WATCHDOG_THREAD_PRIO` | 26 | Supervisor priority, below every supervised owner |
 
@@ -61,8 +60,7 @@ reset follows, which is the intended behaviour rather than a side effect.
 ```
 meter_watchdog
 watchdog armed=1 supervising=1 timeout_s=8
-watchdog feeds=812 withheld=0 stalls=0 transitions=1 stalled=3
-watchdog channel=protocol stall_ms=4000
+watchdog feeds=812 withheld=0 stalls=0 transitions=1 stalled=2
 watchdog channel=app stall_ms=4000
 watchdog channel=ui stall_ms=3000
 ```

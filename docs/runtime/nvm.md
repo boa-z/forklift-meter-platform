@@ -31,14 +31,14 @@ Each slot also has a separate commit page holding a copy of the bound 16-byte se
 
 | Backend | Integration | Guarantee and boundary |
 |---|---|---|
-| reference-board EEPROM | BL24C512A family, i2c0, 0x50, 64 KiB, 128-byte pages | Authorized new allocation 0x0000–0x03FF; A at 0x0000, B at 0x0200; seal pages 0x0180 and 0x0380. Initialization, save and soft reboot verified; physical power cuts unverified. |
+| I2C EEPROM | Two-byte addressed; bus, address, size, page and region offset from `AIC_FORKLIFT_NVM_EEPROM_*` (defaults i2c0, 0x50, 64 KiB, 128-byte pages, offset 0) | 1 KiB region: A at offset+0x000, B at offset+0x200; seal pages at the end of each slot. Verified on the D50T board (BL24C512A): initialization, save and soft/cold reboot; power cuts during a write unverified. |
 | Host file | Prefix.0 and Prefix.1 | Complete writes, fsync/_commit and close checked. Readback required. Filesystem metadata crash atomicity not claimed. |
 | NOR/LittleFS file | Existing mounted SDK filesystem | Same selectable file adapter; no raw NOR driver or format operation. Device sync/XIP and physical recovery require Board validation. |
 | NAND/FATFS file | Existing SDK NFTL/ECC and mounted filesystem | Weaker filesystem guarantee; dual files do not prove independent metadata redundancy. Critical power-safe capability requests are rejected. |
 
-The application-only EEPROM transport uses existing RT-Thread I2C APIs without changing the SDK, HAL, board configuration or parent gitlink. The reference-board compatibility path sends a two-byte address and receives one byte in separate single-message transactions. The recursive RT-Thread bus mutex protects each address/read pair. The worker waits 1 ms before each transaction pair and before each byte write. It also waits 1 ms between the address and read while retaining that mutex. A short address/read transfer retries the complete read pair at most three times, logging each failure; failed attempts never publish their output byte. Mutex errors do not retry. Writes are never automatically replayed. Page callbacks split into three-byte single-byte writes, wait 10 ms outside the bus lock after every attempted write, and read back each byte before continuing. A short write, exhausted read retries or mismatched readback stops the operation; a driver success alone is not durability. Generic page bounds, read-only readiness checks and full record/seal readback remain mandatory. No destructive SDK AT24 probe is used. This conservative mode sacrifices throughput: 1 KiB initialization needs at least 10.24 seconds of write-cycle waits, plus driver/readback time; allow 60 seconds in board validation. Driver behavior remains governed by the unchanged SDK; the validated hardware scope is recorded below. A commit seal shares no body page or active-slot page.
+The application-only EEPROM transport uses existing RT-Thread I2C APIs without changing the SDK or HAL. The SDK `at24cxx` package is not used: it fixes the device type at compile time, writes pages without per-byte verification and has no read retry, which the D50T controller needs. The transport sends a two-byte address and receives one byte in separate single-message transactions. The recursive RT-Thread bus mutex protects each address/read pair. The worker waits 1 ms before each transaction pair and before each byte write. It also waits 1 ms between the address and read while retaining that mutex. A short address/read transfer retries the complete read pair at most three times, logging each failure; failed attempts never publish their output byte. Mutex errors do not retry. Writes are never automatically replayed. Page callbacks split into three-byte single-byte writes, wait 10 ms outside the bus lock after every attempted write, and read back each byte before continuing. A short write, exhausted read retries or mismatched readback stops the operation; a driver success alone is not durability. Generic page bounds, read-only readiness checks and full record/seal readback remain mandatory. No destructive SDK AT24 probe is used. This conservative mode sacrifices throughput: 1 KiB initialization needs at least 10.24 seconds of write-cycle waits, plus driver/readback time; allow 60 seconds in board validation. Driver behavior remains governed by the unchanged SDK; the validated hardware scope is recorded below. A commit seal shares no body page or active-slot page.
 
-AIC_FORKLIFT_NVM_FILE_BACKEND explicitly selects the mounted file path; AIC_FORKLIFT_NVM_FILE_PREFIX and AIC_FORKLIFT_NVM_FILE_KIND identify it. Default reference-board composition uses EEPROM. A mount failure never formats the medium or switches to another backend. The first EEPROM image must only run after the new 1 KiB allocation and WP are confirmed; existing nonblank unknown content is preserved and reported.
+AIC_FORKLIFT_NVM_FILE_BACKEND explicitly selects the mounted file path; AIC_FORKLIFT_NVM_FILE_PREFIX and AIC_FORKLIFT_NVM_FILE_KIND identify it. The default is the EEPROM. A mount failure never formats the medium or switches to another backend. The first EEPROM image must only run after the new 1 KiB allocation and WP are confirmed; existing nonblank unknown content is preserved and reported.
 
 ## Results and lifecycle
 
@@ -46,32 +46,28 @@ LOADING is an asynchronous startup operation. App accepts the matching generatio
 
 IN_PROGRESS owns the immutable in-flight revision until a matching result arrives. Completing R11 while R12 is pending advances durable to R11 and leaves R12 dirty. An I/O-stage failure is UNCERTAIN, preserves dirty, and requires explicit rescan/reconciliation before retry. Reconciliation never replaces newer RAM with media data. A barrier waits for a particular target revision; a higher complete replacement may satisfy it, but an intermediate value is not claimed to have been written exactly. A loaded valid record satisfies its target. Cancellation is only supported before worker dispatch. No blocking worker is killed or freed on timeout.
 
-Host shutdown requests immediate save and waits a bounded interval. Failure produces a failing process exit and preserves dirty semantics. Board callers use meter_board_nvm_flush and meter_board_nvm_barrier from App; OTA must request this through App before activation. Current Protocol/App/UI scheduling remains the existing smoke arrangement; this NVM change isolates storage I/O but does not close the separate production-runtime/Burst gate.
+Host shutdown requests immediate save and waits a bounded interval. Failure produces a failing process exit and preserves dirty semantics. On the board the runtime thread uses meter_board_nvm_flush and meter_board_nvm_barrier; update activation waits for this barrier.
 
 ## Diagnostics and validation
 
-Use the following native MSH commands. Each mutation must have its result collected before another serial command is accepted; QUEUED/APPLIED does not mean DURABLE.
+Use the following native MSH commands. Setting changes go through the same action queue as the UI; save, retry and initialize only set a request for the runtime thread. QUEUED does not mean DURABLE: poll `meter storage`.
 
 ~~~text
 meter storage
 meter_settings language zh
-meter_settings result
 meter_settings units imperial
-meter_settings result
 meter_settings brightness 65
-meter_settings result
 meter_settings save
-meter_settings result
 meter storage
 meter_settings retry
-meter_settings result
+meter storage
 ~~~
 
-Storage reports backend, state, dirty, RAM/in-flight/durable revisions, queue depth, raw backend error, service result, degraded recovery and actual language/brightness/units. Queries render published copies and never access media. Poll DURABLE and dirty=0 before an intentional reboot; after reboot verify settings and sequence. The save target is distinct from the asynchronous command result.
+Storage reports backend, state, dirty, RAM/in-flight/durable revisions, queue depth, raw backend error, service result, degraded recovery and actual language/brightness/units. Queries render published copies and never access media. Poll DURABLE and dirty=0 before an intentional reboot; after reboot verify settings and sequence.
 
 Host covers every byte cut while reusing an inactive slot, identity/schema/CRC/seal corruption, conflicting sequences, queued supersession, stale completion, time wrap, finite debounce, revision exhaustion, cancellation, reconciliation, EEPROM page splitting/WP/NACK/timeout/sync failure and real file restart. Demo SDL restart tests persist English/Chinese and units, and reject damaged slots without rewriting them. Run CMake/CTest; Linux remains the CI target.
 
-Current acceptance on 2026-09-28: BOARD_INIT, SETTINGS_SAVE, NOOP_SAVE, VALID_INIT_REJECT, SOFT_REBOOT_RESTORE and NORMAL_CAN_SAVE are PASS on the application-only bounded-read recovery image. Platform commit is 4fca8762243f9bb40cb753abd553f0808865cce0 with the recorded dirty-source snapshot; image SHA256 is bf5ef8efa339376ffe83bd526201f0e62f7b30ff69c85a5608bf534a39ce3635. SDK commit 9b78386dcaa54326487c8b208b2b7104d4b56c9b has the same tracked tree as baseline 7608a666. Local image manifests retain exact build identity, source snapshots and raw UART/CAN evidence; public documentation uses the reference-board alias.
+Current acceptance on 2026-09-28: BOARD_INIT, SETTINGS_SAVE, NOOP_SAVE, VALID_INIT_REJECT, SOFT_REBOOT_RESTORE and NORMAL_CAN_SAVE are PASS on the application-only bounded-read recovery image. Platform commit is 4fca8762243f9bb40cb753abd553f0808865cce0 with the recorded dirty-source snapshot; image SHA256 is bf5ef8efa339376ffe83bd526201f0e62f7b30ff69c85a5608bf534a39ce3635. SDK commit 9b78386dcaa54326487c8b208b2b7104d4b56c9b has the same tracked tree as baseline 7608a666. Local image manifests retain exact build identity, source snapshots and raw UART/CAN evidence.
 
 Initialization plus the first durable default record took 55.7 seconds as observed through polling. One address transfer at 0x0207 failed on attempt 1/3 and recovered within the bounded read retry. The initial cumulative error count reflected the old corrupt layout; the final backend error was zero. Saving Chinese, imperial units and brightness 65 reached durable revision 4 in 15.3 seconds from the first setting request, including two commits for successive revisions. Repeating the same values and save request caused no revision or write increase. Initialization with a valid record was rejected.
 
@@ -83,21 +79,21 @@ Cold power-cycle recovery is PASS after the user removed and restored power: fir
 
 Historical failures remain recorded: the earlier byte-transport image (SHA256 0cf247370a4c9ba344435919a8df0b1f144d5eb70042b1f70a23ba96c2ef887e) failed initialization readback at 0x003C and rescan at 0x0089. The experimental SDK I2C repair was fully reverted and its image withdrawn. The current application-only settling and read retry path passes the scoped board tests above; it is not a claim that the SDK controller implementation was repaired.
 
-For commissioning an old layout, export a backup and obtain layout authorization before meter_settings initialize CONFIRM. It requires no valid slot and a successful previous I/O. Writes, sync and readback run in the NVM worker; a valid slot cannot be erased. Collect meter_settings result, then verify DURABLE with meter storage; queue acceptance is not completion.
+For commissioning an old layout, export a backup and obtain layout authorization before meter_settings initialize CONFIRM. It only acts in CORRUPT or INCOMPATIBLE state. Writes, sync and readback run in the NVM worker; a valid slot cannot be erased. Verify DURABLE with meter storage; queue acceptance is not completion.
 
 
 ## Board settings and format boundary
 
 MSP3 bytes 0..3 hold magic, 4/5/6 hold units/brightness/language, 7 holds the CAN rate selector (0=125k, 1=250k, 2=500k), 8..11 hold parameter count, ID/value entries start at 12, and the last four bytes hold FNV. Only MSP3 is supported. Demo declares FMP2 schema 3; no legacy reader or migration is provided, as requested by the maintainer. Old/corrupt records are rejected atomically and remain write-blocked until explicit initialization. Initializing the development-board allocation was authorized; automatic erase on boot is not introduced.
 
-Reference-board startup waits for the initial NVM read before latching the common rate for both CAN devices. Runtime changes save only and do not reconfigure controllers. Corrupt records retain the default 500k and write-block policy. configured_can_rate in meter storage is the next-boot configuration; bitrate in meter can is the opened controller rate. Before restarting confirm dirty=0 and ram_revision=durable_revision.
+Startup waits for the initial NVM read before latching the common rate for every opened CAN bus. Runtime changes save only and do not reconfigure controllers. Corrupt records retain the default 500k and write-block policy. configured_can_rate in meter storage is the next-boot configuration; bitrate in meter can is the opened controller rate. Before restarting confirm dirty=0 and ram_revision=durable_revision.
 
-App applies brightness immediately through the Board PWM adapter and saves it through the same NVM service. Register-readback failure logs an error and retries; RAM acceptance proves neither successful backlight control nor storage durability. meter_settings product id value queues a diagnostic intent for the App Product callback, including administrator authorization; the generic port does not interpret Product-private IDs.
+The runtime thread applies brightness through the SDK backlight PWM channel (when `AIC_FORKLIFT_BACKLIGHT` is on) and saves it through the same NVM service. Register-readback failure logs an error and retries; RAM acceptance proves neither successful backlight control nor storage durability. meter_settings product id value queues an intent for the Product's local_action; the generic port does not interpret Product-private IDs.
 
 
 ## Product counters and additive catalogs
 
-`app_tick` runs on the App owner after initial NVM loading and Core freshness processing, before evaluation and publication. It runs while disconnected or in maintenance, but not during shutdown. Callbacks increment snapshot revision on changes. Native execution observes settings after Product callbacks; equal encoded payloads do not queue writes. Existing debounce, maximum dispatch delay, worker and durability barriers remain. Dispatch delay is not a hardware completion deadline or a guarantee against power loss.
+`app_tick` runs on the runtime thread after initial NVM loading and Core freshness processing, before publication. It also runs in maintenance. Callbacks increment snapshot revision on changes. The runtime encodes settings whenever the revision changed; equal encoded payloads do not queue writes. Existing debounce, maximum dispatch delay, worker and durability barriers remain. Dispatch delay is not a hardware completion deadline or a guarantee against power loss.
 
 Default decoding still requires every parameter. A Product may explicitly set `allow_parameter_extension=true` for an additive catalog update within the same namespace, type and schema. Existing IDs, meaning, units and accepted ranges must remain compatible. Entries are validated atomically and missing new parameters use catalog `initial`. Duplicate or unknown IDs, invalid counts/values, checksum failures and unknown schemas still fail. The next ordinary commit writes a complete replacement. This does not migrate older payload formats, rename IDs, shrink catalogs or authorize physical slot geometry changes.
 

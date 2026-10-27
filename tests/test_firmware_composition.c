@@ -12,10 +12,9 @@ int main(void)
     assert(meter_firmware_compose(&composition));
     const meter_product_t *product = meter_product_get();
     assert(product && product->ui && composition.locale_init);
-    const meter_core_storage_t stores[] = {composition.domain, composition.presentation,
-                                           composition.diagnostic, composition.ui};
-    meter_core_t cores[4];
-    for (size_t i = 0u; i < 4u; ++i)
+    const meter_core_storage_t stores[] = {composition.domain, composition.presentation, composition.ui};
+    meter_core_t cores[3];
+    for (size_t i = 0u; i < 3u; ++i)
     {
         assert(meter_core_init(&cores[i], product->catalog, &stores[i]));
         for (size_t j = 0u; j < i; ++j)
@@ -28,7 +27,7 @@ int main(void)
     assert(product->catalog->signal_count > 0u);
     cores[0].snapshot.signals[0].value = 17.0f;
     meter_snapshot_t copy;
-    for (size_t i = 1u; i < 4u; ++i)
+    for (size_t i = 1u; i < 3u; ++i)
     {
         assert(meter_snapshot_copy(&copy, &stores[i], &cores[0].snapshot) == METER_SNAPSHOT_COPIED);
         assert(copy.signals[0].value == 17.0f);

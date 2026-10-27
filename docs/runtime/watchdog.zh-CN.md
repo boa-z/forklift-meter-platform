@@ -9,20 +9,19 @@
 可以覆盖每个分支。`platform/rtthread/meter_watchdog_port.c` 拥有板级那一半：`"wdt"` 设备、
 一个最低优先级的线程、keepalive 调用和 `meter_watchdog` 串口命令。
 
-监督名单就是仪表要如实工作就必须持续运行的三类常驻 owner：Protocol、App 与 UI。计数来自
-`meter_execution_liveness()`，它在既有的状态锁下复制。看门狗从不检查其它 owner 的内部。
+监督名单就是仪表要如实工作就必须持续运行的两个常驻线程：运行时线程（`app`）与 UI。计数来自
+`meter_execution_liveness()`，它读取两者的循环计数。看门狗从不检查其它 owner 的内部。
 
 ## 何时进入监督
 
 | 执行状态 | 是否监督 | 硬件看门狗 |
 |---|---|---|
 | runtime 尚未启动（启动阶段） | 否 | 未启动 |
-| 已启动且未在停止 | Protocol、App、UI | 已启动 |
-| 正在停止或已停止 | 否 | 已启动，无条件喂狗 |
+| 已启动 | 运行时（app）、UI | 已启动 |
+| 启动失败 | 否 | 未启动 |
 
 监督线程第一次观察到 runtime 已启动时才启动硬件看门狗。在此之前端口只轮询，因此缓慢的启动
-不可能被复位。启动后就一直保持启动状态：技师发起的停止会被持续喂狗，因为人为停机绝不能被
-当成挂死。
+（例如较长的 EEPROM 初始化）不可能被复位。运行时没有停止流程，因此一旦启动就一直保持到复位。
 
 因此启动阶段本身不在监督窗口内。runtime 启动之前的隐藏致命故障不会被这套机制转成复位，
 而是由启动路径和 `meter` 诊断报告。覆盖启动阶段需要一个由入口点喂的启动进度通道，
@@ -37,8 +36,7 @@
 |---|---|---|
 | `METER_WATCHDOG_TIMEOUT_S` | 8 | 硬件超时，单位秒 |
 | `METER_WATCHDOG_POLL_MS` | 200 | 监督采样周期 |
-| `METER_WATCHDOG_PROTOCOL_STALL_MS` | 4000 | Protocol 心跳上限 |
-| `METER_WATCHDOG_APP_STALL_MS` | 4000 | App 心跳上限 |
+| `METER_WATCHDOG_APP_STALL_MS` | 4000 | 运行时线程心跳上限 |
 | `METER_WATCHDOG_UI_STALL_MS` | 3000 | UI 心跳上限 |
 | `METER_WATCHDOG_THREAD_PRIO` | 26 | 监督线程优先级，低于所有被监督 owner |
 
@@ -55,8 +53,7 @@
 ```
 meter_watchdog
 watchdog armed=1 supervising=1 timeout_s=8
-watchdog feeds=812 withheld=0 stalls=0 transitions=1 stalled=3
-watchdog channel=protocol stall_ms=4000
+watchdog feeds=812 withheld=0 stalls=0 transitions=1 stalled=2
 watchdog channel=app stall_ms=4000
 watchdog channel=ui stall_ms=3000
 ```

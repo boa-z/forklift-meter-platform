@@ -1,70 +1,63 @@
 # Production runtime
 
-## Current architecture
+> [中文版](runtime-production.zh-CN.md)
 
-Firmware uses separate Protocol, App/Core, CAN TX, LVGL UI, NVM and Update owners with bounded native RT-Thread IPC. The old single-thread CAN/UI smoke and separate OTA RX/TX path have been replaced by the shared execution port. CAN draining does not run in the UI chain, and publication locks do not cover driver or LVGL execution.
+## Threads
 
-## Boundaries
+One runtime thread owns the Domain (Core), the protocol adapters and every Product callback. Separate threads exist only where a call can block on hardware.
 
-Core and common runtime remain OS/LVGL independent. Protocol owns decoding and protocol state; App alone owns Core and product workflow. Only TX workers may call the CAN driver write API. UI receives copied arrays and submits copied intentions. Native bounded queues reject whole messages on overload; no generic event bus is introduced. Initialization opens CAN only after IPC and workers are ready. Stop must wait for in-flight I/O; a timeout reports incomplete stopping and never destroys a live worker.
+| Thread | Owns / does | Wakes on | Stack |
+|---|---|---|---|
+| `meter_app`, priority 19 | Core, protocol routing and adapters, Product `app_run`/`app_tick`/`local_action`, periodic scheduling, NVM bookkeeping, UDS server polling, snapshot publication | CAN RX, UI action, or 5 ms (1 ms with the CAN update endpoint) | 12288 bytes |
+| `meter_tx0` / `meter_tx1`, priority 18 | One per opened bus; the only caller of the CAN driver write | Its queue | 2048 bytes each |
+| `meter_ui`, LVGL priority + 2 | LVGL, Product UI | 16 ms (50 ms while the update screen shows) | 32768 bytes by default |
+| `meter_nvm`, priority 21 | Blocking EEPROM or file I/O | Its request queue | 4096 bytes |
+| `meter_upd`, priority 25 | Flash writes of the update candidate | Its job queue | 12288 bytes |
+| `meter_wdog`, priority 26 | Hardware watchdog feed | 200 ms | 2048 bytes |
 
-## Acceptance status
+Product code never needs a lock: all callbacks except the UI factory run on the runtime thread, one after another. The host simulator runs the same sequence in one loop through `meter_runtime_step()`.
 
-Dual-bus hardware remains unverified; no formal MISRA, rollback or power-loss recovery claim is made.
+## One runtime iteration
 
-## Execution and ownership
+1. Poll the update endpoint; entering or leaving maintenance starts a new session (see below).
+2. Read up to 64 frames from the opened buses. UDS frames go to the update endpoint, every other frame is routed and decoded at once; decoders write straight into Core.
+3. Apply queued UI/MSH actions (`METER_ACTION_PRODUCT` goes to `local_action`, the rest to Core).
+4. `meter_runtime_step()`: adapter `process`, Product `app_run` with the command port, signal timeouts, Product `app_tick`.
+5. Encode due periodic frames from the current snapshot and queue them.
+6. Apply the brightness setting to the backlight, hand changed settings to NVM, poll NVM results.
+7. Publish: copy the snapshot for the UI when its revision changed, copy diagnostics for MSH.
 
-| Owner | Trigger / blocking boundary | Static stack |
+## Interfaces between threads
+
+| From → to | Mechanism | Depth |
 |---|---|---|
-| Protocol priority 19 | RX semaphore, maximum 64 frames/pass, round-robin buses; 1 ms UDS or 5 ms ordinary wait; no driver write | 8192 bytes |
-| App priority 20 | Batch/event/action wake or 5 ms tick; no device/Flash/LVGL | 8192 bytes |
-| CAN TX priority 18 | One writer per bus, queue wake, idle blocks forever; blocking driver write | 2048 bytes/bus |
-| UI configured priority + 2 | LVGL 16 ms normal / 50 ms maintenance | Default 32768 bytes |
-| NVM priority 21 | Existing queue; blocking EEPROM I/O | Existing NVM budget |
-| Update priority 25 | Existing queue; Flash and durable barrier wait | 12288 bytes |
+| UI / MSH → runtime | `meter_execution_action()`; returns false only when the queue is full or settings are not accepted | 8 actions |
+| runtime → UI | `meter_execution_present()`; the UI copies under the publication lock only when the revision changed | one published copy |
+| runtime → TX | Ordinary queue (protocol and periodic frames) and urgent queue (UDS); at most four urgent frames before an ordinary one | 16 + 16 per bus |
+| runtime ↔ NVM, update | Their own request/result queues | 1 in flight |
 
-Core and Product workflow run only in App. The immutable Product getter no longer resets protocol state. Host tests drive App and Protocol steps separately; they do not simulate native scheduling.
+The publication lock (`meter_debug_lock`) also guards the public diagnostics, so `meter domain` and `meter signal` read the same copy as the UI.
 
-## Ports and lifetimes
+## Commands
 
-Protocol stages at most 32 values per decode, then copies the whole semantic batch into one of 64 native queue slots. App validates every value and source arbitration before any write. Queue-full and oversized batches are rejected in full. Events use 16 copied slots. Old-generation batches/events are discarded. Product callbacks borrow values only during the call.
+`meter_command_port_t.send()` routes a command through the Product's `command_route` to the owning adapter's `command()` and returns whether the adapter accepted it, in the same call. Transactions that wait for an answer (SDO, parameter read/write, version query) live in the adapter: it sends frames in `process`, matches answers in `on_frame`, applies its own timeouts and publishes results as signals.
 
-UI has one request credit and one retained result. Successful submission means QUEUED; App reports APPLIED or REJECTED. Core, UI publication, diagnostic publication and UI consumer storage are distinct, with alias rejection. UI never stores Core arrays.
+## Periodic frames
 
-App has one retained command/result credit, identified by generation and a non-reused 64-bit serial. QUEUED, APPLIED, TX_COMPLETED and REMOTE_CONFIRMED differ. Synchronous command frames are tagged and report TX_COMPLETED after driver completion. Asynchronous request/response protocols report REMOTE_CONFIRMED from the response; uncorrelated driver completion is not fabricated. Timeout/cancellation stops local retries through adapter cancel/reset. Already delivered remote writes may have taken effect; local cancellation does not promise rollback. Product must reconcile uncertain remote state before retrying non-idempotent commands.
+A `meter_periodic_frame_t` names the bus, identifier, length and period; `encode(snapshot, now, frame)` fills the data from the live snapshot when the deadline arrives. Freshness is the encoder's decision, based on each signal's state. One frame per entry may wait in the TX queue; a frame that has not reached the driver within one period is dropped, so a bus without acknowledgement never builds a backlog. Late deadlines skip missed periods instead of bursting. `critical` entries keep running during update maintenance.
 
-Each bus has 16 ordinary and 16 urgent TX slots; at most four urgent frames precede an ordinary service opportunity. Old-generation frames are discarded. Queue acceptance does not prove physical delivery. No generic event bus or cross-owner temporary pointer is used.
+## Sessions and maintenance
 
-## Modes and deadlines
+A session starts at boot and whenever update maintenance is entered or left (`update_exclusive`, an open UDS programming session, or `meter_update maintenance on`). A new session advances the generation, marks valid signals stale, resets adapters and calls the Product's `app_reset`. Frames queued in the previous session are dropped before they reach the driver; UDS frames are not tied to a session. During maintenance received vehicle frames are counted but not decoded, `app_run` and adapter `process` are skipped, only critical periodic frames are sent, settings are rejected and the UI shows the update view. There is no degraded mode: a full TX queue only increments `queue_full`.
 
-App owns STARTUP, NORMAL, DEGRADED, UPDATE_MAINTENANCE and SHUTDOWN. Product supplies the capability matrix. An increase in the native queue-full counters (`batch_full`, `event_full`, `tx_full`) selects DEGRADED when maintenance is not selected; one second without another queue rejection permits recovery. Semantic batch validation and TX publication failures increment `batch_rejected`, which is not part of that overload calculation. Changing this boundary is a Product policy decision. This is a reference policy, not a safety guarantee. Mode changes advance generation, stale old Domain signals and reset Protocol sessions and Product workflow. Returning from OTA requires ending the explicit maintenance request; Abort does not override a technician's maintenance selection.
+## Startup
 
-Reference-Demo sends synthetic CAN0 0x3C0 every 50 ms and 0x2F0 every 100 ms. Only 0x3C0 is critical in maintenance. These public bench frames are not vehicle control. Deadlines advance from their previous planned value. Late runnables skip missed periods without catch-up bursts. Mode changes explicitly rearm phase. Wire spacing still depends on queue and driver latency and requires PCAN measurement.
+The UI thread composes the Product, initializes LVGL, Core and the display, creates the Product UI and starts the runtime thread. The runtime thread first waits for the stored settings (the CAN bit rate must be known before the buses open), then opens only the buses the Product uses (routes, periodic frames, update endpoint), starts their TX threads and the update endpoint, and begins the first session. A startup failure is logged and the runtime does not start; the watchdog supervises only after a successful start. There is no runtime stop: power-down durability relies on the settings record format, and update activation waits for a durable settings barrier.
 
-Dynamic values, sample/publish time, semantic revision, generation, pending replacement and expiry are specified in the [Dynamic TX contract](dynamic-periodic-tx.md). Periodic messages use separate bounded mailboxes and do not accumulate historical values in ordinary TX queues.
+## Diagnostics
 
-## Lifecycle and diagnostics
-
-INIT prepares static IPC and snapshots. App starts NVM/Update and TX before Protocol opens CAN. READY becomes RUNNING only after all configured buses open. Settings wait for NVM restore. Failures observed by the running App enter FAILED then cooperative STOPPING. Pre-App partial initialization instead returns failure while retaining earlier native objects; App-thread startup failure leaves initialized/FAILED without an App to coordinate stop. Neither path has a proven rollback/retry contract; see D-03 in the maintenance plan.
-
-The meter_exec stop command rejects new business/TX, cancels queued work, stops Protocol processing, requests Update stop, and flushes NVM to a durable revision. In-flight blocking I/O returns normally. App waits for all owner acknowledgements before unbinding RX and closing CAN; UI releases LVGL last. After five seconds STOPPING reports overdue, without killing or freeing workers. STOPPED requires reboot to restart; static IPC is retained until reboot. A failed durability barrier deliberately prevents a successful STOPPED claim.
-
-Owners copy diagnostics under short locks; MSH formats outside locks. No device/Flash/LVGL work holds the publication lock. Trace publication copies at most 16 entries per lock. meter can includes native FIFO drops. meter_exec exposes mode/generation, queue high-water/rejections, runnable counts, planned misses and stop wait. Native list_thread supplies stack high-water. Idle blocking workers are healthy waiting states; runnable counts are observations, not watchdog verdicts.
-
-## Quality and gates
-
-Portable runtime builds with strict warnings as errors. Adopted third-party sources are unchanged.
-
-Windows Host, target build and physical HIL are reported separately with SHA-bound evidence. Multi-bus HIL needs two physical interfaces and matching Product firmware. Target warning coverage, scheduler stress, long-duration timing and shutdown during each backend operation remain production gates until measured. No formal MISRA, AUTOSAR conformance, rollback or power-loss recovery claim is made.
-
-Product may declare command completion at APPLIED, TX_COMPLETED or REMOTE_CONFIRMED; the default requires the remote response. A transmit-only command retains TX_COMPLETED as its final result and does not later become a false timeout. Session adoption resets adapters and publishes the same generation as App even while telemetry is suppressed.
+`meter_exec` prints the generation, maintenance state, rejected actions, suppressed frames, TX queue-full count, per-bus TX ok/error/dropped counters and per-entry periodic misses and lateness. `meter can`, `meter runtime`, `meter domain`, `meter storage` and `meter trace` are described in [diagnostics](diagnostics.md).
 
 ## Build-time Product selection
 
-Each firmware image contains exactly one Product, selected in SCons by `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` in the defconfig, which the singular `METER_PRODUCT_ROOT` environment variable overrides for one build. Firmware builds require one of them: when both are unset or blank the build aborts instead of falling back to the Demo, while relative selections still resolve from the application root and external package roots are supported. Host CMake keeps `products/demo` as its convenience default. Use separate build/output directories for different Products. Multiple independently tested Products never imply multiple Products in one firmware or runtime switching.
-
-The selected `product/sources.json` supplies the unique firmware composition implementation. It owns independent static Domain/publication/diagnostic/UI storage and the Product locale setup callback through `contracts/meter_firmware.h`. Generic startup knows only that contract. Demo retains its original store capacities and locale initialization order. Inspect the selected source closure with `tools/firmware_product.py`; unsupported feature closures and missing/escaping/duplicate sources fail the build selection.
-
-Demo has host compile/link/test evidence for this boundary. Any real Product still requires target memory/display/CAN adaptation, confirmed protocol/authentication descriptors and board acceptance.
-
-Demo PDO addition: four periodic slots and ten semantic values fit the existing board budgets of eight slots and sixteen values. No queue capacity, owner, worker or scheduler period changes. The two new ordinary 100 ms frames add 20 frames/second; bus loading and existing 50/100 ms traffic must be measured together. See [protocol definitions](protocols.md) for payload/freshness and the shared-revision implication.
+Each firmware image contains exactly one Product, selected in SCons by `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` in the defconfig; the `METER_PRODUCT_ROOT` environment variable overrides it for one build. An empty selection stops the firmware build. Host CMake defaults to `products/demo` when present and builds the Framework alone with `-DMETER_PRODUCT_ROOT=`. The selected `product/sources.json` supplies the firmware composition (`contracts/meter_firmware.h`): three non-overlapping storages (runtime Domain, published copy, UI copy) and the locale setup.

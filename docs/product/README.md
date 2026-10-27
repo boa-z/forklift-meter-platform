@@ -11,6 +11,4 @@ Create an independent Product and define its application services.
 | Document | Use |
 |---|---|
 | [Demo Product](demo-and-examples.md) | Develop the Demo and maintain independent Products |
-| [downstream](downstream.md) | Connect an external Product |
-| [application-services](application-services.md) | Separate services, presentation and rendering |
-| [parameter-service](parameter-service.md) | Implement parameter transactions and permissions |
+| [downstream](downstream.md) | Product contract, threading rules, hardware differences, i18n |

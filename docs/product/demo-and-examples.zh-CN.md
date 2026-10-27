@@ -34,7 +34,7 @@ cmake --build build-demo --parallel
 ctest --test-dir build-demo --output-on-failure
 ```
 
-每个 Product 使用独立构建目录。`METER_PRODUCT_ROOT` 选择源码清单，不是运行时 Product 菜单。私有 fork/分支结构见[下游指南](downstream.zh-CN.md)。
+每个 Product 使用独立构建目录。`METER_PRODUCT_ROOT` 选择源码清单，不是运行时 Product 菜单。仓库结构与 Product 契约见[Product 接入指南](downstream.zh-CN.md)。
 
 ## Product 文档验收
 

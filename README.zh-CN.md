@@ -2,7 +2,7 @@
 
 > [English](README.md)
 
-面向 D133/reference-board 的公开仪表平台参考实现。Demo 至少支持 English 与简体中文，字体由 `lv_font_conv` 生成，协议的唯一事实来源（Source of Truth）是 DBC。
+基于 Luban-Lite（RT-Thread + LVGL 9）、面向匠芯创 SoC 的公开叉车仪表平台。一套 SDK 支持多种板型，一套框架支持多个独立 Product；每个固件镜像只构建一个 Product。框架不含客户协议、界面或板型假设：板子由其 defconfig 描述（[板级接入](docs/build/board-integration.zh-CN.md)），Product 放在各自的仓库里（[Product 接入](docs/product/downstream.zh-CN.md)）。
 
 ## 主机仿真（Host）
 
@@ -33,7 +33,7 @@ Product manifest、SDK OneStep 构建和可选 CAN OTA 组合方式见[构建与
 
 ## 固件边界（Firmware boundary）
 
-Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`。Luban-Lite 集成必须链接 SDK 的 `packages/third-party/lvgl` 与 `packages/custom/lvgl-aic`，不能再编译本仓库自带主机仿真 submodule 的 LVGL。
+Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。Luban-Lite 集成必须链接 SDK 的 `packages/third-party/lvgl` 与 `packages/custom/lvgl-aic`，不能再编译本仓库自带主机仿真 submodule 的 LVGL。
 
 ## 文档（Documentation）
 

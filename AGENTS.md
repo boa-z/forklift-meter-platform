@@ -10,5 +10,6 @@ Start with [the documentation map](docs/README.md). Keep behavior-preserving cle
 - This is a public framework. Do not import customer protocols, UI, assets, captures or private repository history.
 - Validate with CMake/Ninja and CTest. Host results do not establish board acceptance.
 - Documentation is bilingual: every first-party document ships `X.md` (English) and `X.zh-CN.md` (Simplified Chinese); update both together.
-- App owns semantic publication and global mode; Protocol owns encoding, deadlines and wire state. Use short-lock deep copy across owners.
+- One runtime thread owns Core, protocol adapters and Product callbacks; add a thread only for a call that blocks on hardware (CAN write, EEPROM/file I/O, Flash). Do not add cross-thread request/result machinery, degraded modes or generic event buses without a concrete Product need.
+- Board facts (device names, EEPROM location, backlight, display layer policy) belong in the Kconfig "Board resources" menu or the SDK board configuration, never as constants in Framework code; customer behaviour belongs in the Product.
 - No SDK source or persistent configuration changes.

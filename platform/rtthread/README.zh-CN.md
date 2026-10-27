@@ -2,6 +2,6 @@
 
 > [English](README.md)
 
-公开产品在此不提供任何私有 SDK 头文件。下游集成提供一个小型适配器，职责如下：初始化 LVGL 与 `lvgl-aic`，通过 RT-Thread IPC 把 CAN 帧送入 `meter_runtime_t` 队列，按有界预算运行协议处理，向 UI 属主发布一份快照，并在阻塞型工作线程中持久化设置。不得把 RT-Thread 或 ArtInChip 类型暴露到 `contracts`、`core` 或 `ui/common`。
+本目录是唯一接触 RT-Thread 设备与匠芯创 SDK API 的地方：执行端口（一个运行时线程、每条总线一个发送线程）、板级端口（显示层接管、CAN 设备）、背光、EEPROM 与 NVM worker、RTC、看门狗、升级后端以及 MSH 前端。设备名与板级事实来自 Kconfig 的 "Board resources" 菜单。RT-Thread 与 ArtInChip 类型不出现在 `contracts`、`core`、`runtime` 或 `ui/common` 中。
 
-板级配置、pinmux、屏幕、触摸设备、分区与 bootloader 保留在 SDK 中。使用板级的 `d13x/<board>` defconfig 与现有 lvgl-aic 集成指南；不要复制私有的 reference-board 应用及其生成素材。
+板级配置、pinmux、屏幕、触摸设备、分区与 bootloader 保留在 SDK 中，仪表使用的设备在板级 defconfig 里选择；见[板级接入](../../docs/build/board-integration.zh-CN.md)。

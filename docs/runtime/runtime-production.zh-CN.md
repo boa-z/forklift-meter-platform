@@ -1,70 +1,63 @@
 # 生产运行时
 
-## 当前架构
+> [English](runtime-production.md)
 
-固件采用 Protocol、App/Core、CAN TX、LVGL UI、NVM 和 Update 独立 owner，使用 RT-Thread 原生有界 IPC。旧单线程 CAN/UI smoke 及 OTA 独立 RX/TX 分支已被统一执行端口替代。现行实现不会在 UI 链路中排空 CAN，也不在发布锁内执行驱动或 LVGL。
+## 线程
 
-## 边界
+一个运行时线程独占 Domain（Core）、协议适配器和全部 Product 回调。只有可能阻塞在硬件上的调用才放在单独的线程里。
 
-Core 和公共运行时不依赖 OS/LVGL。Protocol 拥有解码和协议状态；App 独占 Core 和产品 workflow。只有 TX worker 可调用 CAN 驱动写接口。UI 接收数组副本并提交意图副本。有界原生队列过载时拒绝完整消息，不引入万能 Event Bus。IPC 和 worker 就绪后才打开 CAN。停止须等待在途 I/O；超时报告停止未完成，绝不销毁活跃 worker。
+| 线程 | 拥有 / 负责 | 唤醒条件 | 栈 |
+|---|---|---|---|
+| `meter_app`，优先级 19 | Core、协议路由与适配器、Product 的 `app_run`/`app_tick`/`local_action`、周期帧调度、NVM 记账、UDS 服务轮询、快照发布 | CAN 接收、UI 动作，或 5 ms（链接 CAN 升级端点时 1 ms） | 12288 字节 |
+| `meter_tx0` / `meter_tx1`，优先级 18 | 每条已打开的总线一个；唯一调用 CAN 驱动写入的线程 | 自己的队列 | 各 2048 字节 |
+| `meter_ui`，LVGL 优先级 + 2 | LVGL、Product UI | 16 ms（显示升级页时 50 ms） | 默认 32768 字节 |
+| `meter_nvm`，优先级 21 | 阻塞的 EEPROM 或文件 I/O | 自己的请求队列 | 4096 字节 |
+| `meter_upd`，优先级 25 | 升级候选的 Flash 写入 | 自己的任务队列 | 12288 字节 |
+| `meter_wdog`，优先级 26 | 喂硬件看门狗 | 200 ms | 2048 字节 |
 
-## 验收状态
+Product 代码不需要加锁：除 UI 工厂外，所有回调都在运行时线程里依次执行。主机模拟器用 `meter_runtime_step()` 在一个循环里跑同样的顺序。
 
-双总线实板仍未验证；不宣称正式 MISRA 合规、rollback 或掉电恢复通过。
+## 运行时线程的一轮
 
-## 执行与所有权
+1. 轮询升级端点；进入或退出维护会开始新的会话（见下文）。
+2. 从已打开的总线读至多 64 帧。UDS 帧交给升级端点，其余帧立即路由并解码，解码直接写入 Core。
+3. 应用排队的 UI/MSH 动作（`METER_ACTION_PRODUCT` 交给 `local_action`，其余交给 Core）。
+4. `meter_runtime_step()`：适配器 `process`、带命令端口的 Product `app_run`、信号超时、Product `app_tick`。
+5. 用当前快照编码到期的周期帧并入队。
+6. 把亮度设置写到背光，把变化的设置交给 NVM，领取 NVM 结果。
+7. 发布：快照 revision 变化时复制给 UI，并复制诊断数据给 MSH。
 
-| Owner | 触发 / 阻塞边界 | 静态栈 |
+## 线程之间的接口
+
+| 从 → 到 | 机制 | 深度 |
 |---|---|---|
-| Protocol 优先级 19 | RX 信号量、每轮最多 64 帧、总线公平轮询；UDS 1 ms 或普通 5 ms 等待；不调用 driver write | 8192 字节 |
-| App 优先级 20 | 批次/事件/动作唤醒或 5 ms tick；不执行设备/Flash/LVGL | 8192 字节 |
-| CAN TX 优先级 18 | 每总线唯一 writer，队列唤醒，空闲无限等待；阻塞 driver write | 每总线 2048 字节 |
-| UI 配置优先级 + 2 | 普通 16 ms / 维护 50 ms 执行 LVGL | 默认 32768 字节 |
-| NVM 优先级 21 | 现有队列；阻塞 EEPROM I/O | 现有 NVM 预算 |
-| Update 优先级 25 | 现有队列；Flash 及 durable barrier 等待 | 12288 字节 |
+| UI / MSH → 运行时 | `meter_execution_action()`；只有队列满或当前不接收设置时返回 false | 8 个动作 |
+| 运行时 → UI | `meter_execution_present()`；revision 变化时 UI 才在发布锁内复制 | 一份发布副本 |
+| 运行时 → 发送 | 普通队列（协议帧与周期帧）和紧急队列（UDS）；连续最多 4 个紧急帧后让出一次普通帧 | 每条总线 16 + 16 |
+| 运行时 ↔ NVM、升级 | 各自的请求/结果队列 | 在途 1 个 |
 
-Core 和 Product 工作流仅由 App 执行。不可变 Product getter 不再复位协议状态。Host 测试分步驱动 App/Protocol，不模拟原生调度器。
+发布锁（`meter_debug_lock`）同时保护公共诊断，所以 `meter domain` 与 `meter signal` 读到的和 UI 是同一份副本。
 
-## 端口与生命周期
+## 命令
 
-Protocol 每次解码最多暂存 32 个值，整批复制到 64 个原生队列槽位之一。App 在写入前完成全部校验与 source arbitration。队列满或超容量时整批拒绝。事件使用 16 个复制槽位；旧 generation 批次/事件丢弃。Product 回调借用值仅在调用期间有效。
+`meter_command_port_t.send()` 按 Product 的 `command_route` 把命令交给所属适配器的 `command()`，在同一次调用里返回适配器是否接受。需要等待应答的事务（SDO、参数读写、版本查询）由适配器自己负责：在 `process` 里发帧、在 `on_frame` 里匹配应答、自己处理超时，结果以信号发布。
 
-UI 只有一个请求信用和一个保留结果。成功提交表示 QUEUED，App 报告 APPLIED/REJECTED。Core、UI 发布区、诊断发布区、UI 本地副本互相独立并拒绝别名。UI 不保存 Core 数组。
+## 周期帧
 
-App 只有一个保留命令/结果信用，身份由 generation 和不复用的 64 位序号组成。QUEUED、APPLIED、TX_COMPLETED、REMOTE_CONFIRMED 互不等价。同步命令帧携带身份，驱动完成后才报告 TX_COMPLETED。异步请求/响应协议由真实响应报告 REMOTE_CONFIRMED，不伪造无法关联的发送完成。超时/取消经 adapter cancel/reset 停止本机重试。已送达的远端写入可能已生效，本地取消不保证回滚；Product 重试非幂等命令前必须核对不确定的远端状态。
+`meter_periodic_frame_t` 给出总线、标识、长度和周期；期限到达时 `encode(snapshot, now, frame)` 用当前快照填写数据。是否新鲜由编码器按各信号的状态自己判断。每个条目最多一帧在发送队列里等待；一个周期内还没交给驱动的帧被丢弃，所以总线无应答时不会积压。迟到的期限跳过错过的周期，不补发。`critical` 条目在升级维护期间继续发送。
 
-每总线有 16 个普通和 16 个紧急 TX 槽位，最多连续四个紧急帧后给普通帧一次机会。旧 generation 帧丢弃。入队不证明线上送达。不引入万能 Event Bus 或跨 owner 临时指针。
+## 会话与维护
 
-## 模式与期限
+开机以及每次进入或退出升级维护（`update_exclusive`、打开的 UDS 编程会话或 `meter_update maintenance on`）都会开始新的会话：推进代次、把有效信号标为过期、复位适配器并调用 Product 的 `app_reset`。上一个会话里排队的帧在交给驱动之前被丢弃；UDS 帧不属于会话。维护期间收到的车辆帧只计数不解码，跳过 `app_run` 与适配器 `process`，只发送关键周期帧，拒绝设置，UI 显示升级视图。没有降级模式：发送队列满只增加 `queue_full` 计数。
 
-App 独占 STARTUP、NORMAL、DEGRADED、UPDATE_MAINTENANCE、SHUTDOWN，Product 提供能力矩阵。原生队列满计数器（`batch_full`、`event_full`、`tx_full`）增加时，在未选择维护模式的情况下选择 DEGRADED；连续一秒无新增队列拒绝可恢复。语义批次校验和 TX 发布失败增加 `batch_rejected`，但它不参与过载计算。改变此边界属于 Product 策略决策。这是参考策略而非安全保证。模式变化推进 generation、将旧 Domain 信号标 stale、复位协议会话和产品工作流。OTA 返回普通模式需结束显式维护请求；Abort 不覆盖操作者的维护选择。
+## 启动
 
-Reference-Demo 在 CAN0 每 50 ms 发送合成 0x3C0，每 100 ms 发送 0x2F0。维护模式仅保留关键 0x3C0。它们是公开台架数据，不是车辆控制。期限从上次计划值推进；迟到时跳过错过周期，不补发突发。模式切换显式重置相位。线上间隔仍受队列和驱动延迟影响，必须 PCAN 实测。
+UI 线程组装 Product，初始化 LVGL、Core 与显示，创建 Product UI，然后启动运行时线程。运行时线程先等存储的设置读完（打开总线前必须知道 CAN 速率），再只打开 Product 用到的总线（路由、周期帧、升级端点），启动它们的发送线程和升级端点，开始第一个会话。启动失败会记录日志，运行时不启动；看门狗只在成功启动后才监督。运行时没有停止流程：掉电时的数据可靠性由设置记录格式保证，升级激活前会等待设置写入介质。
 
-动态值、sample/publish time、semantic revision、generation、pending 替换和到期丢弃见[Dynamic TX 契约](dynamic-periodic-tx.zh-CN.md)。这些周期消息使用独立有界 mailbox，不在普通 TX 队列积累历史值。
+## 诊断
 
-## 生命周期与诊断
+`meter_exec` 打印代次、维护状态、被拒的动作、被抑制的帧、发送队列满次数、每条总线的发送成功/失败/丢弃计数，以及每个周期条目错过的周期和最大迟到。`meter can`、`meter runtime`、`meter domain`、`meter storage` 与 `meter trace` 见[诊断](diagnostics.zh-CN.md)。
 
-INIT 初始化静态 IPC 和快照。App 启动 NVM/Update 及 TX 后，Protocol 才打开 CAN。全部配置总线打开后 READY 转 RUNNING。设置等待 NVM restore 完成。启动失败进入 FAILED 后协作式 STOPPING。 App 运行后观察到的启动失败才进入协作停机；App 前的部分初始化失败会返回并保留已创建原生对象，App 线程启动失败则停留 initialized/FAILED 且没有 App 协调停机。两条路径均无已证明的回滚/重试契约，见维护计划 D-03。
+## 构建期 Product 选择
 
-meter_exec stop 拒绝新业务/TX、取消排队工作、停止 Protocol 处理、请求 Update 退出、将 NVM flush 到 durable revision。在途阻塞 I/O 自然返回。App 等全部 owner 确认后解绑 RX、关闭 CAN，UI 最后释放 LVGL。STOPPING 超五秒报告 overdue，不强杀或释放 worker。STOPPED 后需重启，静态 IPC 保留到重启。durability barrier 失败时故意不宣称 STOPPED。
-
-Owner 在短锁中复制诊断，MSH 锁外格式化。设备/Flash/LVGL 不持发布锁。Trace 每次锁内最多复制 16 项。meter can 包含原生 FIFO 丢包。meter_exec 展示模式/generation、队列水位/拒绝、runnable 次数、计划错过和停止等待。原生 list_thread 提供栈水位。空闲阻塞属于健康等待；执行次数是观测而非 watchdog 判断。
-
-## 质量与门禁
-
-portable runtime 以严格告警且告警即错误编译。第三方 adopted 源码保持不变。
-
-Windows Host、Target build、实板 HIL 分别报告并绑定 SHA 证据。多 bus HIL 需要两个物理接口和匹配 Product 固件。Target 告警覆盖、真实调度压力、长时间时序、各 backend 操作中的停机仍是待实测的生产门禁。不声明正式 MISRA、AUTOSAR 一致性、rollback 或断电恢复。
-
-Product 可声明命令完成于 APPLIED、TX_COMPLETED 或 REMOTE_CONFIRMED，默认要求远端响应。仅发送命令保留 TX_COMPLETED 终态，不会随后被误报为超时。采用 App 会话代次时复位 Adapter，并立即同步诊断代次，维护期间暂停遥测也不会显示旧代次。
-
-## 编译期 Product 选择
-
-每个实际固件镜像仅包含一个 Product，由 SCons 按 defconfig 中的 `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` 选择，单一的 `METER_PRODUCT_ROOT` 环境变量可对单次构建覆盖。固件构建要求二者之一：都未设置或为空白时直接中止，而不是回落到 Demo；相对路径仍以应用根目录解析，同样支持外部包根目录。宿主 CMake 保留 `products/demo` 作为便利默认值。不同 Product 使用独立构建/输出目录。多个独立验证的 Product 不代表同一固件包含多个 Product，也不支持运行时切换。
-
-所选 `product/sources.json` 提供唯一固件组合实现，通过 `contracts/meter_firmware.h` 所有独立静态 Domain/发布/诊断/UI 存储及 Product 本地化初始化。通用启动只了解此契约。Demo 保留原存储容量与本地化初始化顺序。用 `tools/firmware_product.py` 查看选中源码闭包，不支持的特性闭包或缺失/越界/重复源码将使构建选择失败。
-
-Demo 对此边界有宿主编译/链接/测试证据。真实 Product 仍须目标内存/显示/CAN 适配、确认协议/认证描述符及实板验收。
-
-Demo PDO 新增后使用四个周期槽和十个语义值，仍在既有八槽、十六值板级预算内。不改变队列容量、owner、线程或调度周期。两路新增普通 100 ms 帧增加每秒 20 帧；须同时测量总线负载与既有 50/100 ms 流量。载荷、新鲜度和共享 revision 影响见[协议定义](protocols.zh-CN.md)。
+每个固件镜像只包含一个 Product，SCons 按 defconfig 的 `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` 选择；环境变量 `METER_PRODUCT_ROOT` 可在单次构建中覆盖。选择为空时固件构建停止。主机 CMake 在 `products/demo` 存在时默认选它，`-DMETER_PRODUCT_ROOT=` 只构建框架。所选 `product/sources.json` 提供固件组装（`contracts/meter_firmware.h`）：三份互不重叠的存储（运行时 Domain、发布副本、UI 副本）以及语言初始化。

@@ -31,14 +31,14 @@ FMP2 使用小端。MSP3 payload 按稳定参数 ID 编码为 32 位（限制在
 
 | 后端 | 接入 | 保证与边界 |
 |---|---|---|
-| reference-board EEPROM | BL24C512A 系列，i2c0，0x50，64 KiB，128 字节页 | 已授权的新分配区 0x0000–0x03FF；A 位于 0x0000，B 位于 0x0200；seal 页为 0x0180、0x0380。初始化、保存、软重启恢复已验证；物理掉电未验证。 |
+| I2C EEPROM | 两字节寻址；总线、地址、容量、页大小与区域偏移来自 `AIC_FORKLIFT_NVM_EEPROM_*`（默认 i2c0、0x50、64 KiB、128 字节页、偏移 0） | 1 KiB 区域：A 在偏移+0x000，B 在偏移+0x200；seal 页位于各槽末尾。已在 D50T 板（BL24C512A）上验证初始化、保存与软/冷重启；写入过程中掉电未验证。 |
 | Host 文件 | Prefix.0 和 Prefix.1 | 检查完整写、fsync/_commit、close 与读回；不宣称文件系统元数据掉电原子性。 |
 | NOR/LittleFS 文件 | SDK 已挂载文件系统 | 使用同一可选文件适配，不实现裸 NOR 驱动或格式化；设备 sync/XIP 与实物恢复待 Board 验证。 |
 | NAND/FATFS 文件 | SDK NFTL/ECC 与已挂载文件系统 | 弱文件系统保证，双文件不能证明元数据独立冗余；要求已验证 power-safe 能力时拒绝配置。 |
 
-EEPROM transport 仅在应用层复用现有 RT-Thread I2C API，不修改 SDK、HAL、板级配置或父仓库 gitlink。reference-board 兼容路径将两字节地址发送与单字节读取分别作为单消息事务提交，通过 RT-Thread 可递归总线互斥锁保护每个地址/读取对。worker 在每个读事务对及每次字节写前等待 1 ms，并在地址与读取之间持该锁短暂等待 1 ms。地址/读取短传输最多尝试三次完整读取对，每次失败均记录日志，失败尝试不发布输出字节；互斥锁错误不重试。写入不自动重放。页回调拆为三字节的单字节写，每次尝试写后在总线锁外等待 10 ms，并逐字节读回再继续。短写、读重试耗尽或读回不一致立即终止，驱动成功不等于持久化成功。通用页边界、只读就绪检查及完整记录/seal 读回继续保留，不调用破坏性的 SDK AT24 probe。保守兼容模式牺牲吞吐：初始化 1 KiB 仅写周期等待就至少 10.24 秒，另加驱动和读回耗时；板验预留 60 秒。真实控制器行为仍由未修改 SDK 决定，已验证的实板范围见下文。seal 不与 body 或活动槽共享写页。
+EEPROM transport 仅在应用层复用现有 RT-Thread I2C API，不修改 SDK 或 HAL。不使用 SDK 的 `at24cxx` 包：它在编译期固定器件型号，页写不逐字节核对，也没有读重试，而 D50T 的控制器需要这些。传输路径将两字节地址发送与单字节读取分别作为单消息事务提交，通过 RT-Thread 可递归总线互斥锁保护每个地址/读取对。worker 在每个读事务对及每次字节写前等待 1 ms，并在地址与读取之间持该锁短暂等待 1 ms。地址/读取短传输最多尝试三次完整读取对，每次失败均记录日志，失败尝试不发布输出字节；互斥锁错误不重试。写入不自动重放。页回调拆为三字节的单字节写，每次尝试写后在总线锁外等待 10 ms，并逐字节读回再继续。短写、读重试耗尽或读回不一致立即终止，驱动成功不等于持久化成功。通用页边界、只读就绪检查及完整记录/seal 读回继续保留，不调用破坏性的 SDK AT24 probe。保守兼容模式牺牲吞吐：初始化 1 KiB 仅写周期等待就至少 10.24 秒，另加驱动和读回耗时；板验预留 60 秒。真实控制器行为仍由未修改 SDK 决定，已验证的实板范围见下文。seal 不与 body 或活动槽共享写页。
 
-AIC_FORKLIFT_NVM_FILE_BACKEND 显式选择已挂载文件后端，AIC_FORKLIFT_NVM_FILE_PREFIX 和 AIC_FORKLIFT_NVM_FILE_KIND 指定路径和标识。reference-board 默认 EEPROM。挂载失败不格式化、不转用其他后端。首个 EEPROM 镜像运行前应确认新 1 KiB 布局和 WP；非空未知内容会被保留并报告。
+AIC_FORKLIFT_NVM_FILE_BACKEND 显式选择已挂载文件后端，AIC_FORKLIFT_NVM_FILE_PREFIX 和 AIC_FORKLIFT_NVM_FILE_KIND 指定路径和标识。默认使用 EEPROM。挂载失败不格式化、不转用其他后端。首个 EEPROM 镜像运行前应确认新 1 KiB 布局和 WP；非空未知内容会被保留并报告。
 
 ## 结果与生命周期
 
@@ -46,32 +46,28 @@ LOADING 为异步启动操作。App 接收匹配 generation 后才允许设置�
 
 IN_PROGRESS 独占在途版本，直到匹配结果到达。保存 R11 时 App 已到 R12，R11 完成只推进 durable 到 R11，R12 仍 dirty。进入 I/O 后失败为 UNCERTAIN，保留 dirty，显式重扫协调后才能重试。协调不把旧介质值覆盖到新 RAM。barrier 针对明确目标版本，完整替代的更高版本可以满足目标，但不声称中间值精确写过。启动有效记录可满足对应 barrier。只支持 worker 派发前取消，不因超时删除阻塞 worker 或释放仍被使用的缓冲。
 
-Host 退出前请求立即保存并有界等待；失败返回非零进程状态，不伪造 dirty 清除。板端 App 使用 meter_board_nvm_flush 和 meter_board_nvm_barrier；OTA 激活必须经 App 请求此门禁。当前 Protocol/App/UI 调度仍是既有 smoke 方案；本变更隔离存储 I/O，但没有关闭独立的生产 Runtime/Burst 门禁。
+Host 退出前请求立即保存并有界等待；失败返回非零进程状态，不伪造 dirty 清除。板端由运行时线程使用 meter_board_nvm_flush 和 meter_board_nvm_barrier；升级激活前等待此门禁。
 
 ## 诊断与验证
 
-使用以下原生 MSH 命令。每条修改命令必须领取结果后才能接纳下一条串口请求；QUEUED/APPLIED 不表示 DURABLE。
+使用以下原生 MSH 命令。设置修改与 UI 走同一个动作队列；save、retry、initialize 只给运行时线程置请求。QUEUED 不表示 DURABLE：用 `meter storage` 查询。
 
 ~~~text
 meter storage
 meter_settings language zh
-meter_settings result
 meter_settings units imperial
-meter_settings result
 meter_settings brightness 65
-meter_settings result
 meter_settings save
-meter_settings result
 meter storage
 meter_settings retry
-meter_settings result
+meter storage
 ~~~
 
 Storage 输出 backend、state、dirty、RAM/inflight/durable revision、队列深度、底层错误、服务结果、降级状态与实际语言/亮度/单位。查询只渲染发布副本，不访问介质。主动重启前确认 DURABLE 且 dirty=0，重启后核对设置和序号。保存目标版本与异步命令结果分开。
 
 Host 覆盖复用非活动槽时每一字节中断、身份/schema/CRC/seal 损坏、同代次冲突、pending 合并、迟到完成、时间回绕、最大防抖、序号耗尽、取消、协调，以及 EEPROM 跨页/WP/NACK/超时/sync 失败和真实文件重启。Demo SDL 重启验证中英文与单位恢复，损坏槽拒绝且不重写。执行 CMake/CTest；Linux 仍为默认 CI 平台。
 
-2026-09-28 当前验收：仅应用层有界读恢复镜像的 BOARD_INIT、SETTINGS_SAVE、NOOP_SAVE、VALID_INIT_REJECT、SOFT_REBOOT_RESTORE 和 NORMAL_CAN_SAVE 均为 PASS。Platform 提交为 4fca8762243f9bb40cb753abd553f0808865cce0，并绑定已记录的脏源码快照；image SHA256 为 bf5ef8efa339376ffe83bd526201f0e62f7b30ff69c85a5608bf534a39ce3635。SDK 提交 9b78386dcaa54326487c8b208b2b7104d4b56c9b 的受跟踪目录树与基线 7608a666 相同。本地镜像清单保留完整构建身份、源码快照和原始 UART/CAN 证据；公开文档使用 reference-board 别名。
+2026-09-28 当前验收：仅应用层有界读恢复镜像的 BOARD_INIT、SETTINGS_SAVE、NOOP_SAVE、VALID_INIT_REJECT、SOFT_REBOOT_RESTORE 和 NORMAL_CAN_SAVE 均为 PASS。Platform 提交为 4fca8762243f9bb40cb753abd553f0808865cce0，并绑定已记录的脏源码快照；image SHA256 为 bf5ef8efa339376ffe83bd526201f0e62f7b30ff69c85a5608bf534a39ce3635。SDK 提交 9b78386dcaa54326487c8b208b2b7104d4b56c9b 的受跟踪目录树与基线 7608a666 相同。本地镜像清单保留完整构建身份、源码快照和原始 UART/CAN 证据。
 
 初始化至首条默认记录持久化的轮询观测耗时为 55.7 秒。地址 0x0207 的第一次地址传输失败，在最多三次读重试内恢复。初始累计错误来自旧布局损坏，最终底层错误为零。从第一条设置请求开始，中文、英制、亮度 65 在 15.3 秒内达到 durable revision 4，期间先后提交两个版本。重复相同设置及 save 不增加版本或写次数；已有有效记录时初始化被拒绝。
 
@@ -83,7 +79,7 @@ Host 覆盖复用非活动槽时每一字节中断、身份/schema/CRC/seal 损�
 
 保留历史失败：早期字节 transport 镜像（SHA256 0cf247370a4c9ba344435919a8df0b1f144d5eb70042b1f70a23ba96c2ef887e）初始化读回在 0x003C 失败，重扫在 0x0089 失败。实验性 SDK I2C 修复已完整撤回，对应镜像已撤销。当前应用层间隔和读重试通过上述限定范围板测，不宣称修复了 SDK 控制器实现。
 
-首次部署遇到旧布局时，先导出备份，经布局授权后执行 meter_settings initialize CONFIRM。只有无有效槽、且上次 I/O 成功才允许；写入、同步和读回都在 NVM worker，拒绝清除有效槽。之后领取 meter_settings result，通过 meter storage 核对 DURABLE，初始化排队不等于完成。
+首次部署遇到旧布局时，先导出备份，经布局授权后执行 meter_settings initialize CONFIRM。它只在 CORRUPT 或 INCOMPATIBLE 状态下生效；写入、同步和读回都在 NVM worker，拒绝清除有效槽。之后用 meter storage 确认 DURABLE；入队不等于完成。
 
 
 ## 板级设置与格式边界
@@ -92,12 +88,12 @@ MSP3 的字节 0..3 为魔数，4/5/6 为单位/亮度/语言，7 为 CAN 速率
 
 参考板启动先等待 NVM 首次读取，才锁存两个 CAN 设备共用的速率；运行中修改只保存，不重配控制器。损坏记录沿用默认 500k 和写入阻止策略。meter storage 的 configured_can_rate 为待重启配置，meter can 的 bitrate 才是实际已打开速率。重启前确认 dirty=0、ram_revision=durable_revision。
 
-亮度由 App 调用 Board PWM adapter 即时应用，并经同一 NVM 服务保存；寄存器读回失败会打印错误并重试，RAM 接受不代表背光成功或介质持久化。meter_settings product id value 将诊断意图送给 App 的 Product 回调，仍校验管理员授权，通用端口不解释 Product 私有 ID。
+运行时线程经 SDK 背光 PWM 通道（开启 `AIC_FORKLIFT_BACKLIGHT` 时）应用亮度，并经同一 NVM 服务保存；寄存器读回失败会打印错误并重试，RAM 接受不代表背光成功或介质持久化。meter_settings product id value 把意图交给 Product 的 local_action；通用端口不解释 Product 私有编号。
 
 
 ## Product 计数与目录扩展
 
-`app_tick` 在 App owner 中执行，位于初始 NVM 加载及 Core 超时处理之后、evaluate 和发布之前。断线与维护时仍执行，停止阶段不执行。回调修改数据须递增 snapshot revision。原生执行层在 Product 回调后观察设置，相同编码内容不会排入新写入。既有防抖、最大派发延时、worker 与持久化屏障继续生效。派发延时不是硬件写完期限，也不是掉电无损保证。
+`app_tick` 在运行时线程执行，位于初始 NVM 加载及 Core 超时处理之后、发布之前，维护期间也执行。回调修改数据须递增 snapshot revision。revision 变化时运行时编码设置；编码相同的内容不排队写入。现有去抖、最大派发延迟、worker 与持久化门禁不变。派发延迟不是硬件完成期限，也不保证掉电不丢。
 
 默认解码仍要求参数完整。同 namespace、type 和 schema 下仅增加目录参数时，Product 可显式配置 `allow_parameter_extension=true`。已有 ID、含义、单位和允许范围须兼容。记录整体校验后应用，新缺项使用目录 `initial`；重复或未知 ID、错误计数或数值、校验损坏及未知 schema 仍拒绝。下一次普通提交写入完整替代记录。这不迁移旧 payload 格式、不支持 ID 改名或缩减目录，也不授权改变物理槽布局。
 

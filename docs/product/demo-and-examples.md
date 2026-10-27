@@ -34,7 +34,7 @@ cmake --build build-demo --parallel
 ctest --test-dir build-demo --output-on-failure
 ```
 
-Use a separate build directory per Product. `METER_PRODUCT_ROOT` selects a source manifest, not a runtime Product menu. See the [downstream guide](downstream.md) for the private fork/branch layout.
+Use a separate build directory per Product. `METER_PRODUCT_ROOT` selects a source manifest, not a runtime Product menu. See the [Product integration guide](downstream.md) for repository layout and the Product contract.
 
 ## Product documentation acceptance
 
