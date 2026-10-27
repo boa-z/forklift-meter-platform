@@ -73,7 +73,7 @@ int main(void)
                                .command_route_context = &a};
     meter_runtime_t runtime;
     CHECK(meter_runtime_init(&runtime, &product, meter_core_apply, &core));
-    meter_can_tx_port_t tx = {send, &a};
+    meter_can_tx_port_t tx = {.send = send, .context = &a};
     meter_runtime_bind_tx(&runtime, &tx);
     meter_command_t cmd = {0x123, 0, 0};
     CHECK(!meter_runtime_process(&runtime, 10));

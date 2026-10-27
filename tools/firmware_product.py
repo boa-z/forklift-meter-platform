@@ -12,7 +12,7 @@ except NameError:
     string_types = (str,)
     from pathlib import Path
 
-GROUPS = ('catalog', 'protocol', 'product', 'application', 'ui', 'ui_binding', 'firmware')
+GROUPS = ('catalog', 'protocol', 'product', 'application', 'ui', 'ui_binding', 'firmware', 'rtthread')
 # 应用内的可选 Product 都放在 products/ 下；外部 Product 用绝对路径选择。
 SELECTION_ROOTS = ('products',)
 
@@ -66,13 +66,47 @@ def select(app_root, selection):
 DEFAULT_MONTSERRAT = (12, 14, 16, 18, 20, 22, 24, 28, 40, 48)
 
 
+def include_dirs(product_root):
+    """Product 第三方组件的头文件目录；仅允许仓库内的真实目录。"""
+    root = os.path.realpath(product_root)
+    with open(os.path.join(root, 'product', 'sources.json'), 'r') as stream:
+        entries = json.load(stream).get('include_dirs', [])
+    if not isinstance(entries, list):
+        raise ValueError('include_dirs must be a list')
+    result = []
+    for entry in entries:
+        if not isinstance(entry, string_types) or os.path.isabs(entry):
+            raise ValueError('Include directory must be a relative path string')
+        path = os.path.realpath(os.path.join(root, entry))
+        if not path.startswith(root + os.sep) or not os.path.isdir(path):
+            raise ValueError('Include directory escapes package or is missing: ' + entry)
+        result.append(path)
+    return result
+
+
 def lvgl_defines(product_root):
     """Product 用到哪些内置字号由 Product 决定：sources.json 的 lvgl.montserrat 声明，未声明用默认集合。"""
     with open(os.path.join(product_root, 'product', 'sources.json'), 'r') as stream:
-        sizes = (json.load(stream).get('lvgl') or {}).get('montserrat', DEFAULT_MONTSERRAT)
+        options = json.load(stream).get('lvgl') or {}
+        sizes = options.get('montserrat', DEFAULT_MONTSERRAT)
     if not isinstance(sizes, (list, tuple)) or not all(isinstance(s, int) and 8 <= s <= 48 for s in sizes):
         raise ValueError('lvgl.montserrat must list font sizes from 8 to 48')
     return ['LV_FONT_MONTSERRAT_%d=1' % size for size in sorted(set(sizes))]
+
+
+def lvgl_config(product_root):
+    """可选原生 LVGL 配置头，必须来自所选 Product。"""
+    with open(os.path.join(product_root, 'product', 'sources.json'), 'r') as stream:
+        config = (json.load(stream).get('lvgl') or {}).get('config')
+    if config is not None:
+        if not isinstance(config, string_types) or os.path.isabs(config):
+            raise ValueError('lvgl.config must be a relative file path')
+        root = os.path.realpath(product_root)
+        path = os.path.realpath(os.path.join(root, config))
+        if not path.startswith(root + os.sep) or not os.path.isfile(path):
+            raise ValueError('lvgl.config escapes package or is missing')
+        return path.replace('\\', '/')
+    return None
 
 
 CONFIG_SYMBOL = 'CONFIG_AIC_FORKLIFT_PRODUCT_ROOT'

@@ -7,6 +7,8 @@ void test_boot_log(const char *format, ...)
 }
 static uint32_t fake_now;
 static unsigned changes, opened[METER_BUS_COUNT], sends, backlight_calls;
+static unsigned stops[METER_BUS_COUNT];
+static bool stop_ok = true;
 static uint32_t opened_bitrate;
 static bool nvm_ready = true, send_ok = true;
 static meter_can_frame_t sent[16];
@@ -130,6 +132,11 @@ bool meter_board_can_send(const meter_can_frame_t *f)
     assert(sends < 16u);
     sent[sends++] = *f;
     return send_ok;
+}
+bool meter_board_can_stop(meter_bus_role_t bus)
+{
+    ++stops[bus];
+    return stop_ok;
 }
 void meter_board_can_diagnostics(meter_diagnostics_t *d)
 {

@@ -16,8 +16,8 @@
 #ifdef METER_ENABLE_CAN_UPDATE
 #include "meter_update_build.h"
 #endif
-#ifndef LPKG_LVGL_THREAD_STACK_SIZE
-#define LPKG_LVGL_THREAD_STACK_SIZE 32768
+#ifndef AIC_FORKLIFT_UI_THREAD_STACK_SIZE
+#define AIC_FORKLIFT_UI_THREAD_STACK_SIZE 32768
 #endif
 #ifndef LPKG_LVGL_THREAD_PRIO
 #define LPKG_LVGL_THREAD_PRIO 20
@@ -107,7 +107,7 @@ static void meter_thread(void *parameter)
 int main(void)
 {
     static struct rt_thread ui_thread;
-    static rt_ubase_t stack[LPKG_LVGL_THREAD_STACK_SIZE / sizeof(rt_ubase_t)];
+    static rt_ubase_t stack[AIC_FORKLIFT_UI_THREAD_STACK_SIZE / sizeof(rt_ubase_t)];
     if (rt_thread_init(&ui_thread, "meter_ui", meter_thread, RT_NULL, stack, sizeof(stack),
                        LPKG_LVGL_THREAD_PRIO + 2, 10) != RT_EOK)
         return -1;

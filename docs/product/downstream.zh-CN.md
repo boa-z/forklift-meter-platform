@@ -31,6 +31,16 @@ cmake -S . -B build-my-product -G Ninja -DMETER_PRODUCT_ROOT=products/my-product
 
 除 UI 工厂外，所有回调都在唯一的运行时线程里执行，所以 Product 状态不需要加锁。回调不得阻塞：会阻塞的外设（MCU 串口、摄像头、音频、振动）由 Product 自己开线程，通过 Product 自己的队列交换数据，再由适配器的 `process` 或 `app_tick` 取走。归一化的车型配置用 `meter_snapshot_profile()` 发布。
 
+## 源文件与依赖声明
+
+`product/sources.json` 在共用源文件组之外，可声明 `rtthread`（仅固件）、`host_support`（仅链接进 Host Application）、`include_dirs`（两端共用）和 `host_include_dirs`（仅 Host）。路径必须位于 Product 内且真实存在，头文件路径必须是目录。硬件源文件和主机替身分组列出。Product 的 CMake 入口可在添加 Framework 前设置 `LV_BUILD_CONF_PATH`，启用需要的 LVGL 组件和原生文件系统后端。
+
+固件可通过 `lvgl.config` 指定 Product 内的配置头；所有翻译单元在移植层默认配置前包含它。直接使用原生 `LV_*` 选项，并从该头包含移植层基线。UI 所有者线程的栈预算使用 `AIC_FORKLIFT_UI_THREAD_STACK_SIZE`，被禁用的 SDK LVGL 包下面的选项不会配置本应用。
+
+CAN TX 端口可选的 `stop()` 接受单向静默请求。已有 TX worker 拒绝新提交、丢弃排队帧，在当前驱动写返回后选择控制器原生 listen 模式；保留 RX 缓冲区，不因协议会话复位而恢复发送。请求被接受不表示硬件已完成切换，静默及无 ACK 仍需上板验证。
+
+`id = METER_CAN_ID_ANY` 的路由接收同一总线、同一标准/扩展格式下没有精确路由的数据帧；精确路由始终优先。每个总线/格式组合最多一个后备路由；后备路由不放行畸形帧或远程帧。仅在协议或原始报文监视需要未知标识符时使用。
+
 ## 硬件差异
 
 | 需求 | 位置 |

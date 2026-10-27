@@ -147,6 +147,51 @@ class FirmwareSelection(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         selector.select(root, '.')
 
+    def test_native_sources_exclude_host_support(self):
+        """硬件端闭包只带原生移植文件，主机替身不能进入镜像。"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'product').mkdir()
+            for name in ('firmware.c', 'native.c', 'host.c'):
+                (root / name).write_text('/* fixture */', encoding='utf-8')
+            manifest = {'firmware': ['firmware.c'], 'rtthread': ['native.c'],
+                        'host_support': ['host.c'], 'host': ['host.c']}
+            (root / 'product/sources.json').write_text(json.dumps(manifest), encoding='utf-8')
+            _, sources = selector.select(root, '.')
+            self.assertEqual(sources, [root / 'firmware.c', root / 'native.c'])
+
+    def test_include_directories_stay_in_product(self):
+        """外部组件头必须来自选定 Product 内存在的目录。"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'product').mkdir()
+            (root / 'vendor/include').mkdir(parents=True)
+            (root / 'plain.h').write_text('/* fixture */', encoding='utf-8')
+            manifest = root / 'product/sources.json'
+            manifest.write_text(json.dumps({'include_dirs': ['vendor/include']}), encoding='utf-8')
+            self.assertEqual(selector.include_dirs(root), [str(root / 'vendor/include')])
+            for entries in ('vendor/include', [None], ['missing'], ['plain.h'], ['../'], [str(root.resolve())]):
+                with self.subTest(entries=entries):
+                    manifest.write_text(json.dumps({'include_dirs': entries}), encoding='utf-8')
+                    with self.assertRaises(ValueError):
+                        selector.include_dirs(root)
+
+    def test_lvgl_configuration_stays_in_product(self):
+        """全局包含的配置头不能引用未选中 Product 的文件。"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'product').mkdir()
+            config = root / 'product/lv_conf.h'
+            config.write_text('/* fixture */', encoding='utf-8')
+            manifest = root / 'product/sources.json'
+            manifest.write_text(json.dumps({'lvgl': {'config': 'product/lv_conf.h'}}), encoding='utf-8')
+            self.assertEqual(selector.lvgl_config(root), config.as_posix())
+            for entry in ('../outside.h', 'missing.h', str(config.resolve()), 1):
+                with self.subTest(entry=entry):
+                    manifest.write_text(json.dumps({'lvgl': {'config': entry}}), encoding='utf-8')
+                    with self.assertRaises(ValueError):
+                        selector.lvgl_config(root)
+
 
 if __name__ == '__main__':
     unittest.main()

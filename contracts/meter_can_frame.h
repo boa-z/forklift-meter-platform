@@ -19,6 +19,8 @@ typedef struct
     uint8_t data[8];
 } meter_can_frame_t;
 typedef uint16_t meter_frame_route_owner_t;
+/* 一条总线/帧格式的后备路由，用于原始报文监视；精确 ID 路由优先。 */
+#define METER_CAN_ID_ANY UINT32_MAX
 typedef struct
 {
     meter_bus_role_t bus;

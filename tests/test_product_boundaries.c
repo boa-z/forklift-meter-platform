@@ -25,6 +25,36 @@ static void test_overlapping_bus_and_format_identity(void)
     assert(!meter_routes_valid(&routes));
 }
 
+static void test_fallback_is_scoped_and_exact_routes_win(void)
+{
+    meter_frame_route_t entries[] = {{METER_BUS_CAN0, METER_CAN_ID_ANY, false, 1u},
+                                    {METER_BUS_CAN0, 0x123u, false, 2u},
+                                    {METER_BUS_CAN1, METER_CAN_ID_ANY, true, 3u}};
+    const meter_route_profile_t routes = {entries, 3u};
+    assert(meter_routes_valid(&routes));
+    meter_can_frame_t frame = {.bus = METER_BUS_CAN0, .id = 0x123u, .size = 8u};
+    assert(meter_route_lookup(&routes, &frame)->owner == 2u);
+    frame.id = 0x456u;
+    assert(meter_route_lookup(&routes, &frame)->owner == 1u);
+    frame.extended = true;
+    assert(meter_route_lookup(&routes, &frame) == NULL);
+    frame.bus = METER_BUS_CAN1;
+    assert(meter_route_lookup(&routes, &frame)->owner == 3u);
+    frame.extended = false;
+    assert(meter_route_lookup(&routes, &frame) == NULL);
+    frame.bus = METER_BUS_CAN0;
+    frame.id = 0x800u;
+    assert(meter_route_lookup(&routes, &frame) == NULL);
+    frame.id = 0x456u;
+    frame.size = 9u;
+    assert(meter_route_lookup(&routes, &frame) == NULL);
+    frame.size = 8u;
+    frame.remote = true;
+    assert(meter_route_lookup(&routes, &frame) == NULL);
+    entries[1].id = METER_CAN_ID_ANY;
+    assert(!meter_routes_valid(&routes));
+}
+
 static void test_timeout_keeps_source_value_and_recovers(void)
 {
     const meter_signal_def_t signals[] = {{.id = 1u, .stale_ms = 20u}, {.id = 2u, .stale_ms = 50u}};
@@ -120,6 +150,7 @@ int main(void)
 {
     test_encoder_reads_the_snapshot();
     test_overlapping_bus_and_format_identity();
+    test_fallback_is_scoped_and_exact_routes_win();
     test_timeout_keeps_source_value_and_recovers();
     test_independent_twenty_and_fifty_ms_periods();
     return 0;

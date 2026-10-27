@@ -99,9 +99,13 @@ print('METER sources   : ' + str(len(product_sources)))
 
 lvgl = os.path.join(cwd, 'third_party', 'lvgl-aic')
 group = SConscript('third_party/lvgl-aic/SConscript')
+# 在移植层默认配置前加载 Product 的原生 LVGL 选项；所有翻译单元使用同一份配置。
+product_lvgl_config = selection.lvgl_config(product)
+if product_lvgl_config:
+    Env.Prepend(CCFLAGS=['-include', product_lvgl_config])
 group += DefineGroup('FORKLIFT-METER-PLATFORM', [build_source(p) for p in common + [str(s) for s in product_sources]],
     depend=['AIC_FORKLIFT_METER_PLATFORM_APP'],
-    CPPPATH=[cwd, product, meter_dir, os.path.join(lvgl, 'include'), os.path.join(lvgl, 'port')],
+    CPPPATH=[cwd, product, meter_dir, os.path.join(lvgl, 'include'), os.path.join(lvgl, 'port')] + selection.include_dirs(product),
     CPPDEFINES=['LV_LVGL_H_INCLUDE_SIMPLE', 'METER_RTTHREAD=1'])
 
 if can_update:

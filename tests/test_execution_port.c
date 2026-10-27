@@ -168,5 +168,21 @@ int main(void)
     meter_diagnostics_t ui_diag = {0};
     meter_execution_ui_diagnostics(&ui_diag);
     assert(live().app_runs == runs + 1u && live().ui_ticks == 1u);
+
+    /* 静默由已有发送 worker 完成：停止排队并撤销普通/升级帧，不影响另一总线。 */
+    uds.bus = METER_BUS_CAN0;
+    assert(meter_execution_can_submit(&uds, true) && meter_runtime_command(&runtime, &late));
+    assert(!runtime_tx.stop(NULL, METER_BUS_CAN1));
+    assert(runtime_tx.stop(NULL, METER_BUS_CAN0));
+    assert(!meter_execution_can_submit(&uds, true) && !meter_runtime_command(&runtime, &late));
+    stop_ok = false;
+    assert(tx_service(&tx[METER_BUS_CAN0]) && stops[METER_BUS_CAN0] == 1u && !tx[METER_BUS_CAN0].stopped);
+    stop_ok = true;
+    assert(tx_service(&tx[METER_BUS_CAN0]) && stops[METER_BUS_CAN0] == 2u && tx[METER_BUS_CAN0].stopped);
+    while (tx_service(&tx[METER_BUS_CAN0])) {}
+    assert(sends == 4u && stops[METER_BUS_CAN1] == 0u);
+    /* 会话切换不恢复硬件参与，必须整机重启。 */
+    restart_session();
+    assert(!meter_execution_can_submit(&uds, true));
     return 0;
 }

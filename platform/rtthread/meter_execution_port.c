@@ -48,6 +48,8 @@ typedef struct
     struct rt_thread thread;
     rt_ubase_t stack[2048u / sizeof(rt_ubase_t)];
     bool open;
+    volatile bool stop_requested;
+    bool stopped;
     unsigned burst;
     int backoff_ms;
     /* 以下计数只由本总线的发送线程写。 */
@@ -78,7 +80,8 @@ static uint32_t suppressed, actions_rejected, tx_full, observed_revision;
 static bool tx_enqueue(const meter_can_frame_t *frame, bool urgent, bool session, uint32_t expires_ms,
                        bool expires, uint8_t periodic)
 {
-    if (!frame || (unsigned)frame->bus >= METER_BUS_COUNT || frame->size > 8u || !tx[frame->bus].open)
+    if (!frame || (unsigned)frame->bus >= METER_BUS_COUNT || frame->size > 8u || !tx[frame->bus].open ||
+        tx[frame->bus].stop_requested)
         return false;
     tx_worker_t *t = &tx[frame->bus];
     tx_message_t m = {.frame = *frame, .generation = generation, .expires_ms = expires_ms,
@@ -100,11 +103,27 @@ static bool runtime_send(void *context, const meter_can_frame_t *frame)
     (void)context;
     return tx_enqueue(frame, false, true, 0u, false, NO_PERIODIC);
 }
-static const meter_can_tx_port_t runtime_tx = {.send = runtime_send};
+static bool runtime_stop(void *context, meter_bus_role_t bus)
+{
+    (void)context;
+    if ((unsigned)bus >= METER_BUS_COUNT || !tx[bus].open)
+        return false;
+    tx[bus].stop_requested = true;
+    (void)rt_sem_release(&tx[bus].wake);
+    return true;
+}
+static const meter_can_tx_port_t runtime_tx = {.send = runtime_send, .stop = runtime_stop};
 
 /* 发送线程的一次服务：取一帧并交给驱动；队列为空返回 false。 */
 static bool tx_service(tx_worker_t *t)
 {
+    if (t->stop_requested && !t->stopped)
+    {
+        t->stopped = meter_board_can_stop((meter_bus_role_t)(t - tx));
+        if (!t->stopped)
+            rt_thread_mdelay(100);
+        return true;
+    }
     tx_message_t m;
     bool got = false;
     /* 升级帧优先，但最多连续四帧，随后给周期/协议帧一次机会。 */
@@ -122,7 +141,8 @@ static bool tx_service(tx_worker_t *t)
     if (!got)
         return false;
     uint32_t now = meter_board_now_ms();
-    bool stale = (m.session && m.generation != generation) || (m.expires && meter_time_reached(now, m.expires_ms));
+    bool stale = t->stop_requested || (m.session && m.generation != generation) ||
+                 (m.expires && meter_time_reached(now, m.expires_ms));
     bool ok = !stale && meter_board_can_send(&m.frame);
     if (m.periodic != NO_PERIODIC)
         periodic_in_flight[m.periodic] = false;

@@ -11,7 +11,8 @@ bool meter_routes_valid(const meter_route_profile_t *routes)
     for (size_t i = 0; i < routes->count; ++i)
     {
         const meter_frame_route_t *a = &routes->entries[i];
-        if ((unsigned)a->bus >= METER_BUS_COUNT || a->id > (a->extended ? 0x1fffffffu : 0x7ffu))
+        if ((unsigned)a->bus >= METER_BUS_COUNT ||
+            (a->id != METER_CAN_ID_ANY && a->id > (a->extended ? 0x1fffffffu : 0x7ffu)))
             return false;
         for (size_t j = 0; j < i; ++j)
         {
@@ -27,11 +28,17 @@ const meter_frame_route_t *meter_route_lookup(const meter_route_profile_t *route
 {
     if (!routes || !meter_frame_valid(frame))
         return NULL;
+    const meter_frame_route_t *fallback = NULL;
     for (size_t i = 0; i < routes->count; ++i)
     {
         const meter_frame_route_t *r = &routes->entries[i];
-        if (r->bus == frame->bus && r->id == frame->id && r->extended == frame->extended)
-            return r;
+        if (r->bus == frame->bus && r->extended == frame->extended)
+        {
+            if (r->id == frame->id)
+                return r;
+            if (r->id == METER_CAN_ID_ANY)
+                fallback = r;
+        }
     }
-    return NULL;
+    return fallback;
 }

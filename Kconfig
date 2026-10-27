@@ -16,6 +16,13 @@ config AIC_FORKLIFT_PRODUCT_ROOT
 
 if AIC_FORKLIFT_METER_PLATFORM_APP
 
+config AIC_FORKLIFT_UI_THREAD_STACK_SIZE
+    int "UI thread stack size in bytes"
+    default 32768
+    range 16384 262144
+    help
+      Stack budget for the LVGL owner thread. Product fonts and UI determine the budget.
+
 menu "Board resources"
 config AIC_FORKLIFT_CAN0_DEVICE
     string "CAN device behind logical bus CAN0"

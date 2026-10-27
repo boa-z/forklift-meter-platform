@@ -166,6 +166,12 @@ bool meter_board_can_send(const meter_can_frame_t *frame)
     memcpy(message.data, frame->data, frame->size);
     return rt_device_write(can_devices[frame->bus], 0, &message, sizeof(message)) == sizeof(message);
 }
+bool meter_board_can_stop(meter_bus_role_t bus)
+{
+    return (unsigned)bus < METER_BUS_COUNT && can_devices[bus] &&
+           rt_device_control(can_devices[bus], RT_CAN_CMD_SET_MODE,
+                             (void *)(uintptr_t)RT_CAN_MODE_LISTEN) == RT_EOK;
+}
 void meter_board_diagnostics(meter_diagnostics_t *diag)
 {
     if (!diag)

@@ -10,6 +10,9 @@ typedef struct
 {
     bool (*send)(void *context, const meter_can_frame_t *frame);
     void *context;
+    /** @brief 可选单向静默请求；返回 true 仅表示接收请求。平台拒绝后续发送并丢弃排队帧，
+        当前驱动写返回后通过原生控制器接口停止总线参与；重启前不恢复。 */
+    bool (*stop)(void *context, meter_bus_role_t bus);
 } meter_can_tx_port_t;
 /** @brief 车辆命令，与 UI 的本地设置动作完全分离。单位与含义由产品协议定义。 */
 typedef struct

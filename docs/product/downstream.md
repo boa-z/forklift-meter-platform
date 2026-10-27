@@ -31,6 +31,16 @@ Firmware names the Product with `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT="products/my-p
 
 Every callback except the UI factory runs on the single runtime thread, so Product state needs no locks. Callbacks must not block: blocking peripherals (MCU UART, camera, audio, haptics) get their own Product thread and exchange data through a Product-owned queue that an adapter's `process` or `app_tick` drains. Publish a normalized vehicle profile with `meter_snapshot_profile()`.
 
+## Source and dependency declarations
+
+`product/sources.json` declares the shared source groups plus optional `rtthread` (firmware only), `host_support` (linked into the host Application only), `include_dirs` (both builds), and `host_include_dirs` (host only). Paths must stay inside the Product and exist; include entries must be directories. Keep hardware sources and host substitutes in separate groups. A Product CMake entry point can set `LV_BUILD_CONF_PATH` before adding the Framework to enable required LVGL components and native filesystem backends.
+
+Firmware can declare `lvgl.config` as a Product-relative configuration header. It is included before the port defaults for every translation unit; use native `LV_*` options and include the port baseline from that header. The UI owner stack budget is `AIC_FORKLIFT_UI_THREAD_STACK_SIZE`; options hidden behind the disabled SDK LVGL package do not configure this application.
+
+The optional CAN TX port `stop()` accepts a one-way silence request. The existing TX worker rejects new submissions, discards queued frames and selects the controller's native listen mode after the current driver write returns. It keeps RX buffers open and does not resume sending on a protocol session reset. Acceptance is asynchronous; verify silence and absence of ACK on the board.
+
+A route with `id = METER_CAN_ID_ANY` handles data frames without an exact route on the same bus and with the same standard/extended format. Exact routes always win. Declare at most one fallback for each bus/format pair; the fallback does not admit malformed or remote frames. Use it only when a protocol or raw-frame monitor needs otherwise unknown identifiers.
+
 ## Hardware differences
 
 | Need | Where |

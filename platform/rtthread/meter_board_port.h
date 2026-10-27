@@ -20,6 +20,8 @@ bool meter_board_can_open(meter_bus_role_t bus, uint32_t bitrate, meter_diagnost
 bool meter_board_can_read(meter_can_frame_t *frame);
 /** @brief 该总线的发送线程调用；驱动可能等待硬件。 */
 bool meter_board_can_send(const meter_can_frame_t *frame);
+/** @brief 该总线发送 worker 在当前驱动写返回后调用：转入原生只听模式，不发送或 ACK。 */
+bool meter_board_can_stop(meter_bus_role_t bus);
 /** @brief 复制原生 CAN 驱动的丢包与错误计数。 */
 void meter_board_can_diagnostics(meter_diagnostics_t *diag);
 #endif
