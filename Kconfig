@@ -54,6 +54,31 @@ config AIC_FORKLIFT_WATCHDOG
       advancing. A stalled owner withholds the feed and the hardware resets the system.
       Boards without a "wdt" device, the startup phase and a requested stop are never reset.
       Thresholds are board budgets in platform/rtthread/meter_watchdog_budget.h.
+config AIC_FORKLIFT_DISPLAY_GAMMA
+    int "Display gamma in percent (100 = display engine default, no correction)"
+    default 100
+    range 50 300
+    depends on AIC_FORKLIFT_METER_PLATFORM_APP
+    help
+      Loads a per-channel gamma curve into the display engine once the display has started, to
+      compensate panels that look washed out next to the simulator. Values above 100 darken the
+      mid-tones and make mixed colours more saturated; black, white and the pure primaries stay
+      put. The SDK colour adjustment (brightness/contrast/saturation) only affects the video
+      layer, so it cannot change the LVGL picture. Try values live with the meter_color shell
+      command (not kept across reboot), then set the result here.
+config AIC_FORKLIFT_DISPLAY_CCM
+    string "Display CCM table, 12 taps (empty = display engine default)"
+    default ""
+    depends on AIC_FORKLIFT_METER_PLATFORM_APP
+    help
+      Loads a 3x4 colour-correction matrix into the display engine once the display has started:
+      three Q8 gains and one 9-bit offset per output row (red, green, blue). The spelling matches
+      what the meter_color shell command prints, so a bench-tuned table can be pasted here
+      directly, for example the identity matrix:
+        "0x0100 0x0000 0x0000 0x0000 0x0000 0x0100 0x0000 0x0000 0x0000 0x0000 0x0100 0x0000"
+      An empty value keeps the display engine default (identity, no correction). meter_color
+      still tunes the live table (RAM only, lost on reboot); meter_color ccm reset restores this
+      build default and meter_color ccm identity clears all correction.
 endmenu
 
 source "application/rt-thread/forklift-meter-platform/third_party/lvgl-aic/Kconfig"
