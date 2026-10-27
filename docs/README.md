@@ -22,7 +22,6 @@ Choose the task you need to complete, then open its module. Operator guides are 
 | `product/` | Product composition and services | [Module index](product/README.md) |
 | `runtime/` | Runtime, protocols and storage | [Module index](runtime/README.md) |
 | `ota/` | Firmware update | [Module index](ota/README.md) |
-| `testing/` | Testing and validation | [Module index](testing/README.md) |
 
 ## Maintaining documentation
 

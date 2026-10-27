@@ -22,7 +22,6 @@
 | `product/` | Product 组合与服务 | [模块索引](product/README.zh-CN.md) |
 | `runtime/` | 运行时、协议与存储 | [模块索引](runtime/README.zh-CN.md) |
 | `ota/` | 固件升级 | [模块索引](ota/README.zh-CN.md) |
-| `testing/` | 测试与验证 | [模块索引](testing/README.zh-CN.md) |
 
 ## 文档维护
 
