@@ -57,6 +57,10 @@ reset follows, which is the intended behaviour rather than a side effect.
 
 ## Diagnostics
 
+On the current single-core targets, the RT-Thread scheduler critical section protects state transitions
+and report copying. Diagnostics read the authoritative state directly; no duplicate counters are maintained.
+Device I/O and logging stay outside the critical section. The report is for thread callers, including MSH.
+
 ```
 meter_watchdog
 watchdog armed=1 supervising=1 timeout_s=8

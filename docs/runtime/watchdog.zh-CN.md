@@ -50,6 +50,9 @@
 
 ## 诊断
 
+当前单核目标用 RT-Thread 调度临界区保护状态推进和报告复制。诊断直接读取权威状态，不维护重复计数。
+设备 I/O 与日志均在临界区外。报告接口供线程调用，包括 MSH。
+
 ```
 meter_watchdog
 watchdog armed=1 supervising=1 timeout_s=8

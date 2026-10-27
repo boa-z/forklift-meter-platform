@@ -16,3 +16,4 @@
 | [wall-clock](wall-clock.zh-CN.md) | UTC 墙上时钟契约与平台取数 |
 | [watchdog](watchdog.zh-CN.md) | owner 监督与硬件复位策略 |
 | [diagnostics](diagnostics.zh-CN.md) | 串口查询、日志和诊断证据 |
+| [reuse](reuse.zh-CN.md) | LVGL/SDK 复用取舍与 D21x 接入限制 |

@@ -15,6 +15,6 @@ typedef struct
 /** @brief 绑定 "wdt" 设备并启动监督线程；由 INIT_APP_EXPORT 自动调用。 */
 int meter_watchdog_port_init(void);
 
-/** @brief 复制当前监督状态；设备缺失或未启用时返回 false。 */
+/** @brief 单核线程上下文下复制当前监督状态；设备缺失或未启用时返回 false。 */
 bool meter_watchdog_report(meter_watchdog_report_t *out);
 #endif

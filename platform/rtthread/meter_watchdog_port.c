@@ -11,14 +11,13 @@
 /* 启用开关来自 Kconfig；关掉时端口不编译，只留一个记录用的空实现。 */
 #ifdef AIC_FORKLIFT_WATCHDOG
 
-/* 监督线程是该文件唯一的写者，报告与诊断只读拷贝，因此状态不需要锁。 */
+/* 监督线程独占状态；单核板端用调度临界区保护状态推进与诊断快照，区内不做设备 I/O。 */
 static rt_device_t wdt_device;
 static struct rt_thread watchdog_thread;
 static rt_ubase_t watchdog_stack[METER_WATCHDOG_THREAD_STACK / sizeof(rt_ubase_t)];
 static meter_watchdog_state_t state;
 static meter_watchdog_policy_t policy;
 static bool device_present, armed;
-static uint32_t report_feeds, report_withheld, report_stalls, report_transitions, report_stalled;
 
 static const char *const channel_names[METER_WATCHDOG_CHANNELS] = {"app", "ui"};
 
@@ -60,7 +59,10 @@ static void watchdog_entry(void *parameter)
                 input.counter[METER_WATCHDOG_UI] = live.ui_ticks;
                 input.expected = (1u << METER_WATCHDOG_APP) | (1u << METER_WATCHDOG_UI);
                 const uint32_t now = (uint32_t)rt_tick_get_millisecond();
-                if (meter_watchdog_step(&state, &policy, &input, now))
+                rt_enter_critical();
+                const bool feed = meter_watchdog_step(&state, &policy, &input, now);
+                rt_exit_critical();
+                if (feed)
                     (void)rt_device_control(wdt_device, RT_DEVICE_CTRL_WDT_KEEPALIVE, RT_NULL);
                 else if (now - last_report > 1000u)
                 {
@@ -73,11 +75,6 @@ static void watchdog_entry(void *parameter)
                 }
             }
         }
-        report_feeds = state.feeds;
-        report_withheld = state.withheld;
-        report_stalls = state.stalls;
-        report_transitions = state.transitions;
-        report_stalled = (uint32_t)state.stalled;
         rt_thread_mdelay(METER_WATCHDOG_POLL_MS);
     }
 }
@@ -97,11 +94,11 @@ int meter_watchdog_port_init(void)
         wdt_device = RT_NULL;
         return RT_EOK;
     }
-    device_present = true;
     policy.enabled = true;
     policy.stall_ms[METER_WATCHDOG_APP] = METER_WATCHDOG_APP_STALL_MS;
     policy.stall_ms[METER_WATCHDOG_UI] = METER_WATCHDOG_UI_STALL_MS;
     meter_watchdog_init(&state);
+    device_present = true;
     if (rt_thread_init(&watchdog_thread, "meter_wdog", watchdog_entry, RT_NULL, watchdog_stack,
                        sizeof(watchdog_stack), METER_WATCHDOG_THREAD_PRIO, 10) != RT_EOK ||
         rt_thread_startup(&watchdog_thread) != RT_EOK)
@@ -113,15 +110,17 @@ bool meter_watchdog_report(meter_watchdog_report_t *out)
 {
     if (!out || !device_present)
         return false;
+    rt_enter_critical();
     *out = (meter_watchdog_report_t){.device_present = true,
                                      .armed = armed,
                                      .supervising = state.supervising,
-                                     .feeds = report_feeds,
-                                     .withheld = report_withheld,
-                                     .stalls = report_stalls,
-                                     .transitions = report_transitions,
-                                     .stalled_channel = report_stalled,
+                                     .feeds = state.feeds,
+                                     .withheld = state.withheld,
+                                     .stalls = state.stalls,
+                                     .transitions = state.transitions,
+                                     .stalled_channel = (uint32_t)state.stalled,
                                      .timeout_s = (uint16_t)METER_WATCHDOG_TIMEOUT_S};
+    rt_exit_critical();
     return true;
 }
 

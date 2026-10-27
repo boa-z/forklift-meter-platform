@@ -16,3 +16,4 @@ Understand runtime contracts and locate protocol, storage and diagnostic interfa
 | [wall-clock](wall-clock.md) | UTC wall-clock contract and platform sourcing |
 | [watchdog](watchdog.md) | Owner supervision and hardware reset policy |
 | [diagnostics](diagnostics.md) | UART queries, logs and diagnostic evidence |
+| [reuse](reuse.md) | LVGL/SDK reuse decisions and D21x integration limits |
