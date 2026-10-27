@@ -33,7 +33,7 @@ Product manifest、SDK OneStep 构建和可选 CAN OTA 组合方式见[构建与
 
 ## 固件边界（Firmware boundary）
 
-Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。Luban-Lite 集成必须链接 SDK 的 `packages/third-party/lvgl` 与 `packages/custom/lvgl-aic`，不能再编译本仓库自带主机仿真 submodule 的 LVGL。
+Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。主机与固件均使用应用持有的 `third_party/lvgl` 和 `third_party/lvgl-aic` 固定依赖。固件必须关闭 SDK 旧 LVGL package，确保每个镜像只有一套 LVGL 实现。
 
 ## 文档（Documentation）
 

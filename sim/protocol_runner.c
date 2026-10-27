@@ -16,6 +16,7 @@ static void quoted(const char *s)
 int main(int argc, char **argv)
 {
     const meter_product_t *p = meter_product_get();
+    if (p->prepare && !p->prepare()) return 3;
     const meter_catalog_t *cat = p->catalog;
     meter_core_storage_t storage = {
         calloc(cat->signal_count, sizeof(meter_value_t)), cat->signal_count,
@@ -28,6 +29,7 @@ int main(int argc, char **argv)
         !meter_runtime_init(&runtime, p, meter_core_apply, &core)) return 3;
     bool catalog_only = argc == 2 && !strcmp(argv[1], "--catalog");
     if (argc > 1 && !catalog_only) return 2;
+    if (!catalog_only && p->start && !p->start()) return 3;
     meter_runtime_connection(&runtime, true);
     meter_core_connection(&core, true, runtime.generation);
     char line[256], hex[32];

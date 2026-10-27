@@ -115,13 +115,13 @@ typedef struct
     size_t fault_count;
     meter_source_policy_fn_t source_policy;
     void *source_policy_context;
-    /** @brief 产品可选的语言数（ID 从 0 起连续，0=EN、1=ZH，其后由产品自定）；0 或 1 视为内置的两种。 */
+    /** @brief 产品可选的语言数，ID 从 0 起连续且含义由 Product 定义；0 沿用默认的两种语言。 */
     uint8_t language_count;
 } meter_catalog_t;
-/** @brief 目录允许的语言数：至少是内置的 EN 与 ZH，产品声明更多时按声明值。 */
+/** @brief 显式声明的数量（包括单语言）；未声明时保留旧目录的 EN/ZH 默认值。 */
 static inline unsigned meter_catalog_language_count(const meter_catalog_t *catalog)
 {
-    return catalog && catalog->language_count > 2u ? catalog->language_count : 2u;
+    return catalog && catalog->language_count ? catalog->language_count : 2u;
 }
 /**
  * @brief 单个故障的状态记录，每个目录条目一条。

@@ -55,6 +55,7 @@ class FirmwareSelection(unittest.TestCase):
         selected, sources = selector.select(ROOT, str(self.other))
         self.assertEqual(selected, self.other.resolve())
         self.assertIn(self.other / 'product/firmware.c', sources)
+        self.assertIn(self.other / 'i18n/generated/product_i18n.c', sources)
         self.assertTrue(all(p.is_relative_to(selected) for p in sources))
         self.assertIn('NAME dbc-generation', (self.other / 'product/tests.cmake').read_text())
 

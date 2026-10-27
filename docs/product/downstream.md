@@ -15,6 +15,18 @@ Firmware names the Product with `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT="products/my-p
 
 ## What a Product provides
 
+Two optional startup callbacks separate business startup from rendering. `prepare()` restores Product
+state and initial settings before Core initialization. `start()` starts peripheral services after
+platform devices are ready, before UI creation or protocol processing. Each runs once per process
+startup; false aborts startup. Products without these needs leave the callbacks unset. Firmware, the
+UI host runner and the headless protocol runner follow this ordering; `--catalog` prepares settings
+and catalog data without starting device services.
+
+Startup callbacks do not access LVGL and must not be called again from the first protocol frame,
+tick or page creation. `meter_firmware_compose()` only composes storage and `locale_init()` only
+registers language resources. Neither restores settings or starts business services. Synthetic host
+input advances only after start. Product hardware workers must respect their own state synchronization.
+
 `meter_product_get()` returns one static `meter_product_t` (`contracts/meter_product.h`). Only `id`, `catalog`, `protocols` and `routes` are required.
 
 | Field | Purpose |
@@ -69,6 +81,11 @@ meter_core_init(&core, &private_catalog, &storage);
 The settings blob is sized by your own table (`meter_settings_size()`). Versioning and packaging can be automatic through two optional keys in `product/sources.json`: `version.tool` prints `{"ota": "...", "display": "..."}` for `--date YYMMDD --sequence N --format json`, and `identity.hardware` names the update hardware identity. See [Defaults instead of variables](../build/build.md#defaults-instead-of-variables).
 
 ### Product language resources
+
+New templates include a single-language manifest, translations and a generation check, with one
+registration function shared by host and firmware. An explicit `catalog.language_count` of 1 allows
+only ID 0; zero retains the legacy two-language default. Declare the language count, ID meanings and
+first-boot default together rather than inferring them from Framework defaults.
 
 The Framework provides a translation **service** (`ui/common/i18n/meter_i18n_runtime.h`); all wording belongs to the Product, and the Framework ships no visual widgets or text of its own. Screens are built from LVGL's native widgets in the Product.
 

@@ -1,4 +1,5 @@
 #include "core/meter_core.h"
+#include "core/meter_settings.h"
 #include <assert.h>
 #include <string.h>
 int main(void)
@@ -50,6 +51,22 @@ int main(void)
         assert(meter_core_action(&core, &action));
     }
     assert(!meter_core_init_with_settings(NULL,&catalog,&storage,&settings));
+    /* 单语言 Product 只接受 ID 0；来自旧双语言记录的 ID 1 不可越过目录边界。 */
+    {
+        uint8_t saved[64];
+        assert(meter_settings_encode(&core, saved, sizeof(saved)));
+        size_t saved_size = meter_settings_size(&core);
+        meter_catalog_t single = catalog;
+        single.language_count = 1;
+        assert(!meter_core_init_with_settings(&core, &single, &storage, &settings));
+        assert(meter_core_init_with_settings(&core, &single, &storage, NULL));
+        meter_action_t action = {.kind = METER_ACTION_LANGUAGE, .value = 1.0f};
+        assert(!meter_core_action(&core, &action));
+        assert(!meter_settings_decode(&core, saved, saved_size));
+        assert(core.snapshot.language == 0);
+        action.value = 0.0f;
+        assert(meter_core_action(&core, &action));
+    }
     assert(meter_core_init_with_settings(&core,&catalog,&storage,NULL));
     assert(core.snapshot.language==METER_LANGUAGE_EN && core.snapshot.can_rate==METER_CAN_RATE_500K);
     assert(core.snapshot.brightness==80 && !core.snapshot.imperial);

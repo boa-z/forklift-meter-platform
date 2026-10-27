@@ -52,6 +52,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
         else return 2;
     }
     const meter_product_t *p = meter_product_get();
+    if (p->prepare && !p->prepare()) return 3;
     const meter_catalog_t *c = p->catalog;
     meter_core_storage_t s = {
         calloc(c->signal_count, sizeof(meter_value_t)), c->signal_count,
@@ -71,6 +72,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     if (fixture && !meter_fixture_load(&core,fixture)) return 4;
     lv_init();
     if (!meter_i18n_init() || !meter_host_open(hidden)) return 5;
+    if (p->start && !p->start()) return 5;
     (void)meter_i18n_set_language(language);
     /* 端口层在固件里由 INIT_APP_EXPORT 绑定；主机侧必须显式绑定这个固定源。 */
     meter_wall_clock_bind(sim_clock_read, NULL);

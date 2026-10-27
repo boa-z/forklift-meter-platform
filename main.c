@@ -33,7 +33,8 @@ static void meter_thread(void *parameter)
     (void)parameter;
     const meter_product_t *product = meter_product_get();
     meter_firmware_composition_t composition;
-    if (!meter_firmware_compose(&composition) || !composition.locale_init)
+    if (!meter_firmware_compose(&composition) || !composition.locale_init ||
+        (product->prepare && !product->prepare()))
     {
         LOG_E("Product composition failed");
         return;
@@ -57,7 +58,7 @@ static void meter_thread(void *parameter)
     meter_debug_lvgl_log_init();
     if (!meter_i18n_init() || !composition.locale_init() ||
         !meter_core_init_with_settings(&core, product->catalog, &composition.domain, product->initial_settings) ||
-        !meter_board_display_init())
+        !meter_board_display_init() || (product->start && !product->start()))
     {
         LOG_E("UI/core startup failed");
         return;

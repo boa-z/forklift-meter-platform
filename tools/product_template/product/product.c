@@ -1,5 +1,6 @@
 #include "contracts/meter_product.h"
 #include "catalog/catalog.h"
+#include "i18n/generated/product_i18n.h"
 #ifndef METER_HEADLESS
 extern const meter_ui_factory_t product_ui;
 #define UI_FACTORY &product_ui
@@ -22,7 +23,9 @@ static const meter_frame_route_t entries[]={
 };
 static const meter_route_profile_t routes={entries,sizeof(entries)/sizeof(entries[0])};
 /* 最小 Product：一路 DBC 解码与 UI。按需再加 periodic、app_run/app_tick、local_action、storage、update。 */
+static const meter_initial_settings_t initial_settings = {
+    .language = PRODUCT_I18N_DEFAULT_LANGUAGE, .brightness = 100, .can_rate = METER_CAN_RATE_125K};
 static const meter_product_t product={.id="@PRODUCT_ID@",.protocols=&protocols,.routes=&routes,.catalog=&product_catalog,
-    .ui=UI_FACTORY,.command_route=product_command_route,.command_route_context=NULL};
+    .ui=UI_FACTORY,.initial_settings=&initial_settings,.command_route=product_command_route,.command_route_context=NULL};
 /** @brief 返回静态产品定义；实例及其所引用对象在进程生命周期内有效。 */
 const meter_product_t *meter_product_get(void) { return &product; }

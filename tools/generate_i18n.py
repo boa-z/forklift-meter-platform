@@ -40,8 +40,17 @@ def fail(message):
 
 
 def load_json(path):
+    # json 默认会静默覆盖重复键，导致误删译文仍能通过键集合检查；资源必须显式拒绝。
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f'重复 JSON 键：{key}')
+            result[key] = value
+        return result
+
     try:
-        return json.loads(path.read_text(encoding='utf-8'))
+        return json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=unique_object)
     except (OSError, ValueError) as error:
         fail(f'{path}: {error}')
 

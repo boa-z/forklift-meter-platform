@@ -1,0 +1,12 @@
+{
+  "comment": "语言编号属于 Product，已持久化的编号不能重排。模板只带英语；新增语言时同时提供译文和合适字体。",
+  "symbol": "product_i18n",
+  "source": "en",
+  "default": "en",
+  "translations": "translations",
+  "output": "generated",
+  "sources": ["ui"],
+  "languages": [
+    {"id": 0, "code": "en", "name_key": "language.name.en", "plural": "one_other"}
+  ]
+}

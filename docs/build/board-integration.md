@@ -37,3 +37,7 @@ The OS image name follows the chip (`<PRJ_CHIP>_os.itb`). The CAN update backend
 ## Build and validation
 
 Build with SDK OneStep as described in the [build guide](build.md); keep the image, ELF/map and the generated `output/<project>/meter/` headers with the evidence. A successful build or host test does not establish display, touch, physical CAN, durable storage or update acceptance on the board.
+
+## Build isolation
+
+The SDK still shares one active `.config`; build different targets sequentially. The LVGL port stages corrected sources and their objects under `build/<PRJ_NAME>/lvgl/`, with the project name derived from the selected defconfig. This prevents a generated object from one chip ABI being reused by another target. Switching targets does not require removing another target's generated objects. Integration checks use the same target directory. Host builds use separate CMake build directories per Product.

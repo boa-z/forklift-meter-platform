@@ -15,6 +15,15 @@ cmake -S . -B build-my-product -G Ninja -DMETER_PRODUCT_ROOT=products/my-product
 
 ## Product 提供什么
 
+Product 可以提供两个可选启动回调：`prepare()` 在 Core 初始化之前恢复业务状态和初始设置，
+`start()` 在平台设备就绪后、UI 创建和协议推进之前启动外设服务。每次进程启动各调用一次，
+返回 false 会终止启动。没有这些需求的 Product 留空即可。固件、UI 主机运行器与无界面的协议运行器
+均遵守此顺序；协议运行器的 `--catalog` 只准备目录与设置，不启动设备服务。
+
+启动回调不访问 LVGL，也不在协议首帧、首个 tick 或页面创建时补调用。
+`meter_firmware_compose()` 只装配存储，`locale_init()` 只注册语言资源；二者不承担设置恢复和业务启动。
+UI 主机的合成数据源在 start 之后才推进。Product 自己启动的硬件 worker 必须遵守自己的状态同步边界。
+
 `meter_product_get()` 返回一个静态的 `meter_product_t`（`contracts/meter_product.h`）。只有 `id`、`catalog`、`protocols` 与 `routes` 是必需的。
 
 | 字段 | 用途 |
@@ -69,6 +78,10 @@ meter_core_init(&core, &private_catalog, &storage);
 设置数据块的大小由你自己的表格决定（`meter_settings_size()`）。版本与打包可以通过 `product/sources.json` 里两个可选键自动完成：`version.tool` 对 `--date YYMMDD --sequence N --format json` 打印 `{"ota": "...", "display": "..."}`，`identity.hardware` 给出升级包的硬件身份。见[用默认值代替变量](../build/build.zh-CN.md#defaults-instead-of-variables)。
 
 ### Product 语言资源
+
+新建模板自带单语言清单、译文与生成检查，主机和固件使用同一注册函数。
+`catalog.language_count` 显式设为 1 时只允许编号 0；设为 0 表示沿用旧目录的两语言默认值。
+语言数量、编号含义和首次启动默认语言应一起声明，不应靠 Framework 的默认语言推断。
 
 框架只提供翻译**服务**（`ui/common/i18n/meter_i18n_runtime.h`），措辞全部属于 Product，框架不带可视控件，也不带自己的文字。界面由 Product 用 LVGL 原生控件搭建。
 

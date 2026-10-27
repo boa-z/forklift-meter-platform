@@ -37,3 +37,7 @@ OS 镜像名随芯片变化（`<PRJ_CHIP>_os.itb`）。CAN 升级后端从 MTD �
 ## 构建与验证
 
 按[构建指南](build.zh-CN.md)用 SDK OneStep 构建；把镜像、ELF/map 以及生成的 `output/<project>/meter/` 头文件随证据保存。构建成功或主机测试通过都不能代替板上的显示、触摸、物理 CAN、持久存储和升级验收。
+
+## 构建隔离
+
+SDK 仍共用一个活动 `.config`，不同目标必须串行构建。LVGL 端口将修正源码及其对象放在 `build/<PRJ_NAME>/lvgl/`，工程名由选定 defconfig 决定，避免把一个芯片 ABI 的生成对象复用于另一个目标。切换目标无需删除另一目标的生成对象；集成检查使用同一目标目录。主机构建为每个 Product 使用独立的 CMake 构建目录。

@@ -1,16 +1,11 @@
 #include "catalog/catalog.h"
 #include "contracts/meter_firmware.h"
+#include "ui/ui.h"
 
 /* 运行时 Domain、发给 UI 的发布副本、UI 自己的副本各一份；扩展目录时同步调整容量，不共享可变数组。 */
 enum { PRODUCT_SIGNAL_CAPACITY = 1 };
 static meter_value_t domain[PRODUCT_SIGNAL_CAPACITY], presentation[PRODUCT_SIGNAL_CAPACITY],
     ui[PRODUCT_SIGNAL_CAPACITY];
-
-static bool locale_init(void)
-{
-    /* 自定义翻译包可在此注册；最小模板只使用公共词汇。 */
-    return true;
-}
 
 bool meter_firmware_compose(meter_firmware_composition_t *out)
 {
@@ -21,6 +16,6 @@ bool meter_firmware_compose(meter_firmware_composition_t *out)
         .domain = {.signals = domain, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
         .presentation = {.signals = presentation, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
         .ui = {.signals = ui, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
-        .locale_init = locale_init};
+        .locale_init = product_locale_init};
     return true;
 }

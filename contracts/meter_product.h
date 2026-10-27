@@ -48,8 +48,9 @@ typedef struct
 /**
  * @brief 一个构建目标唯一的 Product 描述。
  *
- * 除 UI 回调在 UI 线程执行外，全部回调都在同一个运行时线程里串行执行，不需要加锁；
- * 回调不得阻塞或执行耗时设备 I/O（介质写入、Flash 由平台的独立 worker 完成）。
+ * prepare/start 在启动线程、运行时启动之前执行；UI 回调在 UI 线程执行。
+ * 其余回调在同一个运行时线程里串行执行，不得阻塞或执行耗时设备 I/O
+ *（介质写入、Flash 由平台的独立 worker 完成）。
  */
 typedef struct
 {
@@ -58,6 +59,11 @@ typedef struct
     const meter_ui_factory_t *ui;
     /** @brief 可选启动默认设置；之后由持久化恢复覆盖。 */
     const meter_initial_settings_t *initial_settings;
+
+    /** @brief 启动时恢复 Product 状态和初始设置，在 Core 初始化之前调用一次；不得启动后台业务。 */
+    bool (*prepare)(void);
+    /** @brief 平台设备就绪后、UI 创建和协议推进前调用一次；启动 Product 的外设服务，不访问 LVGL。 */
+    bool (*start)(void);
 
     /* 协议：接收路由、owner 绑定、命令路由与周期发送。 */
     const meter_protocol_profile_t *protocols;

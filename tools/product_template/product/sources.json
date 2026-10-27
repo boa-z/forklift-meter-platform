@@ -10,7 +10,8 @@
     "product/product.c"
   ],
   "ui": [
-    "ui/ui.c"
+    "ui/ui.c",
+    "i18n/generated/product_i18n.c"
   ],
   "ui_binding": [],
   "host": [

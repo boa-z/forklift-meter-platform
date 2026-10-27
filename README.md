@@ -33,7 +33,7 @@ See the [Build and Product guide](docs/build/build.md) for Product manifests, SD
 
 ## Firmware boundary
 
-Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`; the RT-Thread port (one runtime thread plus TX, NVM, update and watchdog workers) is in `platform/rtthread/`, see [production runtime](docs/runtime/runtime-production.md). Luban-Lite integration must link the SDK's `packages/third-party/lvgl` and `packages/custom/lvgl-aic`, and must not rebuild this repository's host LVGL submodule.
+Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`; the RT-Thread port (one runtime thread plus TX, NVM, update and watchdog workers) is in `platform/rtthread/`, see [production runtime](docs/runtime/runtime-production.md). Both host and firmware use the application-owned `third_party/lvgl` and `third_party/lvgl-aic` pins. Firmware must disable the SDK legacy LVGL package so that each image has one LVGL implementation.
 
 ## Documentation
 
