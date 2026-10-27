@@ -1,5 +1,0 @@
-#pragma once
-#define AIC_SYS_REDUNDAND_ENVIRONMENT
-#define AIC_ENV_SIZE 4096
-#define AIC_ENV_PART_NAME "env"
-#define AIC_ENV_REDUNDAND_PART_NAME "env_r"
