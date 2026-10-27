@@ -26,6 +26,10 @@ for product in PRODUCTS:
         product + '/application': ('contracts/',) + own,
         product + '/protocol': ('contracts/', 'protocols/common/') + own,
     })
+# Product 内的子模块（嵌套 Git 检出）是原样引入的第三方代码，不按第一方规则检查。
+VENDORED = [git.parent for git in (ROOT / 'products').glob('*/**/.git') if git.parent.parent != ROOT / 'products']
+def first_party(file):
+    return not any(file.is_relative_to(vendored) for vendored in VENDORED)
 errors=[]
 for area, allowed in RULES.items():
     product_root = next((ROOT / p for p in PRODUCTS if area.startswith(p + '/')), None)
@@ -112,12 +116,12 @@ for area in ('contracts','core','runtime'):
 # 域、运行时、产品与板级适配代码绑定调用方提供的存储，不申请堆。
 for area in ('diagnostics','contracts','core','runtime','protocols','products','platform/rtthread'):
     for file in (ROOT/area).rglob('*'):
-        if file.suffix not in ('.c','.h'): continue
+        if file.suffix not in ('.c','.h') or not first_party(file): continue
         for call in re.findall(r'\b(?:malloc|calloc|realloc|rt_[a-z_]*malloc|pvPortMalloc|free)\s*\(', file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} takes heap in {area}: {call}')
 # 身份是句柄而不是下标：产品一旦插入或追加条目，用身份去索引域存储就会读到另一条数据。
 for area in ('ui','products','protocols','platform'):
-    for file in (ROOT/area).rglob('*.c'):
+    for file in filter(first_party, (ROOT/area).rglob('*.c')):
         for match in re.findall(r'snapshot(?:\.|->)\w+\s*\[\s*(?:METER|DEMO)_[A-Z0-9_]+', file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} indexes domain storage by identity: {match}')
 # lv_translation 会遍历所有已注册的翻译包查找标签，被重复声明的标签将按注册顺序而非设计意图命中。
