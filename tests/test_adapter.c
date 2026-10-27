@@ -1,7 +1,7 @@
 #include "core/meter_core.h"
 #include "runtime/meter_runtime.h"
 #include <stdio.h>
-#define CHECK(x) do { if (!(x)) { fprintf(stderr, "%d: %s\n", __LINE__, #x); return 1; } } while (0)
+#include "check.h"
 typedef struct
 {
     unsigned frames, processes, commands, resets, sends;

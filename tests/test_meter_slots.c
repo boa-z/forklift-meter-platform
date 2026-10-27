@@ -1,15 +1,7 @@
 #include "storage/meter_slots.h"
 #include <stdio.h>
 #include <string.h>
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "slots:%d: %s\n", __LINE__, #x);                                                 \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 int main(void)
 {
     uint8_t media[512], saved[512], scratch[256];

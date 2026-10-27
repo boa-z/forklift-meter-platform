@@ -3,15 +3,7 @@
 #include "runtime/meter_runtime.h"
 #include <stdio.h>
 #include <string.h>
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "%d: %s\n", __LINE__, #x);                                                       \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 static const meter_signal_def_t signals[] = {{.id = 7, .key = "vehicle.speed", .unit = "m/s", .stale_ms = 10}};
 static const meter_catalog_t catalog = {.signals = signals, .signal_count = 1};
 static bool decode(const meter_can_frame_t *f, meter_update_sink_t sink, void *ctx)

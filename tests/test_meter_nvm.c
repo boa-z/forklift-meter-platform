@@ -1,15 +1,7 @@
 #include "storage/meter_nvm.h"
 #include <stdio.h>
 #include <string.h>
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "nvm:%d: %s\n", __LINE__, #x);                                                   \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 int main(void)
 {
     uint8_t pending[32], inflight[32], a[] = {1, 2}, b[] = {3, 4};

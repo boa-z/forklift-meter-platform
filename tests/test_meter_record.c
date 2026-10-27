@@ -1,16 +1,7 @@
 #include "storage/meter_record.h"
 #include <stdio.h>
 #include <string.h>
-
-#define CHECK(condition)                                                                                     \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(condition))                                                                                    \
-        {                                                                                                    \
-            fprintf(stderr, "meter-record:%d: %s\n", __LINE__, #condition);                                  \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 
 int main(void)
 {

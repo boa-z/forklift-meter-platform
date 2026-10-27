@@ -1,14 +1,6 @@
 #include "contracts/meter_wall_clock.h"
 #include <stdio.h>
-#define CHECK(x)                                                                              \
-    do                                                                                        \
-    {                                                                                         \
-        if (!(x))                                                                             \
-        {                                                                                     \
-            fprintf(stderr, "wall-clock:%d: %s\n", __LINE__, #x);                             \
-            return 1;                                                                         \
-        }                                                                                     \
-    } while (0)
+#include "check.h"
 #define ZERO(t) ((t).year == 0u && (t).month == 0u && (t).day == 0u && (t).hour == 0u &&      \
                  (t).minute == 0u && (t).second == 0u && !(t).valid)
 

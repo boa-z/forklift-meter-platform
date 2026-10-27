@@ -1,14 +1,6 @@
 #include "diagnostics/meter_trace.h"
 #include <stdio.h>
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "%d: %s\n", __LINE__, #x);                                                       \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 static meter_trace_t ring;
 static meter_trace_entry_t copy[METER_TRACE_CAPACITY];
 int main(void)

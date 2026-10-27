@@ -1,15 +1,6 @@
 #include "runtime/meter_watchdog.h"
 #include <stdio.h>
-
-#define CHECK(x)                                                                              \
-    do                                                                                        \
-    {                                                                                         \
-        if (!(x))                                                                             \
-        {                                                                                     \
-            fprintf(stderr, "watchdog:%d: %s\n", __LINE__, #x);                                \
-            return 1;                                                                         \
-        }                                                                                     \
-    } while (0)
+#include "check.h"
 
 #define BIT(ch) (1u << (ch))
 #define ALL_OWNERS (BIT(METER_WATCHDOG_APP) | BIT(METER_WATCHDOG_UI))

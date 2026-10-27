@@ -3,8 +3,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "check.h"
 
-#define CHECK(condition) do { if (!(condition)) { fprintf(stderr, "line %d: %s\n", __LINE__, #condition); return 1; } } while (0)
 #define COLOR_EQ(a, b) (lv_color_to_u32(a) == lv_color_to_u32(b))
 
 /* The hub is the only opaque disc in the gauge, so tests can locate it without child indices. */

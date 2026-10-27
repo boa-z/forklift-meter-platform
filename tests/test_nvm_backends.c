@@ -2,15 +2,7 @@
 #include "storage/meter_file.h"
 #include <stdio.h>
 #include <string.h>
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "backend:%d: %s\n", __LINE__, #x);                                               \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 typedef struct
 {
     uint8_t bytes[1024];

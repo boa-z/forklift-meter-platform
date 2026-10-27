@@ -4,16 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-#define CHECK(condition)                                                                                     \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(condition))                                                                                    \
-        {                                                                                                    \
-            fprintf(stderr, "line %d: %s\n", __LINE__, #condition);                                          \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 
 /* 与框架同名的标签用来覆盖措辞；demo.* 是 Product 自己的键。第三种语言 de 只翻译了一半。 */
 static const char *const pack_languages[] = {METER_LANGUAGE_CODE_EN, METER_LANGUAGE_CODE_ZH, "de", NULL};

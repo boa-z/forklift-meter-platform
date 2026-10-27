@@ -5,16 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "line %d: %s\n", __LINE__, #x);                                                  \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 
 static const uint32_t brand[] = {0x0DD462u, 0xED6C00u, 0xFC0101u, 0x1C1B20u, 0x2F333Cu, 0x525051u};
 static const uint32_t builtin[] = {0x000000u, 0x202020u, 0x404040u, 0x606060u, 0x808080u,

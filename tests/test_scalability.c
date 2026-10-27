@@ -2,15 +2,7 @@
 #include "core/meter_settings.h"
 #include <stdio.h>
 #include <string.h>
-#define CHECK(x)                                                                                             \
-    do                                                                                                       \
-    {                                                                                                        \
-        if (!(x))                                                                                            \
-        {                                                                                                    \
-            fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x);                                          \
-            return 1;                                                                                        \
-        }                                                                                                    \
-    } while (0)
+#include "check.h"
 /* 用一个假想的私有产品规模做替身，各项数量都超过平台旧有的上限。
  * 身份落在私有区间并按步长递增，因此身份不等于表内位置，
  * 这里不代表任何客户目录。 */
