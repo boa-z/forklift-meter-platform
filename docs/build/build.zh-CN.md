@@ -7,7 +7,7 @@ Host 命令从 Framework 根目录运行，需要 Python 3、CMake、Ninja 和 C
 ```text
 git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
 git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
-python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requirements.txt -r tools/ota/requirements.txt
+python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt pytest -r tools/ota/requirements.txt
 ```
 
 保持 SDK 自带 Python/SCons/工具链不变。SDK OneStep 可能使用 Python 2.7，Host 生成器、测试及 OTA CLI 使用 Python 3。`tools/ota` 是 [meter-ota-host](https://github.com/boa-z/meter-ota-host) submodule。

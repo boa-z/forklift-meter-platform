@@ -13,7 +13,6 @@ Choose the task you need to complete, then open its module. Operator guides are 
 - [Flash from EcuBus-Pro instead of the CLI](../tools/ecubus/README.md)
 - [Integrate an independent customer Product](product/downstream.md)
 - [Inspect UART and runtime diagnostics](runtime/diagnostics.md)
-- [Run CAN hardware tests](testing/can-hil.md)
 
 ## Browse by module
 

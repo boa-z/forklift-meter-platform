@@ -13,7 +13,6 @@
 - [用 EcuBus-Pro 代替 CLI 刷写](../tools/ecubus/README.zh-CN.md)
 - [接入独立客户 Product](product/downstream.zh-CN.md)
 - [查看串口和运行诊断](runtime/diagnostics.zh-CN.md)
-- [执行 CAN 实板测试](testing/can-hil.zh-CN.md)
 
 ## 按模块浏览
 

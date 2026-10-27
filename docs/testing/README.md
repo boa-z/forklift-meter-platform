@@ -10,4 +10,3 @@ Run hardware-in-the-loop procedures and interpret source-bound validation record
 
 | Document | Use |
 |---|---|
-| [can-hil](can-hil.md) | Run CAN HIL procedures |

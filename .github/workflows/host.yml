@@ -15,7 +15,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++ cpio u-boot-tools
-          python -m pip install -r tools/hil/requirements.txt -r tools/ota/requirements.txt
+          python -m pip install pytest==8.3.5 -r tools/protocol/requirements.txt -r tools/serial/requirements.txt -r tools/ota/requirements.txt
       - name: Framework without a Product
         run: |
           cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=

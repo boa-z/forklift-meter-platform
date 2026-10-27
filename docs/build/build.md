@@ -7,7 +7,7 @@ Run host commands from the Framework root with Python 3, CMake, Ninja and a C/C+
 ```text
 git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
 git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
-python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requirements.txt -r tools/ota/requirements.txt
+python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt pytest -r tools/ota/requirements.txt
 ```
 
 Keep the SDK-bundled Python/SCons/toolchain unchanged. SDK OneStep may invoke Python 2.7, while host generation, tests and OTA CLI use Python 3. `tools/ota` is the [meter-ota-host](https://github.com/boa-z/meter-ota-host) submodule.

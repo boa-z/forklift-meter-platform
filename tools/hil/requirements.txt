@@ -1,4 +1,0 @@
--r ../protocol/requirements.txt
--r ../serial/requirements.txt
-pytest==8.3.5
-filelock==3.18.0
