@@ -48,11 +48,46 @@ meter touch
 meter trace
 meter trace dump
 meter trace clear
+meter_color
+meter_color ccm
+meter_testcard
+meter_testcard grid
+meter_testcard patch 0x0DD462
 ```
 
 未知或多余参数只显示 usage，不修改状态。未实现 SDO read/write 命令。CAN capture 预留为后续有界静态过滤缓冲（bus/id/count），没有无限实时 dump，也不在 RX callback 同步打印 UART。signal 不存在时明确报告；Demo 已知 key 为 vehicle.speed。info 输出 Product、platform SHA、SDK SHA、LVGL 版本、lvgl-aic revision、board、编译日期/时间和 uptime。
 
 SCons 通过 tools/build_identity.py 自动生成身份。生成的头文件还会以 METER_BUILD_PRODUCT 记录选中的 Product（取清单 identity.id，否则取 meter_product_t.id），并以 METER_BUILD_PRODUCT_REVISION 记录其版本，因此归档的头文件本身就能说明镜像由哪个 Product 组成。干净仓库输出完整 SHA，dirty 仓库附加源码/状态指纹，包含未忽略的未跟踪源码；板名从 Kconfig 规范化。源码身份与镜像 SHA256 共同绑定证据，只有日期不足以识别镜像。仓库不可访问时显示 unavailable。SDK 可能因其他私有子模块脏而带标记，不得为了去掉标记清理其他任务的文件。
+
+## 显示色彩台架
+
+`meter_color` 与 `meter_testcard` 是面板台架工具，不属于生产诊断。gamma/CCM 由显示引擎持有：色卡只提供参考像素，
+`meter_color` 的补偿对色卡同样生效，与 Product 界面完全一致。
+
+`meter_color` 打印并修改显示引擎的 gamma、CCM 表（`meter_color ccm`、`meter_color ccm r|g|b C0 C1 C2 OFF`、
+`reset`、`identity`、`sat`）。改动只存在 RAM，断电即丢失。开机默认 CCM 表来自
+`AIC_FORKLIFT_DISPLAY_CCM`，`reset` 复原到它，`identity` 清成单位阵。
+
+`meter_testcard` 在 `lv_layer_top()` 上画诊断色卡；Product 界面照常在下面运行，`off` 后原样返回；色卡打开时
+触摸由色卡吸收。MSH 命令只写一个请求，由 UI owner 线程用 LVGL 定时器取走执行，shell 线程不直接碰 LVGL。
+
+| 命令 | 结果 |
+|---|---|
+| `meter_testcard` | 当前状态、预置色表（序号与 `0xRRGGBB`）和用法 |
+| `meter_testcard grid` | 网格总览，每页 12 块；`next`/`prev` 翻页 |
+| `meter_testcard patch 0xRRGGBB` | 指定任意颜色的整屏色块 |
+| `meter_testcard patch INDEX` | 按预置序号显示整屏色块 |
+| `meter_testcard next` / `prev` | 网格翻页；单色切换下一个/上一个预置色 |
+| `meter_testcard off` | 关闭色卡 |
+
+内置预置为灰阶、RGB、CMY；Product 可在 `meter_ui_factory_t.create()` 里用 `meter_testcard_set_extra()`
+追加自己的 UI 关键色。不带参数的命令会打印整张预置表，主机脚本可按序号选色，让每次拍照顺序一致。
+上位机 `tools/serial/meter_ccm_tuner.py` 用同一个串口同时驱动两条命令：CCM 按行滑杆调，
+「测试色卡」区可直接开网格、翻预置色、显示单色与关闭色卡。
+
+单色模式在固定 `#202020` 背景上居中画 65% × 62.5% 的色块（800 × 480 屏为 520 × 300），块内没有文字、边框、
+阴影和透明层；同框保留 100 × 100 的 `#808080` 灰参考块。色值、序号和提示都在两个采样区之外。拍照请在正常环境光
+下用同一台手机、同一曝光档位比较；手机自动曝光仍会改变结果。
 
 ## Host 采集与证据
 

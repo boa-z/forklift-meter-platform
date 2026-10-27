@@ -3,6 +3,7 @@
 #include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_board_color.h"
 #include "platform/rtthread/meter_board_settings.h"
+#include "platform/rtthread/meter_board_testcard.h"
 #include "lv_aic_display.h"
 #include "lv_aic_indev.h"
 #include "lvgl_aic.h"
@@ -74,7 +75,10 @@ static bool board_display(void *ctx)
     if (result != LV_AIC_OK)
         LOG_E("display/touch initialization failed: %d", result);
     else
+    {
         meter_board_color_init();
+        meter_board_testcard_init();
+    }
     return result == LV_AIC_OK;
 }
 static bool board_touch(void *ctx)

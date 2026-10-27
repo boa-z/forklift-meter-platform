@@ -1,6 +1,7 @@
 """验证 CCM 调色上位机的纯逻辑：字段归一、回显解析、行模式与命令生成。"""
 import importlib.util
 from pathlib import Path
+import queue
 import unittest
 
 spec = importlib.util.spec_from_file_location(
@@ -145,6 +146,96 @@ class TransformPreviewTests(unittest.TestCase):
         for name, pixel in tuner.PREVIEW_SAMPLES:
             self.assertEqual(len(pixel), 3, name)
             self.assertTrue(all(0 <= value <= 255 for value in pixel), name)
+
+
+class TestcardTests(unittest.TestCase):
+    def test_state_lines(self):
+        state, presets = tuner.parse_testcard_report('testcard=off\r\n')
+        self.assertEqual(state, {'mode': 'off', 'page': None, 'pages': None, 'rgb': None, 'index': None})
+        self.assertIsNone(presets)
+        state, _ = tuner.parse_testcard_report('testcard=grid page=2/2\r\n')
+        self.assertEqual((state['mode'], state['page'], state['pages']), ('grid', 2, 2))
+        state, _ = tuner.parse_testcard_report('testcard=patch #0DD462 index=13\r\n')
+        self.assertEqual((state['mode'], state['rgb'], state['index']), ('patch', 0x0DD462, 13))
+        state, _ = tuner.parse_testcard_report('testcard=patch #FFFFFF free\r\n')
+        self.assertEqual((state['rgb'], state['index']), (0xFFFFFF, None))
+
+    def test_applied_log_line_updates_state(self):
+        text = '[2026-10-20 09:00:00.000] I/meter.testcard testcard patch page=1/2 rgb=0x0DD462 index=13\r\n'
+        state, _ = tuner.parse_testcard_report(text)
+        self.assertEqual((state['mode'], state['page'], state['rgb'], state['index']),
+                         ('patch', 1, 0x0DD462, 13))
+        text = '[27] I/meter.testcard testcard off page=1/2 rgb=0x0DD462 index=4294967295\r\n'
+        state, _ = tuner.parse_testcard_report(text)
+        self.assertEqual((state['mode'], state['rgb'], state['index']), ('off', None, None))
+
+    def test_presets_require_the_declared_count(self):
+        text = 'presets=2\r\n  0 0x000000\r\n  1 0x0DD462\r\n'
+        self.assertEqual(tuner.parse_testcard_report(text)[1], [(0, 0x000000), (1, 0x0DD462)])
+        truncated = 'presets=19\r\n  0 0x000000\r\n  1 0x0DD462\r\n'
+        self.assertIsNone(tuner.parse_testcard_report(truncated)[1])
+        undeclared = '  0 0x000000\r\n  1 0x0DD462\r\n'
+        self.assertIsNone(tuner.parse_testcard_report(undeclared)[1])
+
+    def test_patch_argument(self):
+        self.assertEqual(tuner.testcard_patch_argument('13'), '13')
+        self.assertEqual(tuner.testcard_patch_argument('13  0x0DD462'), '13')
+        self.assertEqual(tuner.testcard_patch_argument('0x0DD462'), '0x0DD462')
+        self.assertEqual(tuner.testcard_patch_argument('  0XFFFFFF  '), '0XFFFFFF')
+        for bad in ('', '   ', 'red', '0x', '0x1234567', '0xGGGGGG', '123456', '-1'):
+            self.assertIsNone(tuner.testcard_patch_argument(bad), bad)
+
+    def test_patch_command_fits_finsh(self):
+        argument = tuner.testcard_patch_argument('0xFFFFFF')
+        command = 'meter_testcard patch %s' % argument
+        self.assertLessEqual(len(command), tuner.FINSH_LINE_LIMIT)
+        self.assertLessEqual(len(command.split()), tuner.FINSH_ARG_LIMIT)
+
+    def test_describe_state(self):
+        self.assertEqual(tuner.describe_testcard(None), '色卡：未知')
+        self.assertEqual(tuner.describe_testcard(
+            {'mode': 'off', 'page': None, 'pages': None, 'rgb': None, 'index': None}), '色卡：关')
+        self.assertEqual(tuner.describe_testcard(
+            {'mode': 'grid', 'page': 1, 'pages': 2, 'rgb': None, 'index': None}), '色卡：网格 1/2 页')
+        self.assertEqual(tuner.describe_testcard(
+            {'mode': 'patch', 'page': None, 'pages': None, 'rgb': 0x0DD462, 'index': 13}),
+            '色卡：单色 #0DD462（序号 13）')
+        self.assertEqual(tuner.describe_testcard(
+            {'mode': 'patch', 'page': None, 'pages': None, 'rgb': 0xFFFFFF, 'index': None}),
+            '色卡：单色 #FFFFFF')
+
+
+class WorkerWiringTests(unittest.TestCase):
+    """不接硬件：假链路验证 BoardWorker 会把两类回显解析成事件。"""
+
+    class Link:
+        def __init__(self, response):
+            self.response = response
+            self.sent = None
+
+        def send(self, text):
+            self.sent = text
+
+        def read_until_idle(self):
+            return self.response
+
+    def test_command_emits_ccm_and_testcard_events(self):
+        worker = tuner.BoardWorker()
+        worker._link = self.Link(TABLE_LINE + '\r\n'
+                                 + 'testcard=off\r\npresets=2\r\n  0 0x000000\r\n  1 0x0DD462\r\n')
+        worker._command('meter_color ccm')
+        events = []
+        while True:
+            try:
+                events.append(worker.events.get_nowait())
+            except queue.Empty:
+                break
+        kinds = [event[0] for event in events]
+        self.assertIn('ccm', kinds)
+        self.assertIn('testcard', kinds)
+        testcard = [event for event in events if event[0] == 'testcard'][0]
+        self.assertEqual(testcard[1]['mode'], 'off')
+        self.assertEqual(testcard[2], [(0, 0x000000), (1, 0x0DD462)])
 
 
 if __name__ == '__main__':

@@ -6,14 +6,21 @@ OFF 满 9 位 -256..255），输入框精调（16 位补码写法，与板端回
 按整行下发。参考辅助显示：每行实时行和 Σ（=256 绿字高亮）、十二个系数的十进制参考行、
 以及 8 个样色的「输入 → 矩阵估算输出」色卡，便于在看不到显式色差时对照数值。
 
+「测试色卡」区直接控制固件的 meter_testcard：网格总览、上一色/下一色、单色测量（按
+预置序号或任意 0xRRGGBB）与关闭；状态和预置表从串口回显与固件应用日志里解析，读回按钮
+可重新同步。色卡只是 LVGL 纯色像素，CCM/gamma 仍由显示引擎处理，调色时保持打开即可。
+
 依赖 pyserial（tools/serial/requirements.txt）与 Python 自带 tkinter；缺少图形环境时纯逻辑
 仍可被导入和测试。串口约定与 tools/serial/meter_serial.py 一致：命令以 CRLF 结尾、按空闲
-间隔收响应、打开前把 DTR/RTS 置低。配套固件命令（platform/rtthread/meter_board_color.c）：
+间隔收响应、打开前把 DTR/RTS 置低。配套固件命令：
 
     meter_color ccm                       读回 12 个系数与固件默认表
     meter_color ccm r|g|b C0 C1 C2 OFF    逐行设置（受 finsh 单行 80 字符、10 参数限制）
     meter_color ccm reset                 复原到固件的开机默认表（整机固化的调色结果）
     meter_color ccm identity              清成单位阵，用于对比无补偿的原画面
+    meter_testcard                        色卡状态 + 预置色表（序号与 0xRRGGBB）
+    meter_testcard grid | next | prev | off
+    meter_testcard patch 0xRRGGBB | patch INDEX
 
 用法：
     python tools/serial/meter_ccm_tuner.py [--port COM3] [--baud 115200]
@@ -88,6 +95,111 @@ def parse_ccm_report(text):
             taps = [normalize_tap(index, int(token, 16)) for index, token in enumerate(tokens)]
         return state.group(1) == 'on', state.group(2) == 'identity', taps
     return None
+
+
+_TESTCARD_STATE = re.compile(
+    r'testcard=(off|grid|patch)(?: page=(\d+)/(\d+))?(?: #([0-9A-Fa-f]{6}))?(?: index=(\d+))?')
+_TESTCARD_APPLIED = re.compile(
+    r'testcard (off|grid|patch) page=(\d+)/(\d+) rgb=0x([0-9A-Fa-f]{6}) index=(\d+)')
+_TESTCARD_PRESET = re.compile(r'^\s*(\d+) 0x([0-9A-Fa-f]{6})\s*$')
+_TESTCARD_COUNT = re.compile(r'^presets=(\d+)\s*$')
+
+
+def _testcard_state(mode, page, pages, rgb, index):
+    """把 meter_testcard 状态行的字段转成界面用的 dict。"""
+    state = {'mode': mode, 'page': None, 'pages': None, 'rgb': None, 'index': None}
+    if page is not None:
+        state['page'] = int(page)
+        state['pages'] = int(pages)
+    if rgb is not None:
+        state['rgb'] = int(rgb, 16)
+    if index is not None:
+        state['index'] = int(index)
+    return state
+
+
+def _testcard_applied(mode, page, pages, rgb, index):
+    """把固件应用日志行转成状态；off/grid 不关心色值与序号。"""
+    state = {'mode': mode, 'page': int(page), 'pages': int(pages), 'rgb': None, 'index': None}
+    if mode == 'patch':
+        state['rgb'] = int(rgb, 16)
+        state['index'] = None if int(index) == 0xFFFFFFFF else int(index)
+    return state
+
+
+def parse_testcard_report(text):
+    """在串口响应里找色卡状态与预置表，返回 (state, presets)。
+
+    state 为 None 或 {'mode', 'page', 'pages', 'rgb', 'index'}；presets 为 None 或
+    [(序号, 0xRRGGBB)]。状态有两种来源：meter_testcard 的状态行，以及命令执行后固件
+    LOG_I 打印的应用结果（带 ulog 前缀，这里只按内容匹配）。
+    """
+    state = None
+    for line in text.splitlines():
+        match = _TESTCARD_STATE.search(line)
+        if match is not None:
+            state = _testcard_state(*match.groups())
+            continue
+        match = _TESTCARD_APPLIED.search(line)
+        if match is not None:
+            state = _testcard_applied(*match.groups())
+    return state, _parse_testcard_presets(text)
+
+
+def _parse_testcard_presets(text):
+    """解析 'presets=N' 与随后的 '  序号 0xRRGGBB' 行；序号不完整一致时整表作废。"""
+    declared = None
+    entries = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        match = _TESTCARD_COUNT.match(stripped)
+        if match is not None:
+            declared = int(match.group(1))
+            continue
+        match = _TESTCARD_PRESET.match(stripped)
+        if match is not None:
+            entries.append((int(match.group(1)), int(match.group(2), 16)))
+    if declared is None or [index for index, _ in entries] != list(range(declared)):
+        return None
+    return entries
+
+
+def describe_testcard(state):
+    """状态 dict → 界面文字。"""
+    if state is None:
+        return '色卡：未知'
+    if state['mode'] == 'off':
+        return '色卡：关'
+    if state['mode'] == 'grid':
+        if state['page'] is not None and state['pages'] is not None:
+            return '色卡：网格 %d/%d 页' % (state['page'], state['pages'])
+        return '色卡：网格'
+    if state['rgb'] is None:
+        return '色卡：单色'
+    if state['index'] is not None:
+        return '色卡：单色 #%06X（序号 %d）' % (state['rgb'], state['index'])
+    return '色卡：单色 #%06X' % state['rgb']
+
+
+def testcard_patch_argument(text):
+    """界面输入 → meter_testcard patch 参数。
+
+    接受预置序号（'13'，也兼容下拉项 '13  0x0DD462'）与任意 '0xRRGGBB'；非法输入
+    返回 None，避免把错误参数发给固件。
+    """
+    tokens = text.split()
+    if not tokens:
+        return None
+    token = tokens[0]
+    if token[:2] in ('0x', '0X'):
+        digits = token[2:]
+        if not 1 <= len(digits) <= 6 or any(character not in '0123456789abcdefABCDEF'
+                                             for character in digits):
+            return None
+        return token
+    if not token.isdigit() or len(token) > 5:
+        return None
+    return str(int(token, 10))
 
 
 def row_command(row, taps):
@@ -246,6 +358,7 @@ class BoardWorker:
         self.connected = True
         self._emit('conn', True, '已连接 %s @ %d' % (port, baud))
         self._command('meter_color ccm')
+        self._command('meter_testcard')
 
     def _close(self):
         if self._link is not None:
@@ -273,6 +386,11 @@ class BoardWorker:
             self._emit('ccm', *parsed)
         elif text.strip() == 'meter_color ccm':
             self._emit('log', '（未识别到 CCM 回显：固件需包含 meter_color ccm 逐行命令）')
+        testcard_state, testcard_presets = parse_testcard_report(response)
+        if testcard_state is not None or testcard_presets is not None:
+            self._emit('testcard', testcard_state, testcard_presets)
+        elif text.strip() == 'meter_testcard':
+            self._emit('log', '（未识别到色卡回显：固件需包含 meter_testcard 命令）')
 
 
 class TunerApp:
@@ -292,6 +410,9 @@ class TunerApp:
         self.syncing = False
         self.sat_var = tk.StringVar(value='100')
         self.gamma_var = tk.StringVar(value='100')
+        self.testcard_var = tk.StringVar(value='')
+        self.testcard_status = tk.StringVar(value='色卡：未知')
+        self.testcard_presets = []
         self.port_var = tk.StringVar(value=port or '')
         self._build()
         if port:
@@ -300,7 +421,7 @@ class TunerApp:
 
     def _build(self):
         self.root.title('meter_color CCM 台架调色')
-        self.root.geometry('1000x760')
+        self.root.geometry('1000x860')
         outer = ttk.Frame(self.root, padding=8)
         outer.pack(fill='both', expand=True)
 
@@ -332,6 +453,33 @@ class TunerApp:
         ttk.Label(actions, text='gamma').pack(side='left', padx=(12, 2))
         ttk.Spinbox(actions, from_=50, to=300, width=5, textvariable=self.gamma_var).pack(side='left')
         ttk.Button(actions, text='下发', width=6, command=self._apply_gamma).pack(side='left', padx=2)
+
+        testcard = ttk.LabelFrame(outer, text='测试色卡（实机拍照：网格总览 / 单色测量 / 关闭；CCM/gamma 照常生效）',
+                                  padding=6)
+        testcard.pack(fill='x', pady=(0, 6))
+        buttons = ttk.Frame(testcard)
+        buttons.pack(fill='x')
+        ttk.Button(buttons, text='网格', width=6,
+                   command=lambda: self._send('meter_testcard grid')).pack(side='left', padx=2)
+        ttk.Button(buttons, text='上一色', width=7,
+                   command=lambda: self._send('meter_testcard prev')).pack(side='left', padx=2)
+        ttk.Button(buttons, text='下一色', width=7,
+                   command=lambda: self._send('meter_testcard next')).pack(side='left', padx=2)
+        ttk.Button(buttons, text='关闭色卡', width=9,
+                   command=lambda: self._send('meter_testcard off')).pack(side='left', padx=2)
+        ttk.Button(buttons, text='读回色卡', width=9,
+                   command=lambda: self._send('meter_testcard')).pack(side='left', padx=2)
+        ttk.Label(buttons, textvariable=self.testcard_status, foreground='#0A7A0A').pack(side='left', padx=(12, 0))
+
+        pick = ttk.Frame(testcard)
+        pick.pack(fill='x', pady=(4, 0))
+        ttk.Label(pick, text='颜色/序号').pack(side='left')
+        self.testcard_box = ttk.Combobox(pick, textvariable=self.testcard_var, width=22,
+                                         values=self._testcard_choices())
+        self.testcard_box.pack(side='left', padx=4)
+        self.testcard_box.bind('<Return>', lambda event: self._testcard_show())
+        ttk.Button(pick, text='显示', width=6, command=self._testcard_show).pack(side='left', padx=2)
+        ttk.Label(pick, text='下拉为固件预置色（序号 + 色值），也可直接输入 0xRRGGBB').pack(side='left', padx=8)
 
         grid = ttk.LabelFrame(outer, text='CCM 表（滑杆粗调、输入框精调；松手或点「应用」按行下发）', padding=6)
         grid.pack(fill='x', pady=6)
@@ -513,6 +661,18 @@ class TunerApp:
         """清成单位阵，用于对比无补偿的原画面。"""
         self._send('meter_color ccm identity')
 
+    def _testcard_choices(self):
+        """预置色下拉项：'13  0x0DD462'；选中后按序号显示。"""
+        return ['%d  0x%06X' % (index, rgb) for index, rgb in self.testcard_presets]
+
+    def _testcard_show(self):
+        """按预置序号或 0xRRGGBB 显示单色块；下拉项取第一个字段（序号）。"""
+        argument = testcard_patch_argument(self.testcard_var.get())
+        if argument is None:
+            self._log('! 颜色/序号需要 0xRRGGBB 或预置序号')
+            return
+        self._send('meter_testcard patch %s' % argument)
+
     def _send_raw(self):
         text = self.raw_var.get().strip()
         if text:
@@ -570,6 +730,14 @@ class TunerApp:
             if taps is not None:
                 self._show_taps(taps)
             self._log('CCM：%s，%s' % ('开' if enabled else '关', '单位阵' if identity else '自定义'))
+        elif kind == 'testcard':
+            _, state, presets = event
+            if presets is not None:
+                self.testcard_presets = presets
+                self.testcard_box.configure(values=self._testcard_choices())
+            if state is not None:
+                self.testcard_status.set(describe_testcard(state))
+                self._log(describe_testcard(state))
 
     def _show_taps(self, taps):
         """回读结果写回表格与滑杆；正在编辑的单元格不覆盖。"""

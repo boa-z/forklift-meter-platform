@@ -24,6 +24,7 @@
   ],
   "ui_common": [
     "ui/common/i18n/meter_i18n_runtime.c",
+    "ui/common/testcard/meter_testcard.c",
     "ui/common/widgets/widget_common.c",
     "ui/common/widgets/needle/meter_needle.c",
     "ui/common/widgets/gauge/meter_gauge.c",
