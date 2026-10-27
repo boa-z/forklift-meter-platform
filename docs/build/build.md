@@ -5,7 +5,8 @@
 Run host commands from the Framework root with Python 3, CMake, Ninja and a C/C++ compiler; UI builds also need SDL2 development files. Initialize the pinned dependencies and install host test tools:
 
 ```text
-git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota products/demo
+git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
+git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requirements.txt -r tools/ota/requirements.txt
 ```
 
@@ -15,7 +16,7 @@ Keep the SDK-bundled Python/SCons/toolchain unchanged. SDK OneStep may invoke Py
 
 Every firmware contains exactly one Product. A Product is a directory with `product/sources.json`; the manifest lists the source closure for `application`, `protocol`, `catalog`, `ui`, `product`, `firmware` and optional `ui_binding` groups. Host CMake uses `products/demo` when it is checked out and builds the framework alone with `-DMETER_PRODUCT_ROOT=` (empty). A firmware build has no default: an unset or blank `METER_PRODUCT_ROOT` stops the build instead of silently selecting the Demo.
 
-The reference Demo is maintained in the public [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo) repository and is included here as a Product submodule. Clone with `--recurse-submodules`, or initialize `products/demo` before configuring CMake.
+The reference Demo is maintained in the public [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo) repository. It is not a submodule: clone it into `products/demo` before configuring CMake. Every Product is its own repository under `products/<id>`, which the Framework ignores; see [products/README.md](../../products/README.md).
 
 Create a starting point and inspect its closure:
 

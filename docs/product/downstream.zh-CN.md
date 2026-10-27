@@ -64,19 +64,13 @@ meter_core_init(&core, &private_catalog, &storage);
 
 例如将 **translations** 设为 **ui/i18n.c**，将 **text_sources** 设为 **["catalog/display_names.c"]**。运行 **python tools/generate_fonts.py --product-root products/my-product**，再追加 **--check** 检查。生成字体、清单、许可证及输入声明随 Product 一起提交。检查最长标签的实际渲染；字形齐全不代表文字排得下。
 
-### Product submodule
+### Product 仓库
 
-下游仓库可以在 `products/<product>` 下以 Git submodule 引入独立 Product。公共 Framework 仓库本身不能加入客户 submodule。私有下游仓库负责 Product 仓库、客户文档和验证记录。
-
-公开的 `products/demo` submodule 展示这种组织方式。添加私有 Product 时保留 Demo 的固定版本；固件只链接选定的 Product。在私有 Framework 开发分支执行：
+每个 Product，无论公开还是私有，都是克隆到 `products/<product>` 的独立 Git 仓库。Framework 忽略 `products/*`（只跟踪 `products/README*.md`），因此公共 Framework 和下游分支都不记录 Product gitlink，加入私有 Product 也不需要私有 Framework fork。Product 仓库负责自己的文档和验证记录。
 
 ```text
-git submodule add PRIVATE_PRODUCT_REPOSITORY products/my-product
-git add .gitmodules products/my-product
-git commit -m "build: pin independent Product"
+git clone PRIVATE_PRODUCT_REPOSITORY products/my-product
 cmake -S . -B build-my-product -G Ninja -DMETER_PRODUCT_ROOT=products/my-product
 ```
 
-把 `PRIVATE_PRODUCT_REPOSITORY` 替换为私有 Git URL。新克隆使用 `git clone --recurse-submodules`，已有检出执行 `git submodule update --init --recursive`。先在 Product 仓库提交并推送修改，再在 Framework 开发分支提交更新后的 gitlink。构建使用固定提交，不跟随分支最新版本；可复现构建不要使用 `submodule update --remote`。
-
-元数据豁免仅覆盖 submodule section 名称及 `path`、`url`、`branch` 值。注释和其他文本仍会扫描，凭据检查始终使用完整文件。Product gitlink 内的内容由其独立仓库检查。`products/` 下的普通目录仍属于 Framework 源码，不享受豁免。
+把 `PRIVATE_PRODUCT_REPOSITORY` 替换为私有 Git URL。多个 Product 可以并存，固件只链接选定的那个，由板级 defconfig 的 `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT="products/my-product"` 指定。没有任何机制固定 Product 提交，因此 Product 修改在其自身仓库提交并推送，每次发布构建都要把 Product 提交与 Framework、SDK 提交一起记录。

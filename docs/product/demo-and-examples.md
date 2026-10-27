@@ -6,7 +6,7 @@
 
 | Package | Ownership | Purpose | Build selection |
 |---|---|---|---|
-| `products/demo` | Independent public Product submodule | Complete synthetic instrument, bilingual LVGL UI, protocol, settings and Product docs | Default, or `METER_PRODUCT_ROOT=products/demo` |
+| `products/demo` | Independent public Product repository, cloned into `products/demo` | Complete synthetic instrument, bilingual LVGL UI, protocol, settings and Product docs | Default, or `METER_PRODUCT_ROOT=products/demo` |
 
 Use the [Demo Product handbook](../../products/demo/README.md) and its [actual SDL2 gallery](../../products/demo/docs/ui/screenshots.md) as the full development reference. Each firmware links exactly one Product.
 
@@ -18,15 +18,16 @@ The Framework carries no example Products. A second Product for a regression or 
 
 ## Develop and update a Product
 
-1. Initialize the pinned submodules before building.
-2. Create a branch inside the Product repository; a submodule checkout normally starts detached.
+1. Initialize the Framework submodules and clone the Product repository into `products/<id>` before building.
+2. Create a branch inside the Product repository.
 3. Implement the change with its bilingual requirements, protocol/UI notes and tests.
 4. Build through Framework using a dedicated build directory; run Product and Framework tests.
 5. For UI changes, export actual SDL2 frames and visually inspect both languages. Record renderer inputs, code identity, executable hash and image hashes.
-6. Commit and push the Product first, then update its gitlink in the Framework integration branch.
+6. Commit and push the Product in its own repository; the Framework records nothing about it.
 
 ```text
-git submodule update --init --recursive
+git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
+git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 git -C products/demo switch -c codex/demo-change
 cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=products/demo
 cmake --build build-demo --parallel

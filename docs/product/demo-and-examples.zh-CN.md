@@ -6,7 +6,7 @@
 
 | 包 | 归属 | 用途 | 构建选择 |
 |---|---|---|---|
-| `products/demo` | 独立公开 Product submodule | 完整合成仪表、双语 LVGL UI、协议、设置和 Product 文档 | 默认，或 `METER_PRODUCT_ROOT=products/demo` |
+| `products/demo` | 独立公开 Product 仓库，克隆到 `products/demo` | 完整合成仪表、双语 LVGL UI、协议、设置和 Product 文档 | 默认，或 `METER_PRODUCT_ROOT=products/demo` |
 
 完整开发规范参考 [Demo Product 手册](../../products/demo/README.zh-CN.md)及其 [SDL2 实际截图](../../products/demo/docs/ui/screenshots.zh-CN.md)。每个固件只链接一个 Product。
 
@@ -18,15 +18,16 @@ Framework 不携带示例 Product。用于回归或可替换性检查的第二�
 
 ## 开发与更新 Product
 
-1. 构建前初始化固定版本的 submodule。
-2. 在 Product 仓库内部建立开发分支；submodule 检出通常为 detached HEAD。
+1. 构建前初始化 Framework 的 submodule，并把 Product 仓库克隆到 `products/<id>`。
+2. 在 Product 仓库内部建立开发分支。
 3. 实现修改，同时维护双语需求、协议/UI 说明和测试。
 4. 通过 Framework 在专用构建目录编译，运行 Product 与 Framework 测试。
 5. UI 变更导出 SDL2 实际帧，并目视检查两种语言。记录渲染输入、代码身份、可执行文件哈希及图片哈希。
-6. 先提交并推送 Product，再在 Framework 集成分支更新 gitlink。
+6. 在 Product 自己的仓库提交并推送；Framework 不记录 Product 的任何信息。
 
 ```text
-git submodule update --init --recursive
+git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
+git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 git -C products/demo switch -c codex/demo-change
 cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=products/demo
 cmake --build build-demo --parallel

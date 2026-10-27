@@ -1,4 +1,8 @@
 /build*/
+# Products are independent repositories cloned into products/<id>; the Framework never tracks them.
+/products/*
+!/products/README.md
+!/products/README.zh-CN.md
 /out/
 /artifacts/
 __pycache__/

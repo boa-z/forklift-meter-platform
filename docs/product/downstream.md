@@ -57,19 +57,13 @@ Declare dynamic UI text catalogs in **assets/font-config.json** with the optiona
 
 For example, a Product can set **translations** to **ui/i18n.c** and **text_sources** to **["catalog/display_names.c"]**. Run **python tools/generate_fonts.py --product-root products/my-product**, then repeat with **--check**. Commit the generated fonts, manifest, license and input declarations with the Product. Inspect the rendered longest labels; glyph coverage does not prove that text fits.
 
-### Product submodules
+### Product repositories
 
-A downstream repository may add its Product as a Git submodule below `products/<product>`. The public Framework repository must not add a customer submodule itself. The private downstream repository owns the Product repository, its documentation and its validation.
-
-The public `products/demo` submodule demonstrates this structure. Keep its pin when adding a private Product; only the selected Product is linked into firmware. From the private Framework development branch:
+Every Product, public or private, is an independent Git repository cloned into `products/<product>`. The Framework ignores `products/*` (only `products/README*.md` are tracked), so neither the public Framework nor a downstream branch records a Product gitlink, and adding a private Product needs no private Framework fork. The Product repository owns its documentation and its validation.
 
 ```text
-git submodule add PRIVATE_PRODUCT_REPOSITORY products/my-product
-git add .gitmodules products/my-product
-git commit -m "build: pin independent Product"
+git clone PRIVATE_PRODUCT_REPOSITORY products/my-product
 cmake -S . -B build-my-product -G Ninja -DMETER_PRODUCT_ROOT=products/my-product
 ```
 
-Replace `PRIVATE_PRODUCT_REPOSITORY` with the private Git URL. New clones use `git clone --recurse-submodules`, or run `git submodule update --init --recursive` after checkout. Commit and push Product changes in that repository first, then commit the updated gitlink in the Framework development branch. Builds use the pinned commit, not the latest branch tip; avoid `submodule update --remote` in reproducible builds.
-
-The metadata exemption covers only submodule section names and `path`, `url`, `branch` values. Comments and other text remain scanned; credential checks use the full file. Product gitlink contents need their own repository checks. A plain directory under `products/` is still Framework source and is not exempt.
+Replace `PRIVATE_PRODUCT_REPOSITORY` with the private Git URL. Several Products can sit side by side; only the selected one is linked into firmware, which the board defconfig names with `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT="products/my-product"`. Nothing pins the Product commit, so commit and push Product changes in their own repository and record the Product commit next to the Framework and SDK commits for every release build.

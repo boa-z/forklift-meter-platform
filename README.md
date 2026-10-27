@@ -17,7 +17,7 @@ Linux CI uses `ubuntu-latest`. Set `SDL_VIDEODRIVER=dummy` for SDL runs.
 
 ## Product package
 
-The reference Demo is the `products/demo` submodule from `boa-z/forklift-meter-platform-demo`; a downstream Product should use the same submodule boundary rather than copying Product history:
+The reference Demo is the independent repository `boa-z/forklift-meter-platform-demo`, cloned into `products/demo`. The Framework tracks no Product: every Product, public or private, is its own repository cloned into `products/<id>` (ignored by the Framework, see [products/README.md](products/README.md)) or selected by an absolute path:
 
 ```sh
 cmake -S . -B build-private -DMETER_PRODUCT_ROOT=/path/to/product

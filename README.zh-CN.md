@@ -17,7 +17,7 @@ Linux CI 使用 `ubuntu-latest`。SDL 运行时可设置 `SDL_VIDEODRIVER=dummy`
 
 ## 产品包（Product package）
 
-参考 Demo 通过 `boa-z/forklift-meter-platform-demo` 作为 `products/demo` submodule 引入；下游 Product 应沿用这个边界，不复制 Product 历史。配置其他 Product：
+参考 Demo 是独立仓库 `boa-z/forklift-meter-platform-demo`，克隆到 `products/demo`。Framework 不跟踪任何 Product：公开或私有 Product 都是独立仓库，克隆到 `products/<id>`（Framework 忽略该目录，见 [products/README.zh-CN.md](products/README.zh-CN.md)），或用绝对路径选择。配置其他 Product：
 
 ```sh
 cmake -S . -B build-private -DMETER_PRODUCT_ROOT=/path/to/product

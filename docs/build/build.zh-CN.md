@@ -5,7 +5,8 @@
 Host 命令从 Framework 根目录运行，需要 Python 3、CMake、Ninja 和 C/C++ 编译器；UI 构建还需 SDL2 开发文件。初始化固定版本依赖并安装 Host 测试工具：
 
 ```text
-git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota products/demo
+git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
+git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requirements.txt -r tools/ota/requirements.txt
 ```
 
@@ -15,7 +16,7 @@ python -m pip install -r tools/protocol/requirements.txt -r tools/hil/requiremen
 
 每个固件只包含一个 Product。Product 是包含 `product/sources.json` 的目录；manifest 列出 `application`、`protocol`、`catalog`、`ui`、`product`、`firmware` 以及可选 `ui_binding` 的源码闭包。Host CMake 在检出 `products/demo` 时默认使用它，`-DMETER_PRODUCT_ROOT=`（空值）则只构建框架本身；固件构建没有默认值，未设置或空白的 `METER_PRODUCT_ROOT` 会直接中止构建，而不是静默选择 Demo。
 
-参考 Demo 维护在公开仓库 [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo)，这里通过 Product submodule 引入。请使用 `--recurse-submodules` 克隆，或在配置 CMake 前初始化 `products/demo`。
+参考 Demo 维护在公开仓库 [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo)，不是 submodule：配置 CMake 前把它克隆到 `products/demo`。每个 Product 都是 `products/<id>` 下的独立仓库，Framework 忽略该目录，见 [products/README.zh-CN.md](../../products/README.zh-CN.md)。
 
 创建模板并检查源码闭包：
 
