@@ -5,28 +5,14 @@
 #include <stdint.h>
 typedef struct _lv_obj_t lv_obj_t;
 typedef struct _lv_font_t lv_font_t;
-/* Language codes name the columns of a translation pack. The framework ships no wording for any
-   language except English: a Product registers its own languages, packs and faces, so adding a
-   language never edits the framework. */
+/* Language codes name the columns of a translation pack. The framework ships no wording at all: a
+   Product registers its own languages, packs and faces, so adding a language never edits the
+   framework. */
 #define METER_LANGUAGE_CODE_EN "en"
 #define METER_LANGUAGE_CODE_ZH "zh-CN"
-/* Vocabulary the framework widgets render themselves. Only the English text is built in; a Product
-   overrides a word by registering a pack that contains the same tag (tags are meter.*). */
-typedef enum
-{
-    METER_TXT_VALIDITY_LIVE,
-    METER_TXT_VALIDITY_STALE,
-    METER_TXT_VALIDITY_UNKNOWN,
-    METER_TXT_VALIDITY_ERROR,
-    METER_TXT_STATE_ON,
-    METER_TXT_STATE_OFF,
-    METER_TXT_VALUE_ERROR, /* template with one {0} for the unit, e.g. "ERR {0}" */
-    METER_TXT_COUNT
-} meter_text_id_t;
-/* Size classes a widget asks for. The product decides which face answers them, so
-   widgets never name a product font. */
+/* Size classes a label asks for. The language table decides which face answers them, so screens
+   never name a language's font. */
 typedef enum { METER_FONT_LABEL, METER_FONT_VALUE } meter_font_role_t;
-typedef const lv_font_t *(*meter_font_resolver_t)(meter_language_t language, meter_font_role_t role);
 /* Plural categories a language distinguishes. A plural text is the base tag plus ".one" / ".other"
    (see meter_i18n_tr_plural); more rules are added when a shipped language needs them. */
 typedef enum
@@ -52,8 +38,8 @@ typedef struct
     const char *const *tags;
     const char *const *translations;
 } meter_i18n_pack_t;
-/* Reset the registry for a freshly initialised LVGL and register the English vocabulary. Safe to
-   call again within one LVGL lifetime. */
+/* Reset the registry for a freshly initialised LVGL and select English. Safe to call again within
+   one LVGL lifetime. */
 bool meter_i18n_init(void);
 /* Install the Product's language table. Entry i must carry id i: the id is the persisted language
    byte, so the numbering (and the default language) belongs to the Product, and the table may hold as
@@ -69,8 +55,6 @@ bool meter_i18n_register_pack(const meter_i18n_pack_t *pack);
 bool meter_i18n_set_language(meter_language_t language);
 const char *meter_i18n_language_code(meter_language_t language);
 meter_language_t meter_i18n_selected_language(void);
-const char *meter_i18n_tag(meter_text_id_t id);
-const char *meter_i18n_text(meter_text_id_t id);
 /* Selected language first, then the English column of the registered packs, then the tag itself. */
 const char *meter_i18n_tr(const char *tag);
 /* Same lookup for an explicit language (registered packs only). */
@@ -122,7 +106,6 @@ static inline meter_i18n_arg_t meter_i18n_arg_str(const char *value)
    is copied verbatim. Returns the number of characters written. */
 size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_i18n_arg_t *args,
                          size_t count);
-const char *meter_i18n_state(meter_value_state_t state);
 /* Bind the translation tag and the language-dependent face of a label in one call. */
 void meter_i18n_bind_text(lv_obj_t *label, const char *tag, meter_font_role_t role);
 /* Bind only the face: the object re-resolves it on every language change and restores the face it was
@@ -133,13 +116,7 @@ void meter_i18n_bind_font(lv_obj_t *obj, meter_font_role_t role);
    its fallback chain answers a missing isolated form with the base letter's glyph, which is the
    isolated shape. storage is caller-owned and must live as long as face. */
 void meter_i18n_font_isolated_forms(lv_font_t *face, lv_font_t *storage);
-/* Legacy form of meter_i18n_bind_text: the role is guessed from the label's current font. */
-void meter_i18n_bind_label(lv_obj_t *label, const char *tag);
-void meter_i18n_format_value(char *out, size_t size, float value, meter_value_state_t state,
-                             const char *unit, unsigned decimals, meter_language_t language);
-/* Legacy resolver hook; a language registered with meter_i18n_register_language takes precedence. */
-void meter_font_provider_set(meter_font_resolver_t resolver);
-meter_font_role_t meter_font_role_of(const lv_font_t *font);
+/* The face the language registered for the role, or LVGL's Montserrat 14/24 when it has none. */
 const lv_font_t *meter_font_get(meter_language_t language, meter_font_role_t role);
 void meter_i18n_apply_font(lv_obj_t *label, meter_language_t language, meter_font_role_t role);
 #endif

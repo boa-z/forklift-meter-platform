@@ -64,11 +64,11 @@ for area in ('protocols', 'core', 'diagnostics'):
         if file.suffix in ('.c', '.h') and re.search(r'\b(?:printf|rt_kprintf|snprintf|sprintf)\s*\(',file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} formats output in a hot-path layer')
 manifest=json.loads((ROOT/'cmake/sources.json').read_text(encoding='utf-8'))
-# 控件通过保存的指针管理自己的子对象；只有 ui/common/widgets/ 内的共享树助手可以按位置遍历子对象。
-for file in (ROOT/'ui/common/widgets').glob('*/*.c'):
-    if re.search(r'lv_obj_get_child\s*\(', file.read_text(encoding='utf-8')):
-        errors.append(f'{file.relative_to(ROOT)} styles a child by LVGL index instead of a stored pointer')
-# 产品文案与产品字体符号属于产品层；公共控件只渲染它无法命名的标签和字体角色。
+# 框架是多 Product 的运行平台而不是仪表控件库：ui/common 只有翻译服务和显示调试测试卡，可视控件属于 Product。
+for entry in (ROOT/'ui/common').iterdir():
+    if entry.name not in ('i18n', 'testcard'):
+        errors.append(f'ui/common/{entry.name} is not a shared capability (visual widgets belong to Products)')
+# 产品文案与产品字体符号属于产品层。
 for file in (ROOT/'ui/common').rglob('*'):
     if file.suffix not in ('.c','.h'): continue
     text=file.read_text(encoding='utf-8')
@@ -81,7 +81,7 @@ for file in (ROOT/'ui/common').rglob('*'):
 for file in (ROOT/'ui/common').rglob('*.c'):
     if 'demo' in file.name.casefold():
         errors.append(f'{file.relative_to(ROOT)} is a product source inside common')
-for group in ('ui_common','ui_math'):
+for group in ('ui_common',):
     for file in manifest[group]:
         if re.search(r'demo', file, re.I): errors.append(f'{group} compiles a Demo source: {file}')
 # 产品身份属于产品词汇表。共享控件一旦写死某个身份，就等于替之后所有产品决定了它的含义。

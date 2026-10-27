@@ -13,20 +13,9 @@
   "protocol_common": [
     "protocols/common/meter_frame_router.c"
   ],
-  "ui_math": [
-    "ui/common/formatter/meter_format.c"
-  ],
   "ui_common": [
     "ui/common/i18n/meter_i18n_runtime.c",
-    "ui/common/testcard/meter_testcard.c",
-    "ui/common/widgets/widget_common.c",
-    "ui/common/widgets/needle/meter_needle.c",
-    "ui/common/widgets/gauge/meter_gauge.c",
-    "ui/common/widgets/ring_meter/meter_ring.c",
-    "ui/common/widgets/bar_meter/meter_linear_meter.c",
-    "ui/common/widgets/status_indicator/meter_status.c",
-    "ui/common/widgets/value_label/meter_value_label.c",
-    "ui/common/widgets/update/meter_update_widget.c"
+    "ui/common/testcard/meter_testcard.c"
   ],
   "diagnostics": [
     "diagnostics/meter_diagnostics.c",

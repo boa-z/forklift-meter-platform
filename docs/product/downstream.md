@@ -70,7 +70,7 @@ The settings blob is sized by your own table (`meter_settings_size()`). Versioni
 
 ### Product language resources
 
-The Framework provides a translation **service** (`ui/common/i18n/meter_i18n_runtime.h`); the wording belongs to the Product. The only text built in is English: the `meter.*` vocabulary that Framework widgets render themselves (`meter.validity.live`, `meter.state.on`, `meter.value.error`, ...). A Product overrides a word by registering a pack that contains the same tag.
+The Framework provides a translation **service** (`ui/common/i18n/meter_i18n_runtime.h`); all wording belongs to the Product, and the Framework ships no visual widgets or text of its own. Screens are built from LVGL's native widgets in the Product.
 
 ```text
 key  →  language catalog (static arrays, generated)  →  text

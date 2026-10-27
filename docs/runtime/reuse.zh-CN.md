@@ -6,8 +6,7 @@
 
 ## 已落实的精简
 
-- 五个公共控件改用 `lv_zalloc()`，删除重复的分配后清零。Gauge/ring 创建时不再写入六处随后立即被 `apply_style()` 覆盖的颜色。
-- Gauge 直接把静态翻译文字交给 `lv_label_set_text_static()`，删除 32 字节状态文字缓冲及每次重绘的复制。翻译包存储原本就要求活得比 LVGL 久。
+- 可视控件（仪表盘、指针、环形/弧形条、线性表、状态指示、数值标签、升级页）、它们的数值格式化/映射助手以及控件词汇（`meter.*` 状态词）移入唯一的使用者 Demo。框架是多 Product 的运行平台，不是仪表控件库：`ui/common/` 只保留翻译服务和显示测试卡，架构门禁拒绝其他内容。
 - 带类型的整数占位符改用 libc `snprintf()` 和固定的 `PRId32`/`PRIu32` 格式串。翻译模板仍按数据解析，保留参数重排、花括号转义和有界输出。
 - 删除始终返回 unsupported 的 OTA 后端及其自证测试。只有该测试链接它；固件早已在 `SConscript` 中显式选择 `meter_update_backend_aic.c`。同时删除原生后端未使用的 context 句柄。保留 Update 服务、UDS 和取消测试；它们不验证 SDK 安装器。
 - 看门狗诊断用 RT-Thread 调度临界区直接复制权威状态，删除五个未同步的计数副本；状态推进使用相同保护。当前单核临界区内只有有界计算/复制，日志与设备调用都在区外。
@@ -18,8 +17,7 @@
 
 | 模块与源码 | 已复用的成熟接口 | 剩余代码保留理由 |
 |---|---|---|
-| 公共控件：`ui/common/widgets/`；LVGL `src/widgets/` | `lv_label`、`lv_bar`、`lv_arc`、`lv_scale`、`lv_anim` | 封装补充物理量范围、有效性和 Product 样式。固定版本的 `lv_scale_set_line_needle_value()` 接收整数值并计算整数角度，直接替换小型浮点指针助手会降低平滑度/精度。 |
-| 国际化：`ui/common/i18n/meter_i18n_runtime.c`；LVGL `src/others/translation/lv_translation.c` | 静态翻译包、`lv_tr()`、label 翻译标签、语言变化事件 | 原生查询只用当前语言，空单元格返回标签。显式语言查询、英文回退、持久化语言 ID 和字体角色仍需薄适配；不能为了查询临时切换全局语言，触发整棵对象树的事件。 |
+| 国际化：`ui/common/i18n/meter_i18n_runtime.c`；LVGL `src/others/translation/lv_translation.c` | 静态翻译包、`lv_tr()`、label 翻译标签、语言变化事件 | 原生查询只用当前语言，空单元格返回标签。显式语言查询、英文回退、Product 拥有的持久化语言 ID 和字体角色仍需薄适配；不能为了查询临时切换全局语言，触发整棵对象树的事件。 |
 | 显示：`platform/rtthread/meter_board_port.c`；SDK `bsp/artinchip/drv/display/` | `mpp_fb_ioctl()`、`lv_aic_init()` | 显示层归属、额外 UI 矩形、alpha 和色键属于应用组合；有摄像头的 Product 可关闭独占。无需重做 framebuffer/渲染驱动。 |
 | 背光：`platform/rtthread/meter_board_settings.c`；SDK `bsp/artinchip/drv/display/panel/panel_com.c` | `rt_pwm_set()`、`rt_pwm_enable()`、`PWM_CMD_GET` | 面板助手只按固定周期和编译期占空比使能，不提供持久化亮度、配置底座、读回与重试。保留现有原生 PWM 适配及板级 Kconfig 参数。 |
 | CAN：`platform/rtthread/meter_board_port.c`、`meter_execution_port.c`；SDK `kernel/rt-thread/components/drivers/can/can.c` | `rt_device_read/write/control()`、RX 通知、CAN 状态 | 驱动 TX 会等待邮箱/完成事件。保留每总线 worker，避免一条总线阻塞 Core、UI 或另一条总线。会话过期和 OTA/普通流量的有界公平性也不是原始驱动队列提供的能力。 |

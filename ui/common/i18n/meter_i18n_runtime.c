@@ -1,25 +1,10 @@
 #include "ui/common/i18n/meter_i18n_runtime.h"
-#include "ui/common/formatter/meter_format.h"
 #include <lvgl.h>
 #include <inttypes.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 /* A handful of packs is the realistic ceiling for a meter; languages live in the Product's table. */
 #define MAX_PACKS 8u
-/* The only wording the framework owns, and only in English. Tags live in the reserved meter.*
-   namespace so a Product pack can override a word without a naming clash with its own keys. */
-static const char *const vocabulary_languages[] = {METER_LANGUAGE_CODE_EN, NULL};
-static const char *const vocabulary_tags[] = {
-    "meter.validity.live", "meter.validity.stale", "meter.validity.unknown", "meter.validity.error",
-    "meter.state.on",      "meter.state.off",      "meter.value.error",      NULL};
-static const char *const vocabulary_texts[] = {"LIVE", "STALE", "NO DATA", "SENSOR ERROR",
-                                               "ON",   "OFF",   "ERR {0}"};
-_Static_assert(sizeof(vocabulary_tags) / sizeof(vocabulary_tags[0]) == METER_TXT_COUNT + 1,
-               "vocabulary tag count");
-_Static_assert(sizeof(vocabulary_texts) / sizeof(vocabulary_texts[0]) == METER_TXT_COUNT,
-               "vocabulary text count");
-static const meter_i18n_pack_t vocabulary = {vocabulary_languages, vocabulary_tags, vocabulary_texts};
 /* The numbering a Product gets when it installs no table of its own. */
 static const meter_i18n_language_t default_languages[] = {
     {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER},
@@ -28,7 +13,6 @@ static const meter_i18n_language_t *languages = default_languages;
 static size_t language_total = sizeof(default_languages) / sizeof(default_languages[0]);
 static const meter_i18n_pack_t *packs[MAX_PACKS];
 static size_t pack_total;
-static meter_font_resolver_t font_resolver;
 /* A face binding remembers the face the object was designed with, so a language without a face
    for the role gives it back instead of leaving the previous language's face behind. */
 typedef struct
@@ -53,11 +37,9 @@ bool meter_i18n_init(void)
 {
     /* LVGL clears its translation state on lv_init(); a selected language means this lifetime was
        already initialised and the registry (and the Product's packs) must be kept. */
-    if (lv_translation_get_language() != NULL && pack_total != 0u && packs[0] == &vocabulary)
+    if (lv_translation_get_language() != NULL)
         return true;
     reset_registry();
-    if (!meter_i18n_register_pack(&vocabulary))
-        return false;
     lv_translation_set_language(METER_LANGUAGE_CODE_EN);
     return true;
 }
@@ -119,10 +101,6 @@ bool meter_i18n_set_language(meter_language_t language)
         return true;
     lv_translation_set_language(known->code);
     return true;
-}
-const char *meter_i18n_tag(meter_text_id_t id)
-{
-    return (unsigned)id < METER_TXT_COUNT ? vocabulary_tags[id] : "";
 }
 /* Newest pack first, the order lv_translation_get() itself walks. */
 static const char *lookup(const char *code, const char *tag)
@@ -200,36 +178,13 @@ const char *meter_i18n_tr_plural(const char *tag, unsigned count)
     const char *text = meter_i18n_tr(variant);
     return text != variant ? text : tag;
 }
-const char *meter_i18n_text(meter_text_id_t id)
-{
-    return meter_i18n_tr(meter_i18n_tag(id));
-}
-const char *meter_i18n_state(meter_value_state_t state)
-{
-    return meter_i18n_text(state == METER_VALUE_UNKNOWN ? METER_TXT_VALIDITY_UNKNOWN
-                           : state == METER_VALUE_STALE ? METER_TXT_VALIDITY_STALE
-                           : state == METER_VALUE_ERROR ? METER_TXT_VALIDITY_ERROR
-                                                        : METER_TXT_VALIDITY_LIVE);
-}
-void meter_font_provider_set(meter_font_resolver_t resolver)
-{
-    font_resolver = resolver;
-}
-meter_font_role_t meter_font_role_of(const lv_font_t *font)
-{
-    return font && font->line_height >= 24 ? METER_FONT_VALUE : METER_FONT_LABEL;
-}
 /* The face a language registered for the role, or NULL when it has none. */
 static const lv_font_t *substitute_face(meter_language_t language, meter_font_role_t role)
 {
     const meter_i18n_language_t *known = find_language(language);
-    if (known)
-    {
-        const lv_font_t *face = role == METER_FONT_VALUE ? known->value_font : known->label_font;
-        if (face)
-            return face;
-    }
-    return font_resolver ? font_resolver(language, role) : NULL;
+    if (!known)
+        return NULL;
+    return role == METER_FONT_VALUE ? known->value_font : known->label_font;
 }
 const lv_font_t *meter_font_get(meter_language_t language, meter_font_role_t role)
 {
@@ -354,12 +309,6 @@ void meter_i18n_font_isolated_forms(lv_font_t *face, lv_font_t *storage)
     storage->fallback = face->fallback;
     face->fallback = storage;
 }
-void meter_i18n_bind_label(lv_obj_t *label, const char *tag)
-{
-    if (!label)
-        return;
-    meter_i18n_bind_text(label, tag, meter_font_role_of(lv_obj_get_style_text_font(label, 0)));
-}
 static size_t put_char(char *out, size_t size, size_t used, char c)
 {
     if (used + 1u < size)
@@ -408,26 +357,4 @@ size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_
     }
     out[used < size ? used : size - 1u] = '\0';
     return used < size ? used : size - 1u;
-}
-void meter_i18n_format_value(char *out, size_t size, float value, meter_value_state_t state,
-                             const char *unit, unsigned decimals, meter_language_t language)
-{
-    if (!out || !size)
-        return;
-    if (state == METER_VALUE_ERROR || (state != METER_VALUE_UNKNOWN && !isfinite(value)))
-    {
-        const meter_i18n_arg_t argument = meter_i18n_arg_str(unit);
-        (void)meter_i18n_format(out, size, meter_i18n_tr_in(language, vocabulary_tags[METER_TXT_VALUE_ERROR]),
-                                &argument, 1u);
-        return;
-    }
-    meter_format_value(out, size, value, state == METER_VALUE_STALE ? METER_VALUE_VALID : state, unit,
-                       decimals);
-    if (state == METER_VALUE_STALE)
-    {
-        size_t used = strlen(out);
-        if (used < size)
-            snprintf(out + used, size - used, " / %s",
-                     meter_i18n_tr_in(language, vocabulary_tags[METER_TXT_VALIDITY_STALE]));
-    }
 }

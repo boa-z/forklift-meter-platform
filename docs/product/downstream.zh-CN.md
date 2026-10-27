@@ -70,7 +70,7 @@ meter_core_init(&core, &private_catalog, &storage);
 
 ### Product 语言资源
 
-框架只提供翻译**服务**（`ui/common/i18n/meter_i18n_runtime.h`），措辞属于 Product。框架唯一内置的文字是英文：框架控件自己渲染的 `meter.*` 词汇（`meter.validity.live`、`meter.state.on`、`meter.value.error` 等）。Product 注册含同名标签的包即可覆盖其措辞。
+框架只提供翻译**服务**（`ui/common/i18n/meter_i18n_runtime.h`），措辞全部属于 Product，框架不带可视控件，也不带自己的文字。界面由 Product 用 LVGL 原生控件搭建。
 
 ```text
 key  →  language catalog (static arrays, generated)  →  text

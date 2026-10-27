@@ -93,7 +93,7 @@ common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/common/meter_display_gamma.c', 'platform/common/meter_display_ccm.c',
           'storage/meter_file.c', 'platform/common/meter_diag_commands.c',
           'platform/rtthread/debug/meter_debug_console.c', 'platform/rtthread/debug/meter_debug_log.c']
-common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protocol_common', 'ui_math', 'ui_common')
+common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protocol_common', 'ui_common')
            for p in platform_manifest[group]]
 print('METER sources   : ' + str(len(product_sources)))
 

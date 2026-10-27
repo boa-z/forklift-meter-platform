@@ -1,19 +1,14 @@
-/* i18n 服务契约：框架只内置英文词汇，语言、翻译包与字体由 Product 注册，切换语言是唯一入口。 */
+/* i18n 服务契约：框架不内置任何措辞，语言、翻译包与字体由 Product 注册，切换语言是唯一入口。 */
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include <lvgl.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "check.h"
 
-/* 与框架同名的标签用来覆盖措辞；demo.* 是 Product 自己的键。第三种语言 de 只翻译了一半。 */
+/* Product 自己的键。第三种语言 de 只翻译了一部分。 */
 static const char *const pack_languages[] = {METER_LANGUAGE_CODE_EN, METER_LANGUAGE_CODE_ZH, "de", NULL};
-static const char *const pack_tags[] = {
-    "meter.validity.stale", "meter.value.error", "demo.title", "demo.only_en",
-    "demo.count.one",       "demo.count.other",  NULL};
+static const char *const pack_tags[] = {"demo.title", "demo.only_en", "demo.count.one", "demo.count.other", NULL};
 static const char *const pack_texts[] = {
-    "STALE",        "过期",     "veraltet",     /* meter.validity.stale */
-    "ERR {0}",      "错误 {0}", "Fehler {0}",   /* meter.value.error */
     "Title",        "标题",     "Titel",        /* demo.title */
     "English only", NULL,       NULL,           /* 其余语言没有这一行：回退到英文 */
     "{0} item",     "{0} 项",   "{0} Eintrag",  /* demo.count.one */
@@ -24,32 +19,19 @@ static const meter_language_t LANGUAGE_DE = (meter_language_t)2;
 
 static int language_flow(void)
 {
-    /* 刚初始化：只有英文，也只内置英文；中文没有注册包时回退到英文，绝不出现标签名。 */
-    CHECK(meter_i18n_selected_language() == METER_LANGUAGE_EN);
-    CHECK(!strcmp(meter_i18n_text(METER_TXT_VALIDITY_LIVE), "LIVE"));
-    CHECK(!strcmp(meter_i18n_state(METER_VALUE_UNKNOWN), "NO DATA"));
+    /* 刚初始化：默认语言表（en、zh-CN），选中英文；没有任何包时取词回退为标签本身。 */
+    CHECK(meter_i18n_selected_language() == METER_LANGUAGE_EN && meter_i18n_language_count() == 2u);
+    CHECK(!strcmp(meter_i18n_tr("demo.title"), "demo.title"));
     CHECK(meter_i18n_set_language(METER_LANGUAGE_ZH));
     CHECK(meter_i18n_selected_language() == METER_LANGUAGE_ZH);
-    CHECK(!strcmp(meter_i18n_text(METER_TXT_STATE_ON), "ON"));
-    char text[48];
-    meter_i18n_format_value(text, sizeof(text), 3.0f, METER_VALUE_ERROR, "kg", 1, METER_LANGUAGE_ZH);
-    CHECK(!strcmp(text, "ERR kg"));
     CHECK(meter_i18n_set_language(METER_LANGUAGE_EN));
 
-    /* Product 的包后注册，覆盖框架词汇；同一个包再注册一次是空操作。 */
+    /* 同一个包再注册一次是空操作。 */
     CHECK(meter_i18n_register_pack(&pack));
     CHECK(meter_i18n_register_pack(&pack));
     CHECK(!strcmp(meter_i18n_tr("demo.title"), "Title"));
     CHECK(meter_i18n_set_language(METER_LANGUAGE_ZH));
     CHECK(!strcmp(meter_i18n_tr("demo.title"), "标题"));
-    CHECK(!strcmp(meter_i18n_state(METER_VALUE_STALE), "过期"));
-    meter_i18n_format_value(text, sizeof(text), 12.5f, METER_VALUE_STALE, "kg", 1, METER_LANGUAGE_ZH);
-    CHECK(!strcmp(text, "12.5 kg / 过期"));
-    meter_i18n_format_value(text, sizeof(text), NAN, METER_VALUE_VALID, "kg", 1, METER_LANGUAGE_ZH);
-    CHECK(!strcmp(text, "错误 kg"));
-    /* 未知读数只留占位符，与语言无关，也不因 NaN 被当成错误。 */
-    meter_i18n_format_value(text, sizeof(text), NAN, METER_VALUE_UNKNOWN, "kg", 1, METER_LANGUAGE_ZH);
-    CHECK(!strcmp(text, "-- kg"));
     /* 显式语言取词不依赖当前选择。 */
     CHECK(!strcmp(meter_i18n_tr_in(METER_LANGUAGE_EN, "demo.title"), "Title"));
 
@@ -75,7 +57,6 @@ static int language_flow(void)
     CHECK(meter_i18n_selected_language() == LANGUAGE_DE);
     CHECK(!strcmp(meter_i18n_language_code(LANGUAGE_DE), "de"));
     CHECK(!strcmp(meter_i18n_tr("demo.title"), "Titel"));
-    CHECK(!strcmp(meter_i18n_state(METER_VALUE_STALE), "veraltet"));
     /* 单元格为空的行回退到英文列；包里根本没有的标签回退为标签本身。 */
     CHECK(!strcmp(meter_i18n_tr("demo.only_en"), "English only"));
     CHECK(!strcmp(meter_i18n_tr("demo.missing"), "demo.missing"));
@@ -83,8 +64,6 @@ static int language_flow(void)
     CHECK(!strcmp(meter_i18n_find("demo.title"), "Titel"));
     CHECK(meter_i18n_find("demo.only_en") == NULL && meter_i18n_find("demo.missing") == NULL);
     CHECK(meter_i18n_find("") == NULL && meter_i18n_find(NULL) == NULL);
-    /* 框架词汇没有 de 列，同样回退英文而不是显示标签。 */
-    CHECK(!strcmp(meter_i18n_text(METER_TXT_STATE_OFF), "OFF"));
     CHECK(!strcmp(meter_i18n_tr(""), ""));
     CHECK(meter_i18n_set_language(METER_LANGUAGE_EN));
     return 0;
@@ -192,7 +171,7 @@ int main(void)
     CHECK(meter_i18n_selected_language() == METER_LANGUAGE_EN && meter_i18n_language_count() == 2u);
     CHECK(!strcmp(meter_i18n_tr("demo.title"), "demo.title"));
     lv_deinit();
-    puts("Framework i18n: English-only vocabulary, registered packs and languages, runtime switch and face "
+    puts("Framework i18n: Product language tables and packs, runtime switch and face "
          "binding PASS");
     return 0;
 }

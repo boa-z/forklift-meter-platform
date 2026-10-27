@@ -22,7 +22,7 @@ Private inventory and donor baselines remain outside this repository. Existing p
 | products/demo/protocol and products/demo/generated/can | Original | Synthetic DBC source, domain mapping and generated codec/adapter |
 | runtime | Original | Portable routing, batches, requests, lifecycle and periodic TX helpers |
 | products/demo | Original | Capability, binding, routes, UI and policy composition |
-| ui/common | Original | Instruments, formatting, translation runtime and presentation primitives, without product wording |
+| ui/common | Original | Translation runtime and the display test card, without product wording; visual widgets live in Products (the Demo's in `products/demo/ui/widgets`) |
 | products/demo/ui and products/demo/assets | Original | Product-owned pages, navigation, translation pack and font subset |
 | platform | Original | Host and RT-Thread adapters |
 | LVGL / lvgl-aic | Pinned public upstream | Rendering and board adaptation |

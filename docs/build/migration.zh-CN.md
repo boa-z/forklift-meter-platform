@@ -22,7 +22,7 @@
 | products/demo/protocol and products/demo/generated/can | Original | 合成 DBC 源文件、域映射和生成的编解码器/适配器 |
 | runtime | Original | 可移植路由、批次、请求、生命周期和周期 TX 助手 |
 | products/demo | Original | 能力、绑定、路由、UI 和策略组合 |
-| ui/common | Original | 仪表、格式化、翻译运行时和呈现原语，不含产品文案 |
+| ui/common | Original | 翻译运行时与显示测试卡，不含产品文案；可视控件属于 Product（Demo 的在 `products/demo/ui/widgets`） |
 | products/demo/ui and products/demo/assets | Original | 属主页面、导航、翻译包和字体子集 |
 | platform | Original | 主机和 RT-Thread 适配器 |
 | LVGL / lvgl-aic | Pinned public upstream | 渲染和单板适配 |
