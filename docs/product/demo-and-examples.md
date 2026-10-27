@@ -6,7 +6,7 @@
 
 | Package | Ownership | Purpose | Build selection |
 |---|---|---|---|
-| `products/demo` | Independent public Product repository, cloned into `products/demo` | Complete synthetic instrument, bilingual LVGL UI, protocol, settings and Product docs | Default, or `METER_PRODUCT_ROOT=products/demo` |
+| `products/demo` | Independent public Product repository, cloned into `products/demo` | Complete synthetic instrument, bilingual LVGL UI, protocol, settings and Product docs | `-DMETER_PRODUCT_ROOT=products/demo` (host) or `METER_PRODUCT_ROOT=products/demo` (firmware) |
 
 Use the [Demo Product handbook](../../products/demo/README.md) and its [actual SDL2 gallery](../../products/demo/docs/ui/screenshots.md) as the full development reference. Each firmware links exactly one Product.
 

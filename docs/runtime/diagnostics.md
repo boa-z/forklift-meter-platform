@@ -114,7 +114,7 @@ Before flashing, reserve the shared board using SDK project-management policy an
 
 ## Validation and limits
 
-HOST_PASS requires the framework-only and Demo builds, architecture, diagnostics, trace, command rendering, production MSH frontend tests, serial helper and build identity tests. The MSH host test replaces only native RT API/registration and asserts output occurs outside the owner mutex; it also verifies native ULog severity, warning rate limits and silence for normal traffic. The serial tests include pyserial loopback; neither establishes physical UART behavior. Linux is the CI default.
+HOST_PASS requires the framework-only build, architecture, diagnostics, trace, command rendering, production MSH frontend tests, serial helper and build identity tests. The MSH host test replaces only native RT API/registration and asserts output occurs outside the owner mutex; it also verifies native ULog severity, warning rate limits and silence for normal traffic. The serial tests include pyserial loopback; neither establishes physical UART behavior. Linux is the CI default.
 
 IMAGE_READY requires the selected SDK firmware build plus artifact hash. BOARD_PASS additionally requires physical boot/MSH/fixture evidence tied to that image. Current work reports BOARD_NOT_RUN when no board port is available. Persistent trace, coredump, network logging, custom UART parser and extra Demo pages are not provided.
 

@@ -108,20 +108,6 @@ def test_tool_outside_the_package_is_rejected(tmp_path):
         resolve(make_product(tmp_path, declared="../outside.py"), tmp_path)
 
 
-def test_public_demo_declares_no_version_tool():
-    material = ROOT / "products" / "demo"
-    assert material.is_dir()  # 公共 Demo 不声明版本脚本，保持旧行为
-    assert version.declared_tool(str(material)) is None
-
-
-def test_public_demo_hardware_identity_comes_from_its_update_policy():
-    spec = importlib.util.spec_from_file_location("build_identity", ROOT / "tools/build_identity.py")
-    identity = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(identity)
-    # Demo 的 meter_update_policy_t 是设备端身份；打包也必须取同一串，否则 0x34 会拒绝升级。
-    assert identity.hardware_identity(str(ROOT / "products" / "demo")) == "reference-board"
-
-
 def test_partition_size_is_read_from_the_sdk_table(tmp_path):
     from tools.firmware_package import os_partition_bytes
     table = tmp_path / "partition.json"

@@ -26,13 +26,8 @@ if(BUILD_TESTING)
     add_test(NAME product-boundaries COMMAND test-product-boundaries)
 endif()
 option(METER_BUILD_UI "Build LVGL/SDL host UI" ON)
-# 框架不依赖任何 Product：METER_PRODUCT_ROOT 为空时只构建并测试框架本身。
-# 检出了 products/demo 时默认选它，便于直接运行模拟器。
-set(meter_default_product "")
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/products/demo/product/sources.json")
-    set(meter_default_product "${CMAKE_CURRENT_SOURCE_DIR}/products/demo")
-endif()
-set(METER_PRODUCT_ROOT "${meter_default_product}" CACHE PATH "Product package root; empty builds the framework only")
+# 框架不依赖任何 Product：METER_PRODUCT_ROOT 为空（默认）时只构建并测试框架本身。
+set(METER_PRODUCT_ROOT "" CACHE PATH "Product package root; empty builds the framework only")
 if(METER_PRODUCT_ROOT)
     get_filename_component(METER_PRODUCT_ROOT "${METER_PRODUCT_ROOT}" ABSOLUTE)
     if(NOT EXISTS "${METER_PRODUCT_ROOT}/product/sources.json")

@@ -60,4 +60,4 @@ UI 线程组装 Product，初始化 LVGL、Core 与显示，创建 Product UI，
 
 ## 构建期 Product 选择
 
-每个固件镜像只包含一个 Product，SCons 按 defconfig 的 `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` 选择；环境变量 `METER_PRODUCT_ROOT` 可在单次构建中覆盖。选择为空时固件构建停止。主机 CMake 在 `products/demo` 存在时默认选它，`-DMETER_PRODUCT_ROOT=` 只构建框架。所选 `product/sources.json` 提供固件组装（`contracts/meter_firmware.h`）：三份互不重叠的存储（运行时 Domain、发布副本、UI 副本）以及语言初始化。
+每个固件镜像只包含一个 Product，SCons 按 defconfig 的 `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` 选择；环境变量 `METER_PRODUCT_ROOT` 可在单次构建中覆盖。选择为空时固件构建停止。主机 CMake 在 `-DMETER_PRODUCT_ROOT` 指定 Product 之前只构建框架。所选 `product/sources.json` 提供固件组装（`contracts/meter_firmware.h`）：三份互不重叠的存储（运行时 Domain、发布副本、UI 副本）以及语言初始化。

@@ -6,7 +6,7 @@
 
 | 包 | 归属 | 用途 | 构建选择 |
 |---|---|---|---|
-| `products/demo` | 独立公开 Product 仓库，克隆到 `products/demo` | 完整合成仪表、双语 LVGL UI、协议、设置和 Product 文档 | 默认，或 `METER_PRODUCT_ROOT=products/demo` |
+| `products/demo` | 独立公开 Product 仓库，克隆到 `products/demo` | 完整合成仪表、双语 LVGL UI、协议、设置和 Product 文档 | `-DMETER_PRODUCT_ROOT=products/demo`（主机）或 `METER_PRODUCT_ROOT=products/demo`（固件） |
 
 完整开发规范参考 [Demo Product 手册](../../products/demo/README.zh-CN.md)及其 [SDL2 实际截图](../../products/demo/docs/ui/screenshots.zh-CN.md)。每个固件只链接一个 Product。
 

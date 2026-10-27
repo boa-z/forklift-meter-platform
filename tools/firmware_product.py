@@ -31,9 +31,9 @@ def discover_products(app_root):
     return found
 
 
-def select(app_root, selection=None):
+def select(app_root, selection):
     root = os.path.abspath(app_root)
-    product = selection or os.path.join('products', 'demo')
+    product = selection
     if not os.path.isabs(product):
         product = os.path.join(root, product)
     product = os.path.abspath(product)
@@ -109,9 +109,8 @@ def select_firmware(app_root, selection, configured=None):
     """固件只接受显式选择的 Product。
 
     选择来源：METER_PRODUCT_ROOT 环境变量（覆盖）> defconfig 中的
-    CONFIG_AIC_FORKLIFT_PRODUCT_ROOT。select() 的 products/demo 兜底是宿主参考 Demo 的
-    便利行为；在固件路径上它会静默产出错误产品的镜像，所以两处都缺失即中止，并列出候选
-    与可直接粘贴的设置方式。
+    CONFIG_AIC_FORKLIFT_PRODUCT_ROOT。没有默认 Product：静默回落会产出错误产品的镜像，
+    所以两处都缺失即中止，并列出候选与可直接粘贴的设置方式。
     """
     selection, _ = firmware_selection(selection, configured)
     if selection is None:
@@ -123,24 +122,19 @@ def select_firmware(app_root, selection, configured=None):
                          + CONFIG_SYMBOL + '="' + example + '" (menuconfig: Forklift meter platform -> '
                          'Product root), then run scons --apply-def again. '
                          'Or override per shell: set METER_PRODUCT_ROOT='
-                         + os.path.join(os.path.abspath(app_root), example).replace(os.sep, '/') + '. '
-                         'Host CMake builds keep the products/demo default.')
+                         + os.path.join(os.path.abspath(app_root), example).replace(os.sep, '/') + '.')
     return select(app_root, selection)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--product-root')
-    parser.add_argument('--firmware', action='store_true',
-                        help='Apply the firmware rule: an explicit selection is required')
     args = parser.parse_args()
     app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    environment = os.environ.get('METER_PRODUCT_ROOT')
-    selection = args.product_root or environment
-    selected_by = 'cli' if args.product_root else ('env' if environment else 'default')
-    chooser = select_firmware if args.firmware else select
+    selection = args.product_root or os.environ.get('METER_PRODUCT_ROOT')
+    selected_by = 'cli' if args.product_root else 'env'
     try:
-        product, sources = chooser(app_root, selection)
+        product, sources = select_firmware(app_root, selection)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     print(json.dumps(dict(product=str(product), selected_by=selected_by,

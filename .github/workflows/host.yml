@@ -8,7 +8,6 @@ jobs:
         with:
           submodules: false
       - run: git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
-      - run: git clone --depth 1 https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
       - uses: actions/setup-python@v5
         with: { python-version: '3.13' }
       - name: Install host dependencies
@@ -18,14 +17,9 @@ jobs:
           python -m pip install pytest==8.3.5 -r tools/protocol/requirements.txt -r tools/serial/requirements.txt -r tools/ota/requirements.txt
       - name: Framework without a Product
         run: |
-          cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=
+          cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug
           cmake --build build-framework
           ctest --test-dir build-framework --output-on-failure
-      - name: Demo with UI
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build
-          ctest --test-dir build --output-on-failure
       - name: Headless with CAN OTA
         run: |
           cmake -S . -B build-update -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_BUILD_UI=OFF -DMETER_ENABLE_UPDATE=ON

@@ -146,11 +146,6 @@ cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
 for deps in re.findall(r'target_link_libraries\(meter_core\s+([^)]*)\)',cmake,re.S):
     if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts','meter_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')
-# Demo screens render Product values; projection is independently host compilable.
-for file in (ROOT/'products/demo/ui').glob('*.c'):
-    if file.name in ('dashboard.c', 'monitor.c', 'faults.c', 'settings.c', 'demo_ui.c'):
-        if re.search(r'meter_snapshot_(?:read|parameter|fault)|meter_demo_catalog|snapshot->', file.read_text(encoding='utf-8')):
-            errors.append(f'{file.relative_to(ROOT)} interprets Domain in a renderer')
 for file in (ROOT/'products').glob('*/application/*'):
     if file.suffix in ('.c', '.h') and re.search(r'lvgl|lv_obj_t|rtthread', file.read_text(encoding='utf-8'), re.I):
         # 注释可提及禁止的依赖；此处只检查实际包含的头文件及类型。

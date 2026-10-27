@@ -6,7 +6,6 @@ Host 命令从 Framework 根目录运行，需要 Python 3、CMake、Ninja 和 C
 
 ```text
 git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
-git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt pytest -r tools/ota/requirements.txt
 ```
 
@@ -14,9 +13,9 @@ python -m pip install -r tools/protocol/requirements.txt -r tools/serial/require
 
 ## 选择 Product
 
-每个固件只包含一个 Product。Product 是包含 `product/sources.json` 的目录；manifest 列出 `application`、`protocol`、`catalog`、`ui`、`product`、`firmware` 以及可选 `ui_binding` 的源码闭包。Host CMake 在检出 `products/demo` 时默认使用它，`-DMETER_PRODUCT_ROOT=`（空值）则只构建框架本身；固件构建没有默认值，未设置或空白的 `METER_PRODUCT_ROOT` 会直接中止构建，而不是静默选择 Demo。
+每个固件只包含一个 Product。Product 是包含 `product/sources.json` 的目录；manifest 列出 `application`、`protocol`、`catalog`、`ui`、`product`、`firmware` 以及可选 `ui_binding` 的源码闭包。Host CMake 没有默认 Product：在 `-DMETER_PRODUCT_ROOT` 指定 Product 之前只构建并测试框架本身；固件构建同样没有默认值，未设置或空白的 `METER_PRODUCT_ROOT` 会直接中止构建，而不是静默选择某个 Product。
 
-参考 Demo 维护在公开仓库 [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo)，不是 submodule：配置 CMake 前把它克隆到 `products/demo`。每个 Product 都是 `products/<id>` 下的独立仓库，Framework 忽略该目录，见 [products/README.zh-CN.md](../../products/README.zh-CN.md)。
+参考 Demo 维护在公开仓库 [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo)，它是可选的，也不是 submodule：需要构建时把它克隆到 `products/demo`。每个 Product 都是 `products/<id>` 下的独立仓库，Framework 忽略该目录，见 [products/README.zh-CN.md](../../products/README.zh-CN.md)。
 
 创建模板并检查源码闭包：
 
@@ -25,11 +24,11 @@ python tools/create_product.py --id my-product --output ../my-product
 python tools/firmware_product.py --product-root ../my-product
 ```
 
-`--firmware` 对同一个解析器施加固件规则，未完成的选择会在构建前就失败，并列出可选的 Product 根目录，而不是等到编译阶段：
+解析器施加固件规则，未完成的选择会在构建前就失败，并列出可选的 Product 根目录，而不是等到编译阶段：
 
 ```text
-python tools/firmware_product.py --firmware
-python tools/firmware_product.py --firmware --product-root products/demo
+python tools/firmware_product.py
+python tools/firmware_product.py --product-root products/my-product
 ```
 
 客户协议表、素材和字体必须放在私有 Product 仓库。公开 Framework 只保留合成数据或参考数据。

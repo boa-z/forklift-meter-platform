@@ -10,7 +10,6 @@ import shutil
 import subprocess
 
 PLATFORM = Path(__file__).resolve().parents[1]
-ROOT = PLATFORM / "products/demo"
 FONT = 'third_party/lvgl/scripts/generators/built_in_font/SourceHanSansSC-Normal.otf'
 LICENSE = 'third_party/lvgl/scripts/generators/built_in_font/font_license/SourceHanSansSC/LICENSE.txt'
 PIN = '80ca777e37a2b176770726a02e07a6fb79ef0b39'
@@ -45,10 +44,9 @@ def product_font_text(root, config):
     return '\n'.join(texts)
 
 def main():
-    global ROOT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
-    parser.add_argument("--product-root", type=Path, default=ROOT)
+    parser.add_argument("--product-root", type=Path, required=True)
     args = parser.parse_args()
     ROOT = args.product_root.resolve()
     config_path = ROOT / 'assets/font-config.json'

@@ -7,7 +7,6 @@ import cantools
 from cantools.database.can import c_source
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
 BANNER = '/* 自动生成：tools/protocol/generate_can.py + cantools 40.7.1；请勿手改。 */\n'
 
 
@@ -64,7 +63,7 @@ def generate(product):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--product-root', type=Path, default=ROOT / 'products/demo')
+    p.add_argument('--product-root', type=Path, required=True)
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     assert cantools.__version__ == '40.7.1', 'Install tools/protocol/requirements.txt'
