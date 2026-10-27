@@ -75,6 +75,9 @@ static void meter_thread(void *parameter)
         lv_deinit();
         return;
     }
+    if (meter_i18n_language_count() < meter_catalog_language_count(product->catalog))
+        LOG_E("catalog accepts %u languages, Product registered %u", meter_catalog_language_count(product->catalog),
+              (unsigned)meter_i18n_language_count());
     LOG_I("product=%s; UI thread running", product->id);
     /* present() 要的是累计运行毫秒（开机停留、闪烁相位都在 UI 里按它计时），
        不是帧间隔：传 16/50 这类增量会让开机页永远停在原地。 */

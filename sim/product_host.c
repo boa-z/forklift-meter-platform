@@ -78,6 +78,8 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     meter_ui_actions_t actions = {action,&core};
     void *ui = p->ui->create(lv_screen_active(),&actions);
     if (!ui) return 6;
+    /* 目录接受的每个语言字节都要有 Product 注册的语言，否则已存的设置会落到没有译文的编号上。 */
+    if (meter_i18n_language_count() < meter_catalog_language_count(c)) return 7;
     unsigned n;
     for (n=0; (!frames || n<frames) && meter_host_events(); ++n)
     {
@@ -97,7 +99,7 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     bool pass = !runtime.diagnostics.decode_failed && (!capture || meter_host_capture(capture));
     printf("{\"result\":\"%s\",\"frames\":%u,\"revision\":%u,\"dispatched\":%u,\"language\":\"%s\"}\n",
            pass ? "PASS" : "FAIL",n,(unsigned)core.snapshot.revision,(unsigned)runtime.diagnostics.dispatched,
-           language==METER_LANGUAGE_ZH ? "zh-CN":"en");
+           meter_i18n_language_code(core.snapshot.language));
     p->ui->destroy(ui); meter_host_close(); lv_deinit();
     free(s.signals);free(s.parameters);free(s.faults);
     return pass ? 0 : 8;

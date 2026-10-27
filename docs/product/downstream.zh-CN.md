@@ -76,13 +76,15 @@ meter_core_init(&core, &private_catalog, &storage);
 key  →  language catalog (static arrays, generated)  →  text
 ```
 
-- **目录**：按 LVGL `lv_translation_add_static` 的版式生成静态包（语言码、以 NULL 结尾的键、键×语言）。运行时没有 JSON 或文件解析；来源（JSON、CSV、客户表）留在 Product 里，生成 C 数组。
-- **注册**：在 `meter_firmware_composition_t.locale_init` 里对每种语言调用 `meter_i18n_register_language()`（持久化 id、包列名、可选的标签/数值字体），对每个包调用 `meter_i18n_register_pack()`。注册幂等，`meter_i18n_init()` 之后每个 LVGL 生命周期注册一次。
+- **目录**：按 LVGL `lv_translation_add_static` 的版式生成静态包（语言码、以 NULL 结尾的键、键×语言）。运行时没有 JSON 或文件解析；来源留在 Product 里，生成 C 数组。`python tools/generate_i18n.py --product-root products/my-product` 从 `i18n/languages.json` 与每种语言一份扁平的 `<code>.json` 生成，并检查语言编号、键集合、`{n}` 占位符、缺失译文（语言未声明 `complete: false` 时为错误）、所声明字体文件的字形覆盖（阿拉伯文按 LVGL 字形变换后检查）以及 `meter_i18n_tr("...")` 字面键；`--check` 在已提交的生成文件过期时失败。来源更复杂（客户表、绑定关系）的 Product 可以保留自己的生成器，只要产出同样的翻译包与语言表。
+- **语言表**：编号属于 Product：`meter_i18n_register_languages(table, count)` 接收一张表，第 *i* 项的 id 就是 *i*（持久化的语言字节），带唯一的包列名、可选的标签/数值字体和复数规则。它替换内置默认（`0` en、`1` zh-CN），没有数量上限，必须活得比 LVGL 久。编号只能追加；重排会让每份已存设置换了含义。
+- **注册**：在建任何界面之前，从 UI 工厂的 `create()`（固件与主机运行器都会调用的唯一钩子）和/或 `meter_firmware_composition_t.locale_init` 注册：先语言表，再对每个包调用 `meter_i18n_register_pack()`。注册幂等，`meter_i18n_init()` 之后在一个 LVGL 生命周期内有效。两个运行器都会检查 `meter_catalog_t.language_count` 接受的每个 id 都已注册。
 - **唯一来源**：持久化的 `snapshot.language` 决定语言。主循环在 `present_update()` 与 `present()` 之前调用 `meter_i18n_set_language()`，LVGL 随后向每个对象发送 `LV_EVENT_TRANSLATION_LANGUAGE_CHANGED`。
 - **绑定而不是重建**：`meter_i18n_bind_text(label, tag, role)` 一次绑定翻译键与随语言变化的字体；`meter_i18n_bind_font()` 只绑字体。语言没有该角色的字体时，对象恢复设计时的字体。
-- **回退**：`meter_i18n_tr()` 先取当前语言，再取已注册包的英文列，最后返回标签本身。生成完整矩阵，绑定的标签就不会显示键名。
+- **回退**：`meter_i18n_tr()` 先取当前语言，再取已注册包的英文列，最后返回标签本身。生成完整矩阵，绑定的标签就不会显示键名。`meter_i18n_find()` 是不回退的查找（找不到返回 `NULL`，不产生 LVGL 警告），用于可选覆盖，例如共享键的协议专用措辞。
 - **模板与复数**：`{0}`–`{9}` 位置占位符由 `meter_i18n_format()` 按带类型的参数（`meter_i18n_arg_u/s/str`）展开，不经 printf。复数文字是基标签加 `.one` / `.other`，`meter_i18n_tr_plural()` 按当前语言的 `meter_plural_rule_t` 选形式。
-- **多于两种语言**：`meter_language_t` 仍是持久化字节（`0` EN、`1` ZH）；Product 用 `meter_catalog_t.language_count` 声明目录接受多少个 id。
+- **多于两种语言**：`meter_language_t` 仍是持久化字节，含义由 Product 的语言表决定；`meter_catalog_t.language_count` 声明目录接受多少个 id。只在重启时切换语言的 Product（字体按语言创建）在 `snapshot.language` 里报告正在显示的语言，而不是开机后写入的设置。
+- **字体**：优先用 LVGL 自带的回退链（`lv_font_t.fallback`），不要按语言写分支：语言字体缺的字由同角色的默认字体补。LVGL 的阿拉伯字形变换画的是呈现形；`meter_i18n_font_isolated_forms()` 用基本字母的字形补上字体缺的孤立形。
 - **溢出文字**：给所有译文标签一个统一策略（例如 `LV_LABEL_LONG_SCROLL_CIRCULAR`），不要逐页改版式。
 
 ### Product 字体输入

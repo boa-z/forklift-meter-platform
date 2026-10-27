@@ -56,8 +56,21 @@ static int language_flow(void)
     /* 第三种语言：先要注册，未注册的 ID 拒绝且不改当前语言。 */
     CHECK(!meter_i18n_set_language(LANGUAGE_DE));
     CHECK(meter_i18n_selected_language() == METER_LANGUAGE_ZH);
-    const meter_i18n_language_t german = {LANGUAGE_DE, "de", NULL, NULL, METER_PLURAL_ONE_OTHER};
-    CHECK(meter_i18n_register_language(&german));
+    /* 语言表属于 Product：编号即表内位置，打乱编号或重复语言码的表整张拒绝，原表保持不变。 */
+    static const meter_i18n_language_t shuffled[] = {
+        {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL, METER_PLURAL_OTHER_ONLY},
+        {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER}};
+    static const meter_i18n_language_t twice[] = {
+        {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER},
+        {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_OTHER_ONLY}};
+    CHECK(!meter_i18n_register_languages(shuffled, 2u) && !meter_i18n_register_languages(twice, 2u));
+    CHECK(meter_i18n_language_count() == 2u);
+    static const meter_i18n_language_t three[] = {
+        {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER},
+        {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL, METER_PLURAL_OTHER_ONLY},
+        {LANGUAGE_DE, "de", NULL, NULL, METER_PLURAL_ONE_OTHER}};
+    CHECK(meter_i18n_register_languages(three, 3u) && meter_i18n_register_languages(three, 3u));
+    CHECK(meter_i18n_language_count() == 3u);
     CHECK(meter_i18n_set_language(LANGUAGE_DE));
     CHECK(meter_i18n_selected_language() == LANGUAGE_DE);
     CHECK(!strcmp(meter_i18n_language_code(LANGUAGE_DE), "de"));
@@ -66,6 +79,10 @@ static int language_flow(void)
     /* 单元格为空的行回退到英文列；包里根本没有的标签回退为标签本身。 */
     CHECK(!strcmp(meter_i18n_tr("demo.only_en"), "English only"));
     CHECK(!strcmp(meter_i18n_tr("demo.missing"), "demo.missing"));
+    /* find 只看当前语言：有译文给译文，否则 NULL，不回退英文也不回退标签。 */
+    CHECK(!strcmp(meter_i18n_find("demo.title"), "Titel"));
+    CHECK(meter_i18n_find("demo.only_en") == NULL && meter_i18n_find("demo.missing") == NULL);
+    CHECK(meter_i18n_find("") == NULL && meter_i18n_find(NULL) == NULL);
     /* 框架词汇没有 de 列，同样回退英文而不是显示标签。 */
     CHECK(!strcmp(meter_i18n_text(METER_TXT_STATE_OFF), "OFF"));
     CHECK(!strcmp(meter_i18n_tr(""), ""));
@@ -117,9 +134,12 @@ static int binding_flow(void)
 {
     static const lv_font_t *const designed = &lv_font_montserrat_16;
     const lv_font_t *substitute = &lv_font_montserrat_20;
-    const meter_i18n_language_t chinese = {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, substitute, substitute,
-                                           METER_PLURAL_OTHER_ONLY};
-    CHECK(meter_i18n_register_language(&chinese));
+    /* 注册表借用语言表，表必须活得比 LVGL 久。 */
+    static const meter_i18n_language_t faces[] = {
+        {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER},
+        {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, &lv_font_montserrat_20, &lv_font_montserrat_20,
+         METER_PLURAL_OTHER_ONLY}};
+    CHECK(meter_i18n_register_languages(faces, 2u));
     lv_obj_t *screen = lv_obj_create(NULL);
     lv_obj_t *label = lv_label_create(screen);
     lv_obj_set_style_text_font(label, designed, 0);
@@ -169,7 +189,7 @@ int main(void)
     CHECK(lv_display_create(800, 480));
     CHECK(meter_i18n_init());
     CHECK(!meter_i18n_set_language(LANGUAGE_DE));
-    CHECK(meter_i18n_selected_language() == METER_LANGUAGE_EN);
+    CHECK(meter_i18n_selected_language() == METER_LANGUAGE_EN && meter_i18n_language_count() == 2u);
     CHECK(!strcmp(meter_i18n_tr("demo.title"), "demo.title"));
     lv_deinit();
     puts("Framework i18n: English-only vocabulary, registered packs and languages, runtime switch and face "

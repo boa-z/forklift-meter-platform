@@ -34,9 +34,8 @@ typedef enum
     METER_PLURAL_ONE_OTHER = 0, /* en, de, ...: a count of 1 is "one", everything else "other" */
     METER_PLURAL_OTHER_ONLY     /* zh, ja, ko: no grammatical number, always "other" */
 } meter_plural_rule_t;
-/* One selectable language. id is the persisted language byte (meter_language_t, extended by the
-   Product); code is the pack column. A NULL face means "keep the face the widget was designed with"
-   for that role. */
+/* One selectable language. id is the persisted language byte (meter_language_t); code is the pack
+   column. A NULL face means "keep the face the widget was designed with" for that role. */
 typedef struct
 {
     meter_language_t id;
@@ -56,8 +55,13 @@ typedef struct
 /* Reset the registry for a freshly initialised LVGL and register the English vocabulary. Safe to
    call again within one LVGL lifetime. */
 bool meter_i18n_init(void);
-/* Register or replace a selectable language / add a translation pack (idempotent per pack). */
-bool meter_i18n_register_language(const meter_i18n_language_t *language);
+/* Install the Product's language table. Entry i must carry id i: the id is the persisted language
+   byte, so the numbering (and the default language) belongs to the Product, and the table may hold as
+   many languages as the Product ships. It replaces the built-in default (0 = en, 1 = zh-CN), must
+   outlive LVGL, and installing it again is a no-op. Codes must be unique and non-empty. */
+bool meter_i18n_register_languages(const meter_i18n_language_t *table, size_t count);
+size_t meter_i18n_language_count(void);
+/* Add a translation pack (idempotent per pack). */
 bool meter_i18n_register_pack(const meter_i18n_pack_t *pack);
 /* The one place the language changes: LVGL sends LV_EVENT_TRANSLATION_LANGUAGE_CHANGED so every
    bound label re-translates and re-resolves its face. No-op if the language is already selected;
@@ -71,6 +75,9 @@ const char *meter_i18n_text(meter_text_id_t id);
 const char *meter_i18n_tr(const char *tag);
 /* Same lookup for an explicit language (registered packs only). */
 const char *meter_i18n_tr_in(meter_language_t language, const char *tag);
+/* The selected language's text for tag, or NULL when no registered pack translates it: no fallback
+   and no LVGL warning, for optional overrides such as a protocol-specific wording of a shared key. */
+const char *meter_i18n_find(const char *tag);
 /* Plural lookup: the text for the form the selected language uses for count, taken from the tags
    "<tag>.one" / "<tag>.other". Never returns a pointer into caller storage. */
 const char *meter_i18n_tr_plural(const char *tag, unsigned count);
@@ -121,6 +128,11 @@ void meter_i18n_bind_text(lv_obj_t *label, const char *tag, meter_font_role_t ro
 /* Bind only the face: the object re-resolves it on every language change and restores the face it was
    designed with when the language has none for the role. */
 void meter_i18n_bind_font(lv_obj_t *obj, meter_font_role_t role);
+/* LVGL's Arabic shaping (LV_USE_ARABIC_PERSIAN_CHARS) draws Unicode presentation forms, and many faces
+   ship only some of them (MiSansArabic has no isolated forms). Inserting storage right after face in
+   its fallback chain answers a missing isolated form with the base letter's glyph, which is the
+   isolated shape. storage is caller-owned and must live as long as face. */
+void meter_i18n_font_isolated_forms(lv_font_t *face, lv_font_t *storage);
 /* Legacy form of meter_i18n_bind_text: the role is guessed from the label's current font. */
 void meter_i18n_bind_label(lv_obj_t *label, const char *tag);
 void meter_i18n_format_value(char *out, size_t size, float value, meter_value_state_t state,

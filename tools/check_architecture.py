@@ -131,15 +131,18 @@ def tag_arrays(text):
 framework_tags=set()
 for block in tag_arrays((ROOT/'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8')):
     framework_tags.update(re.findall(r'"([^"]+)"', block))
-owners={}
-for file in list((ROOT/'products').glob('*/ui/*_i18n.c')) + list((ROOT/'products').glob('*/generated/*i18n*.c')):
-    for block in tag_arrays(file.read_text(encoding='utf-8')):
-        for tag in re.findall(r'"([^"]+)"', block):
-            if tag in framework_tags:
-                continue
-            if tag in owners:
-                errors.append(f'Translation tag {tag} claimed by {owners[tag]} and {file.name}')
-            owners[tag]=file.name
+# 每个 Product 单独成一套：两个 Product 从不链接到一起，各自的同名标签互不冲突。
+for product in PRODUCTS:
+    owners={}
+    packs = list((ROOT/product).glob('ui/*_i18n.c')) + list((ROOT/product).glob('**/generated/*i18n*.c'))
+    for file in filter(first_party, packs):
+        for block in tag_arrays(file.read_text(encoding='utf-8')):
+            for tag in re.findall(r'"([^"]+)"', block):
+                if tag in framework_tags:
+                    continue
+                if tag in owners:
+                    errors.append(f'Translation tag {tag} claimed by {owners[tag]} and {file.name}')
+                owners[tag]=file.name
 for group, files in manifest.items():
     assert len(files)==len(set(files)), group
     for file in files:

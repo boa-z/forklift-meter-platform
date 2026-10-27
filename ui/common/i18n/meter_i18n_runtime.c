@@ -5,8 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-/* Registry sizes: a handful of languages and packs is the realistic ceiling for a meter. */
-#define MAX_LANGUAGES 8u
+/* A handful of packs is the realistic ceiling for a meter; languages live in the Product's table. */
 #define MAX_PACKS 8u
 /* The only wording the framework owns, and only in English. Tags live in the reserved meter.*
    namespace so a Product pack can override a word without a naming clash with its own keys. */
@@ -21,8 +20,12 @@ _Static_assert(sizeof(vocabulary_tags) / sizeof(vocabulary_tags[0]) == METER_TXT
 _Static_assert(sizeof(vocabulary_texts) / sizeof(vocabulary_texts[0]) == METER_TXT_COUNT,
                "vocabulary text count");
 static const meter_i18n_pack_t vocabulary = {vocabulary_languages, vocabulary_tags, vocabulary_texts};
-static meter_i18n_language_t languages[MAX_LANGUAGES];
-static size_t language_total;
+/* The numbering a Product gets when it installs no table of its own. */
+static const meter_i18n_language_t default_languages[] = {
+    {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER},
+    {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL, METER_PLURAL_OTHER_ONLY}};
+static const meter_i18n_language_t *languages = default_languages;
+static size_t language_total = sizeof(default_languages) / sizeof(default_languages[0]);
 static const meter_i18n_pack_t *packs[MAX_PACKS];
 static size_t pack_total;
 static meter_font_resolver_t font_resolver;
@@ -36,30 +39,15 @@ typedef struct
 
 static void reset_registry(void)
 {
-    memset(languages, 0, sizeof(languages));
     memset(packs, 0, sizeof(packs));
-    language_total = 0u;
     pack_total = 0u;
-    /* The two ids the persisted language byte always understands. */
-    languages[language_total++] = (meter_i18n_language_t){METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL,
-                                                          NULL, METER_PLURAL_ONE_OTHER};
-    languages[language_total++] = (meter_i18n_language_t){METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL,
-                                                          NULL, METER_PLURAL_OTHER_ONLY};
+    languages = default_languages;
+    language_total = sizeof(default_languages) / sizeof(default_languages[0]);
 }
-/* The built-in languages exist from the first use, so a Product that registers before
-   meter_i18n_init() (or a unit test that skips it) still finds English and Chinese. */
-static void ensure_registry(void)
-{
-    if (language_total == 0u)
-        reset_registry();
-}
+/* Ids equal table positions (checked at registration), so the persisted byte indexes the table. */
 static const meter_i18n_language_t *find_language(meter_language_t id)
 {
-    ensure_registry();
-    for (size_t i = 0u; i < language_total; ++i)
-        if (languages[i].id == id)
-            return &languages[i];
-    return NULL;
+    return (size_t)id < language_total ? &languages[id] : NULL;
 }
 bool meter_i18n_init(void)
 {
@@ -73,29 +61,30 @@ bool meter_i18n_init(void)
     lv_translation_set_language(METER_LANGUAGE_CODE_EN);
     return true;
 }
-bool meter_i18n_register_language(const meter_i18n_language_t *language)
+bool meter_i18n_register_languages(const meter_i18n_language_t *table, size_t count)
 {
-    if (!language || !language->code || !language->code[0])
+    if (!table || count == 0u)
         return false;
-    ensure_registry();
-    for (size_t i = 0u; i < language_total; ++i)
+    for (size_t i = 0u; i < count; ++i)
     {
-        if (languages[i].id == language->id)
-        {
-            languages[i] = *language;
-            return true;
-        }
+        if ((size_t)table[i].id != i || !table[i].code || !table[i].code[0])
+            return false;
+        for (size_t j = 0u; j < i; ++j)
+            if (lv_strcmp(table[j].code, table[i].code) == 0)
+                return false;
     }
-    if (language_total == MAX_LANGUAGES)
-        return false;
-    languages[language_total++] = *language;
+    languages = table;
+    language_total = count;
     return true;
+}
+size_t meter_i18n_language_count(void)
+{
+    return language_total;
 }
 bool meter_i18n_register_pack(const meter_i18n_pack_t *pack)
 {
     if (!pack || !pack->languages || !pack->tags || !pack->translations || !pack->languages[0])
         return false;
-    ensure_registry();
     for (size_t i = 0u; i < pack_total; ++i)
         if (packs[i]->tags == pack->tags)
             return true;
@@ -174,6 +163,11 @@ const char *meter_i18n_tr_in(meter_language_t language, const char *tag)
     if (!text)
         text = lookup(METER_LANGUAGE_CODE_EN, tag);
     return text ? text : tag;
+}
+const char *meter_i18n_find(const char *tag)
+{
+    const char *code = lv_translation_get_language();
+    return tag && tag[0] && code ? lookup(code, tag) : NULL;
 }
 const char *meter_i18n_tr(const char *tag)
 {
@@ -288,6 +282,77 @@ void meter_i18n_bind_text(lv_obj_t *label, const char *tag, meter_font_role_t ro
     meter_i18n_bind_font(label, role);
     if (tag && tag[0])
         lv_label_set_translation_tag(label, tag);
+}
+/* Isolated presentation form -> base letter (Unicode decomposition <isolated>), sorted by form. */
+static const uint16_t isolated_forms[][2] = {
+    {0xFB50u, 0x0671u}, {0xFB52u, 0x067Bu}, {0xFB56u, 0x067Eu}, {0xFB5Au, 0x0680u}, {0xFB5Eu, 0x067Au},
+    {0xFB62u, 0x067Fu}, {0xFB66u, 0x0679u}, {0xFB6Au, 0x06A4u}, {0xFB6Eu, 0x06A6u}, {0xFB72u, 0x0684u},
+    {0xFB76u, 0x0683u}, {0xFB7Au, 0x0686u}, {0xFB7Eu, 0x0687u}, {0xFB82u, 0x068Du}, {0xFB84u, 0x068Cu},
+    {0xFB86u, 0x068Eu}, {0xFB88u, 0x0688u}, {0xFB8Au, 0x0698u}, {0xFB8Cu, 0x0691u}, {0xFB8Eu, 0x06A9u},
+    {0xFB92u, 0x06AFu}, {0xFB96u, 0x06B3u}, {0xFB9Au, 0x06B1u}, {0xFB9Eu, 0x06BAu}, {0xFBA0u, 0x06BBu},
+    {0xFBA4u, 0x06C0u}, {0xFBA6u, 0x06C1u}, {0xFBAAu, 0x06BEu}, {0xFBAEu, 0x06D2u}, {0xFBB0u, 0x06D3u},
+    {0xFBD3u, 0x06ADu}, {0xFBD7u, 0x06C7u}, {0xFBD9u, 0x06C6u}, {0xFBDBu, 0x06C8u}, {0xFBDDu, 0x0677u},
+    {0xFBDEu, 0x06CBu}, {0xFBE0u, 0x06C5u}, {0xFBE2u, 0x06C9u}, {0xFBE4u, 0x06D0u}, {0xFBFCu, 0x06CCu},
+    {0xFE80u, 0x0621u}, {0xFE81u, 0x0622u}, {0xFE83u, 0x0623u}, {0xFE85u, 0x0624u}, {0xFE87u, 0x0625u},
+    {0xFE89u, 0x0626u}, {0xFE8Du, 0x0627u}, {0xFE8Fu, 0x0628u}, {0xFE93u, 0x0629u}, {0xFE95u, 0x062Au},
+    {0xFE99u, 0x062Bu}, {0xFE9Du, 0x062Cu}, {0xFEA1u, 0x062Du}, {0xFEA5u, 0x062Eu}, {0xFEA9u, 0x062Fu},
+    {0xFEABu, 0x0630u}, {0xFEADu, 0x0631u}, {0xFEAFu, 0x0632u}, {0xFEB1u, 0x0633u}, {0xFEB5u, 0x0634u},
+    {0xFEB9u, 0x0635u}, {0xFEBDu, 0x0636u}, {0xFEC1u, 0x0637u}, {0xFEC5u, 0x0638u}, {0xFEC9u, 0x0639u},
+    {0xFECDu, 0x063Au}, {0xFED1u, 0x0641u}, {0xFED5u, 0x0642u}, {0xFED9u, 0x0643u}, {0xFEDDu, 0x0644u},
+    {0xFEE1u, 0x0645u}, {0xFEE5u, 0x0646u}, {0xFEE9u, 0x0647u}, {0xFEEDu, 0x0648u}, {0xFEEFu, 0x0649u},
+    {0xFEF1u, 0x064Au}};
+static uint32_t isolated_base(uint32_t letter)
+{
+    size_t low = 0u, high = sizeof(isolated_forms) / sizeof(isolated_forms[0]);
+    while (low < high)
+    {
+        size_t middle = (low + high) / 2u;
+        if (isolated_forms[middle][0] < letter)
+            low = middle + 1u;
+        else
+            high = middle;
+    }
+    return low < sizeof(isolated_forms) / sizeof(isolated_forms[0]) && isolated_forms[low][0] == letter
+               ? isolated_forms[low][1]
+               : 0u;
+}
+static bool isolated_glyph_dsc(const lv_font_t *font, lv_font_glyph_dsc_t *dsc, uint32_t letter,
+                               uint32_t next)
+{
+    (void)next;
+    const lv_font_t *face = font->user_data;
+    const uint32_t base = isolated_base(letter);
+    return base != 0u && face->get_glyph_dsc(face, dsc, base, 0u);
+}
+/* LVGL records this font as the glyph's owner; drawing and releasing the glyph belong to the face. */
+static const void *isolated_glyph_bitmap(lv_font_glyph_dsc_t *dsc, lv_draw_buf_t *draw_buf)
+{
+    const lv_font_t *self = dsc->resolved_font;
+    dsc->resolved_font = self->user_data;
+    const void *bitmap = dsc->resolved_font->get_glyph_bitmap(dsc, draw_buf);
+    dsc->resolved_font = self;
+    return bitmap;
+}
+static void isolated_release(const lv_font_t *font, lv_font_glyph_dsc_t *dsc)
+{
+    const lv_font_t *face = font->user_data;
+    if (!face->release_glyph)
+        return;
+    dsc->resolved_font = face;
+    face->release_glyph(face, dsc);
+    dsc->resolved_font = font;
+}
+void meter_i18n_font_isolated_forms(lv_font_t *face, lv_font_t *storage)
+{
+    if (!face || !storage || face == storage || !face->get_glyph_dsc || !face->get_glyph_bitmap)
+        return;
+    *storage = *face; /* the face's metrics, so a substituted glyph sits on the same baseline */
+    storage->get_glyph_dsc = isolated_glyph_dsc;
+    storage->get_glyph_bitmap = isolated_glyph_bitmap;
+    storage->release_glyph = isolated_release;
+    storage->user_data = face;
+    storage->fallback = face->fallback;
+    face->fallback = storage;
 }
 void meter_i18n_bind_label(lv_obj_t *label, const char *tag)
 {
