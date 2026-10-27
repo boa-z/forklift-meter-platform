@@ -44,7 +44,8 @@ def revision(root):
             return sha
         digest = hashlib.sha256()
         digest.update(status.encode('utf-8'))
-        diff = _git(root, 'diff', '--binary', 'HEAD')
+        # --no-textconv：系统配置可能为 docx 等二进制设置文本转换（如 astextplain），转换失败会让身份生成中断。
+        diff = _git(root, 'diff', '--binary', '--no-textconv', 'HEAD')
         digest.update(diff.encode('utf-8'))
         names = _git(root, 'ls-files', '--others', '--exclude-standard', '-z').split('\0')
         for name in names:
