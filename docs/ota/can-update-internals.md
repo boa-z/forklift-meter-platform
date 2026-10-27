@@ -30,9 +30,9 @@ Audit baseline: SDK 9b78386dcaa54326487c8b208b2b7104d4b56c9b, tracked tree equal
 | packages/artinchip/uds | Existing example download handlers use synchronous file I/O | Do not route those callbacks into the production Flash worker contract unchanged |
 | Current composition | SDK OTA downloader disabled; optional application composition links unchanged ota.c/burn.c | New endpoint exists only with METER_CAN_UPDATE=1 |
 
-The default unsupported backend remains a Host boundary test. METER_CAN_UPDATE=1 selects meter_update_backend_aic.c: it validates physical redundant ENV CRC before opening the native ENV API, rejects pending/inconsistent slots and overlapping partitions, and requires the audited 2048-byte page / 64-page block / 32-block inactive OS geometry.
+METER_CAN_UPDATE=1 selects meter_update_backend_aic.c: it validates physical redundant ENV CRC before opening the native ENV API, rejects pending/inconsistent slots and overlapping partitions, and reads and validates page size, pages per block, block count and capacity from MTD. Both A/B partitions must have matching geometry. The always-unsupported backend and the test that alone linked it have been removed; Host service tests do not validate the native installer.
 
-Only an inactive partition without bad blocks is accepted. Native Flash erase/write/read and A/B selection remain vendor-owned.
+Only an inactive partition without bad blocks is accepted. Native Flash erase/write/read and A/B selection remain vendor-owned. The current SDK already provides aic_ota_part_read in burn.h/burn.c; the backend reuses it directly to read the candidate OS for SHA256 verification, without another read adapter.
 
 The missing optional NFTL initialization symbol has an application-side rejecting implementation only when NFTL is disabled; no data partition is admitted.
 
@@ -113,7 +113,7 @@ Progress is defined per state: idle, aborted and confirmed report 0/0; downloadi
 | 128 | 4 | Inactive slot capacity, big-endian |
 | 132 | 32 | Admission rejection reason |
 
-Text uses the same encoding as FD10. The OS member name and the rejection reason are sized to these fixed fields; no longer diagnostic string exists, so the native backend reports env_or_slot_invalid or native_auto_unverified and the rejecting backend reports sdk_validation_confirm_unavail. An empty reason means no rejection.
+Text uses the same encoding as FD10. The OS member name and the rejection reason are sized to these fixed fields; no longer diagnostic string exists, so the native backend reports env_or_slot_invalid or native_auto_unverified. An empty reason means no rejection.
 
 ### F186, F192, F195
 
@@ -136,14 +136,14 @@ Manifest lifecycle:
 Normal sequence:
 
 ```text
-0x10 02                     enter the programming session
-0x22 FD12 FD11              optional preflight: endpoint and status
-0x2E FD10 <148 bytes>       submit the manifest
-0x34                        address zero, the declared length
-0x36 <1..512 bytes> x N     transfer, standard modulo-256 counter
-0x37                        device verification
-0x31 01 F001                activate
-0x11 01                     reset, then observe the new version through F195
+0x10 02                     进入编程会话 / enter programming session
+0x22 FD12 FD11              可选端点与状态预检 / optional endpoint and status preflight
+0x2E FD10 <148 bytes>       提交 Manifest / submit manifest
+0x34                        地址零、声明长度 / address zero, declared length
+0x36 <1..512 bytes> x N     传输、模 256 序号 / transfer, modulo-256 counter
+0x37                        设备验证 / device verification
+0x31 01 F001                激活 / activate
+0x11 01                     复位后通过 F195 观察新版本 / reset, then observe version through F195
 ```
 
 0x31 01 F002 aborts and discards a candidate; 0x31 01 F003 is reserved for device confirmation. ECUReset is accepted only after activation, and the CLI never treats sending a reset as new-firmware confirmation.

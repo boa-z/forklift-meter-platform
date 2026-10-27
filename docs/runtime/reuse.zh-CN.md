@@ -2,7 +2,7 @@
 
 > [English](reuse.md)
 
-本次审查覆盖固定版本的 LVGL 和 D13x/D21x 两套 Luban-Lite 驱动源码。只有成熟接口能保持现有契约时，替换才有收益。设备访问属于 platform/BSP，客户措辞、协议和策略属于 Product，contracts/Core 保持独立于 LVGL 与 RT-Thread。
+本次优化以现有 Luban-Lite SDK 1.3.2 与 Framework 为基线，复用固定版本的 LVGL、RT-Thread 和 ArtInChip 服务。产品功能与 UI 通过 Product 接入这一组合，不以另一套 SDK 的接口作为前置条件。只有成熟接口能保持现有契约时，替换才有收益。设备访问属于 platform/BSP，客户措辞、协议和策略属于 Product，contracts/Core 保持独立于 LVGL 与 RT-Thread。
 
 ## 已落实的精简
 
@@ -28,13 +28,15 @@
 | 看门狗：`runtime/meter_watchdog.c`、`platform/rtthread/meter_watchdog_port.c`；SDK `bsp/artinchip/drv/wdt/drv_wdt.c` | RT-Thread timeout/start/keepalive 控制 | 设备负责复位 CPU，不判断 runtime/UI 是否健康推进。保留 owner 监督与启动门禁；改为空闲钩子喂狗会掩盖 UI 停滞。 |
 | OTA：`update/`、`platform/rtthread/meter_update_backend_aic.c`；SDK `packages/artinchip/ota/` 与 `packages/artinchip/env/` | iso14229/ISO-TP、mbedTLS SHA-256、SDK 下载/烧写/ENV 接口 | SDK ENV 在 CRC 失败后可能返回默认值，激活接口也不完整传递 flush 失败。保留独立 ENV/几何校验、有界 OS-only 包解析、Flash 读回、NVM 持久化屏障和 Product 准入。 |
 
-## D21x 接入限制
+## 当前 SDK 的复用边界与验收
 
-两套 SDK 不能仅凭接口名称相似就视为可互换：
+以下取舍以当前 SDK 的实际源码为依据：
 
-- CAN 完成等待路径不同；保留异步 worker，并在实板测量两条总线。
-- 本次审查的 D13x RTC 驱动加上私有的 2020 纪元，D21x 驱动直接传递 UTC 秒。转换继续放在驱动层，各板验证未对时过滤。
-- 本次审查的 D21x SDK 缺少当前原生 OTA 适配所需的 `aic_ota_part_read()`，ENV 默认值和 NAND 安装器也不同。D21x CAN OTA 仍需独立的 SDK/BSP 接入及断电/恢复验证；不能删除读回或增加成功回退来完成移植。
-- 各板验证看门狗启动、喂狗、复位和时间预算。上述快照保护以当前单核、仅线程调用为前提。
+- `packages/artinchip/ota/burn.h` 和 `burn.c` 已提供 `aic_ota_part_read()`，现有后端直接调用它完成 Flash 读回；不存在需要等待另一套 SDK 补齐的接口缺口。保留该调用，不另写 MTD 读取兼容层。
+- `kernel/rt-thread/components/drivers/can/can.c` 会等待发送邮箱/完成事件；保留每总线 worker，并在实板测量两条总线。
+- `bsp/artinchip/drv/rtc/drv_rtc.c` 负责 2020-05-20 纪元与 UTC 秒的转换，Framework 继续使用标准时间接口与未对时过滤，不重复实现硬件纪元适配。
+- `panel_com.c` 的背光助手只提供固定初始化；现有 RT PWM 端口负责动态亮度及读回。设备、通道等板级事实由 Kconfig/BSP 提供。
+- 看门狗仍需验证启动、喂狗、复位和时间预算。诊断快照保护以当前单核、仅线程调用为前提。
+- 原生 OTA 自动确认仍不等于应用健康确认。独立 ENV 校验、Flash 读回和激活后重新读取 ENV 保留；断电恢复需要实板证据。
 
 Host 测试和 D13x 镜像构建只能证明源码兼容。板级验收仍需镜像 hash、UART 日志、物理 CAN、显示/背光、RTC、看门狗故障注入及 OTA 断电/重启证据。参见[板级接入](../build/board-integration.zh-CN.md)、[看门狗](watchdog.zh-CN.md)和 [CAN 升级内部实现](../ota/can-update-internals.zh-CN.md)。

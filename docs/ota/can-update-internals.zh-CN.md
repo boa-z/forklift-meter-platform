@@ -28,9 +28,9 @@ SDK 在应用健康检查前清除升级标志，native_auto 不等于应用控�
 | packages/artinchip/uds | 现有示例下载处理器执行同步文件 I/O | 不直接照搬到生产 Flash worker 契约 |
 | 当前组合 | SDK OTA downloader 关闭；可选应用组合链接原样 ota.c/burn.c | 仅 METER_CAN_UPDATE=1 提供新端点 |
 
-默认拒绝后端保留为 Host 边界测试。METER_CAN_UPDATE=1 选择 meter_update_backend_aic.c：调用原生 ENV API 前独立验证物理冗余 ENV CRC，拒绝待激活或不一致槽位及重叠分区，仅接受经审计的 2048 字节页、每块 64 页、共 32 块的非活动 OS 分区。
+METER_CAN_UPDATE=1 选择 meter_update_backend_aic.c：调用原生 ENV API 前独立验证物理冗余 ENV CRC，拒绝待激活或不一致槽位及重叠分区，从 MTD 读取并校验 A/B 分区的页大小、每块页数、块数及容量，要求两区几何一致。始终拒绝的旧后端及仅链接它的测试已删除；Host 服务测试不验证原生安装器。
 
-候选区必须没有坏块。Flash 擦写、读取与 A/B 选择继续由厂商实现。
+候选区必须没有坏块。Flash 擦写、读取与 A/B 选择继续由厂商实现。当前 SDK 的 burn.h/burn.c 已提供 aic_ota_part_read，后端直接复用它读取候选 OS 并核对 SHA256，无需另写读取适配。
 
 未启用 NFTL 时，应用侧为缺失的可选初始化符号提供明确拒绝实现；不开放数据分区升级。
 
@@ -109,7 +109,7 @@ protocols/uds/meter_uds_did.h 是本契约的唯一定义处，下表必须与�
 | 128 | 4 | 非活跃槽容量，大端 |
 | 132 | 32 | 准入拒绝原因 |
 
-文本编码与 FD10 相同。OS 成员名与拒绝原因按固定字段定宽，不存在更长的诊断字符串，因此原生后端上报 env_or_slot_invalid 或 native_auto_unverified，拒绝型后端上报 sdk_validation_confirm_unavail。原因为空表示未被拒绝。
+文本编码与 FD10 相同。OS 成员名与拒绝原因按固定字段定宽，不存在更长的诊断字符串，原生后端上报 env_or_slot_invalid 或 native_auto_unverified。原因为空表示未被拒绝。
 
 ### F186、F192、F195
 
@@ -132,14 +132,14 @@ Manifest 生命周期：
 正常刷写序列：
 
 ```text
-0x10 02                     进入编程会话
-0x22 FD12 FD11              可选预检：端点与状态
-0x2E FD10 <148 字节>        提交 Manifest
-0x34                        地址零、声明长度
-0x36 <1..512 字节> × N      传输，标准模 256 序号
-0x37                        设备验证
-0x31 01 F001                激活
-0x11 01                     复位，随后通过 F195 观察新版本
+0x10 02                     进入编程会话 / enter programming session
+0x22 FD12 FD11              可选端点与状态预检 / optional endpoint and status preflight
+0x2E FD10 <148 bytes>       提交 Manifest / submit manifest
+0x34                        地址零、声明长度 / address zero, declared length
+0x36 <1..512 bytes> x N     传输、模 256 序号 / transfer, modulo-256 counter
+0x37                        设备验证 / device verification
+0x31 01 F001                激活 / activate
+0x11 01                     复位后通过 F195 观察新版本 / reset, then observe version through F195
 ```
 
 0x31 01 F002 中止并丢弃候选；0x31 01 F003 为设备确认保留。只有激活之后才接受 ECUReset，CLI 不将发送重启等同新固件确认。

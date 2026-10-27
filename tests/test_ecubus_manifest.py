@@ -22,9 +22,9 @@ process.stdout.write(encodeManifest(spec).toString('hex'))
 pytestmark = pytest.mark.skipif(NODE is None, reason="需要 Node 才能执行 TypeScript 编码器")
 
 DECLARED = {
-    "product": "hangcha-zc-202620085",
-    "hardware": "hangcha-zc-202620085",
-    "version": "6201025800-00-261016V2",
+    "product": "reference-product-01",
+    "hardware": "reference-product-01",
+    "version": "reference-261016-v2",
     "size": 1126400,
     "sha256": "9f2c" + "0a" * 30,
 }
@@ -36,7 +36,7 @@ def run(declared):
         runner = Path(work) / "run.mjs"
         runner.write_text(RUNNER.format(url=json.dumps(MANIFEST_TS.as_uri())), encoding="utf-8")
         result = subprocess.run([NODE, str(runner), json.dumps(declared)],
-                                capture_output=True, text=True, timeout=60)
+                                capture_output=True, text=True, encoding="utf-8", timeout=60)
     return result
 
 
@@ -62,10 +62,11 @@ def test_manifest_matches_the_wire_layout():
 
 def test_identity_fields_are_nul_padded_and_size_is_big_endian():
     raw = bytes.fromhex(encode(DECLARED))
-    assert raw[:20] == b"hangcha-zc-202620085"
-    assert raw[20:32] == b"\0" * 12
-    assert raw[64:86] == b"6201025800-00-261016V2"
-    assert raw[86:112] == b"\0" * 26
+    for field, offset, width in (("product", 0, 32), ("hardware", 32, 32),
+                                 ("version", 64, 48)):
+        value = DECLARED[field].encode("ascii")
+        assert raw[offset:offset + len(value)] == value
+        assert raw[offset + len(value):offset + width] == b"\0" * (width - len(value))
     assert raw[112:116] == (1126400).to_bytes(4, "big")
     assert raw[116:148] == bytes.fromhex(DECLARED["sha256"])
 

@@ -75,7 +75,7 @@ CONFIG_AICUPG_UDISK_ENABLE=y
 
 | Item | Location | Note |
 |---|---|---|
-| Bootloader switches | `target/configs/d13x_d50t-2-lite_baremetal_bootloader_defconfig` | Enable the SD card and U disk upgrade paths |
-| TF card pins | `target/d13x/d50t-2-lite/pinmux.c` | SDMC1 on PC.0 to PC.6, same wiring as the old D50T demo88-nand board |
-| USB host pins | `target/d13x/d50t-2-lite/pinmux.c` | PO.0 and PO.1; PD.8 stays RGB24 data, the OTG role is selected in software |
-| Application USB host | `target/configs/d13x_d50t-2-lite_rt-thread_<app>_defconfig` | USB0 in host mode with the CherryUSB MSC stack, so the application can read the disk |
+| Bootloader switches | `target/configs/<chip>_<board>_baremetal_bootloader_defconfig` | Enable the SD card and U disk upgrade paths supported by the board |
+| TF card pins | `target/<chip>/<board>/pinmux.c` | Check the SDMC controller and pin assignment against the BSP and schematic |
+| USB host pins | `target/<chip>/<board>/pinmux.c` | Check USB pins, VBUS and role selection against the BSP and schematic |
+| Application USB host | `target/configs/<chip>_<board>_rt-thread_<app>_defconfig` | Enable the selected USB controller in host mode with the CherryUSB MSC stack |

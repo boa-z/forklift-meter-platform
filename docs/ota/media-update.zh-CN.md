@@ -75,7 +75,7 @@ CONFIG_AICUPG_UDISK_ENABLE=y
 
 | 项目 | 位置 | 说明 |
 |---|---|---|
-| Bootloader 开关 | `target/configs/d13x_d50t-2-lite_baremetal_bootloader_defconfig` | 打开 TF 卡与 U 盘升级路径 |
-| TF 卡引脚 | `target/d13x/d50t-2-lite/pinmux.c` | SDMC1 使用 PC.0 到 PC.6，与旧 D50T demo88-nand 板接线一致 |
-| USB 主机引脚 | `target/d13x/d50t-2-lite/pinmux.c` | 使用 PO.0 和 PO.1；PD.8 保留为 RGB24 数据，OTG 角色由软件选择 |
-| 应用侧 USB 主机 | `target/configs/d13x_d50t-2-lite_rt-thread_<app>_defconfig` | USB0 工作在主机模式并带 CherryUSB MSC 栈，应用可读取 U 盘 |
+| Bootloader 开关 | `target/configs/<chip>_<board>_baremetal_bootloader_defconfig` | 打开板级支持的 TF 卡与 U 盘升级路径 |
+| TF 卡引脚 | `target/<chip>/<board>/pinmux.c` | 按 BSP 和原理图核对 SDMC 控制器及引脚分配 |
+| USB 主机引脚 | `target/<chip>/<board>/pinmux.c` | 按 BSP 和原理图核对 USB 引脚、VBUS 与角色选择 |
+| 应用侧 USB 主机 | `target/configs/<chip>_<board>_rt-thread_<app>_defconfig` | 为选定 USB 控制器启用主机模式与 CherryUSB MSC 栈 |

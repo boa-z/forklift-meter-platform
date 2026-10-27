@@ -2,7 +2,7 @@
 
 > [中文版](reuse.zh-CN.md)
 
-This review covers the pinned LVGL and the D13x/D21x Luban-Lite driver sources. Reuse is worthwhile when the upstream API preserves the existing contract. Device access belongs in the platform/BSP; customer wording, protocol and policy belong in the Product; contracts/Core stay independent of LVGL and RT-Thread.
+This optimization uses the existing Luban-Lite SDK 1.3.2 and Framework, reusing the pinned LVGL, RT-Thread and ArtInChip services. Product functionality and UI use this combination; interfaces from another SDK are not prerequisites. Reuse is worthwhile when the upstream API preserves the existing contract. Device access belongs in the platform/BSP; customer wording, protocol and policy belong in the Product; contracts/Core stay independent of LVGL and RT-Thread.
 
 ## Cleanup applied
 
@@ -28,13 +28,15 @@ SDK paths below are relative to the SDK root; Framework paths are relative to th
 | Watchdog: `runtime/meter_watchdog.c`, `platform/rtthread/meter_watchdog_port.c`; SDK `bsp/artinchip/drv/wdt/drv_wdt.c` | RT-Thread timeout/start/keepalive controls | The device can reset the CPU but does not decide whether runtime/UI progress is healthy. Keep owner supervision and the startup gate; an idle-hook feed would mask a stalled UI. |
 | OTA: `update/`, `platform/rtthread/meter_update_backend_aic.c`; SDK `packages/artinchip/ota/` and `packages/artinchip/env/` | iso14229/ISO-TP, mbedTLS SHA-256, SDK download/burn/ENV interfaces | SDK ENV may return defaults after CRC failure, and activation does not propagate every flush failure. Keep independent ENV/geometry checks, bounded OS-only package parsing, flash readback, NVM durability barrier and Product admission. |
 
-## D21x integration limits
+## Current SDK reuse boundaries and acceptance
 
-The two SDKs are not interchangeable merely because they expose similarly named functions:
+These decisions follow the current SDK source:
 
-- Their CAN completion-wait paths differ; retain asynchronous workers and measure both buses on the target.
-- The reviewed D13x RTC driver adds its private 2020 epoch; the D21x driver passes UTC seconds directly. Keep that conversion in the driver and verify unset-clock filtering on each board.
-- The reviewed D21x SDK lacks `aic_ota_part_read()`, which the current native OTA adapter requires for readback. It also differs in ENV defaults and the NAND installer. D21x CAN OTA still needs a separate SDK/BSP integration and power-loss/recovery validation; removing readback or adding a success fallback is not an acceptable port.
-- Validate watchdog start/feed/reset and timing budgets on each board. The snapshot protection above assumes the current single-core, thread-only callers.
+- `packages/artinchip/ota/burn.h` and `burn.c` already provide `aic_ota_part_read()`. The existing backend calls it directly for flash readback; there is no missing interface awaiting another SDK. Keep this call without adding an MTD compatibility reader.
+- `kernel/rt-thread/components/drivers/can/can.c` waits for TX mailboxes/completion; keep per-bus workers and measure both buses on the target.
+- `bsp/artinchip/drv/rtc/drv_rtc.c` converts between its 2020-05-20 epoch and UTC seconds. Framework keeps the standard time interfaces and unset-clock filtering without duplicating the hardware epoch adapter.
+- The backlight helper in `panel_com.c` only provides fixed initialization. The RT PWM port handles dynamic brightness and readback; Kconfig/BSP supplies board facts such as devices and channels.
+- Validate watchdog start/feed/reset and timing budgets. Diagnostic snapshot protection assumes the current single-core, thread-only callers.
+- Native OTA automatic confirmation does not establish application-health confirmation. Keep independent ENV validation, flash readback and rereading ENV after activation; power-loss recovery needs board evidence.
 
 Host tests and a D13x image build establish source compatibility only. Board acceptance still needs the image hash, UART logs, physical CAN, display/backlight, RTC, watchdog fault injection and OTA power-loss/reboot evidence. See [board integration](../build/board-integration.md), [watchdog](watchdog.md) and [CAN update internals](../ota/can-update-internals.md).
