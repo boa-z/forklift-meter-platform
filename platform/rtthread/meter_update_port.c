@@ -14,9 +14,6 @@
 #include <rtthread.h>
 #include <stdio.h>
 #include <string.h>
-#define RX_ID 0x7e0u
-#define TX_ID 0x7e8u
-#define METER_UPDATE_OS_FILE "d13x_os.itb"
 #define POOL(name, type, count)                                                                              \
     static rt_ubase_t                                                                                        \
         name[((sizeof(type) + sizeof(void *) + sizeof(rt_ubase_t) - 1u) / sizeof(rt_ubase_t)) * (count)]
@@ -41,7 +38,6 @@ typedef struct
 {
     bool started, maintenance, session_maintenance, admitted, healthy, cancel, abandon, barrier_requested,
         busy, exclusive;
-    bool stopping, stopped;
     /* worker 权威 Manifest 的只读副本：UDS 与 UART 都只读快照，不碰 service。 */
     bool manifest_valid, candidate_verified;
     uint64_t barrier_target;
@@ -64,12 +60,14 @@ void isotp_user_debug(const char *message, ...)
 {
     (void)message;
 }
+static meter_bus_role_t uds_bus;
+static uint32_t rx_id, tx_id;
 int isotp_user_send_can(uint32_t id, const uint8_t *data, uint8_t size)
 {
-    if (size > 8u || id != TX_ID)
+    if (size > 8u || id != tx_id)
         return ISOTP_RET_ERROR;
     meter_can_frame_t f = {0};
-    f.bus = METER_BUS_CAN0;
+    f.bus = uds_bus;
     f.id = id;
     f.size = size;
     memcpy(f.data, data, size);
@@ -195,17 +193,7 @@ static void update_entry(void *arg)
         bool got = rt_mq_recv(&jobs, &job, sizeof(job), rt_tick_from_millisecond(20)) == RT_EOK;
         rt_mutex_take(&lock, RT_WAITING_FOREVER);
         bool cancel = shared.cancel, admitted = shared.admitted, healthy = shared.healthy;
-        bool stopping = shared.stopping;
         rt_mutex_release(&lock);
-        if (stopping)
-        {
-            (void)meter_update_abort(&service, service.generation);
-            publish();
-            rt_mutex_take(&lock, RT_WAITING_FOREVER);
-            shared.stopped = true;
-            rt_mutex_release(&lock);
-            return;
-        }
         if (cancel)
         {
             cancel_work(&job);
@@ -262,7 +250,7 @@ static bool submit(void *ctx, const meter_update_job_t *job)
     (void)ctx;
     rt_mutex_take(&lock, RT_WAITING_FOREVER);
     bool accepted =
-        !shared.stopping && !shared.cancel && !shared.busy && rt_mq_send(&jobs, job, sizeof(*job)) == RT_EOK;
+        !shared.cancel && !shared.busy && rt_mq_send(&jobs, job, sizeof(*job)) == RT_EOK;
     if (accepted)
         shared.busy = true;
     rt_mutex_release(&lock);
@@ -369,7 +357,7 @@ static void session_maintenance_request(void *ctx, bool on)
 }
 bool meter_board_update_frame(const meter_can_frame_t *frame)
 {
-    if (!shared.started || frame->bus != METER_BUS_CAN0 || frame->id != RX_ID || frame->extended ||
+    if (!shared.started || frame->bus != uds_bus || frame->id != rx_id || frame->extended ||
         frame->remote || frame->size > 8u)
         return false;
     isotp_on_can_message(&transport.phys_link, frame->data, frame->size);
@@ -383,28 +371,15 @@ void meter_board_update_protocol(void)
     if (shared.started)
         UDSServerPoll(&uds.server);
 }
-void meter_board_update_stop(void)
-{
-    if (!shared.started)
-        return;
-    rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    shared.stopping = true;
-    shared.admitted = false;
-    rt_mutex_release(&lock);
-}
-bool meter_board_update_stopped(void)
-{
-    if (!shared.started)
-        return true;
-    rt_mutex_take(&lock, RT_WAITING_FOREVER);
-    bool value = shared.stopped;
-    rt_mutex_release(&lock);
-    return value;
-}
 bool meter_board_update_start(void)
 {
     const meter_product_t *p = meter_product_get();
     if (!p->update || !p->update_admission || shared.started)
+        return false;
+    uds_bus = p->update->bus;
+    rx_id = p->update->request_id ? p->update->request_id : 0x7e0u;
+    tx_id = p->update->response_id ? p->update->response_id : 0x7e8u;
+    if ((unsigned)uds_bus >= METER_BUS_COUNT || rx_id > 0x7ffu || tx_id > 0x7ffu || rx_id == tx_id)
         return false;
     meter_update_backend_t b = meter_aic_update_backend(&backend);
     (void)meter_aic_update_prepare();
@@ -420,7 +395,7 @@ bool meter_board_update_start(void)
         return false;
     meter_uds_port_t port = {NULL,      submit, result, snapshot,
                              can_reset, reset,  cancel, session_maintenance_request};
-    if (UDSServerTpISOTpCInit(&transport, RX_ID, TX_ID, UDS_TP_NOOP_ADDR) != UDS_OK ||
+    if (UDSServerTpISOTpCInit(&transport, rx_id, tx_id, UDS_TP_NOOP_ADDR) != UDS_OK ||
         !meter_uds_init(&uds, &transport.hdl, &port))
         return false;
     if (rt_thread_init(&update_thread, "meter_upd", update_entry, NULL, update_stack, sizeof(update_stack),

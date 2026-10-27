@@ -8,19 +8,17 @@
 typedef enum
 {
     METER_TRACE_RUNTIME = 1,
-    METER_TRACE_CAN,
-    METER_TRACE_PDO,
-    METER_TRACE_SDO,
-    METER_TRACE_DOMAIN,
-    METER_TRACE_PRODUCT
+    METER_TRACE_CAN = 2,
+    /* 3、4 曾是 CANopen 的 PDO/SDO 模块，编号保留不复用。 */
+    METER_TRACE_DOMAIN = 5,
+    METER_TRACE_PRODUCT = 6
 } meter_trace_module_t;
 typedef enum
 {
     RUNTIME_CONNECT = 1,
-    RUNTIME_DISCONNECT,
-    RUNTIME_QUEUE_OVERFLOW,
-    RUNTIME_RESET,
-    RUNTIME_INVALID_FRAME
+    RUNTIME_DISCONNECT = 2,
+    /* 3、4 曾是接收队列溢出与复位，编号保留不复用。 */
+    RUNTIME_INVALID_FRAME = 5
 } meter_trace_runtime_event_t;
 typedef enum
 {
@@ -28,24 +26,6 @@ typedef enum
     CAN_TX_BUSY,
     CAN_ERROR
 } meter_trace_can_event_t;
-typedef enum
-{
-    PDO_RX = 1,
-    PDO_STALE,
-    PDO_RECOVER,
-    PDO_DECODE_ERROR
-} meter_trace_pdo_event_t;
-typedef enum
-{
-    SDO_QUEUE = 1,
-    SDO_START,
-    SDO_COMPLETE,
-    SDO_ABORT,
-    SDO_TIMEOUT,
-    SDO_RETRY,
-    SDO_RESET,
-    SDO_FAILED
-} meter_trace_sdo_event_t;
 typedef enum
 {
     DOMAIN_STALE = 1,

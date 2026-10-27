@@ -12,6 +12,6 @@ static inline bool meter_product_host_action(meter_core_t *core, const meter_pro
         ? product->local_action && product->local_action(&core->snapshot, request, now_ms)
         : meter_core_action(core, request);
 }
-/** @brief Host 通用生命周期；step 只投递合成帧，全部回调在唯一 UI 线程串行执行。 */
+/** @brief Host 通用生命周期；step 只投递合成帧（meter_runtime_receive），全部回调在唯一线程串行执行。 */
 int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, uint32_t));
 #endif

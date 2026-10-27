@@ -13,7 +13,8 @@
 #include <rtthread.h>
 #include <string.h>
 
-/* 单一 Update worker 独占厂商的全局安装器；仅支持已经审计的无坏块 NAND OS 对。 */
+/* 单一 Update worker 独占厂商的全局安装器；仅支持已经审计的无坏块 SPI NAND OS 分区对。
+ * 分区几何（页、块、块数）在启动时从 MTD 设备读出，只要求 A/B 两个分区几何相同且互不重叠。 */
 static struct
 {
     meter_package_guard_t guard;
@@ -33,7 +34,10 @@ static bool valid_env_copy(const char *name)
     if (!device || device->type != RT_Device_Class_MTD)
         return false;
     struct rt_mtd_nand_device *mtd = (struct rt_mtd_nand_device *)device;
-    if (mtd->page_size != 2048 || mtd->pages_per_block != 64 || !mtd->block_total ||
+    /* ENV 副本占块首的若干整页，一次读进 readback（大小即 ENV 大小）。 */
+    const uint32_t page_size = mtd->page_size;
+    if (!page_size || page_size > sizeof(state.readback) || sizeof(state.readback) % page_size ||
+        sizeof(state.readback) / page_size > mtd->pages_per_block || !mtd->block_total ||
         rt_device_open(device, RT_DEVICE_OFLAG_RDONLY) != RT_EOK)
         return false;
     bool valid = false;
@@ -42,12 +46,14 @@ static bool valid_env_copy(const char *name)
         if (rt_mtd_nand_check_block(mtd, block) != RT_EOK)
             continue;
         uint32_t page = block * mtd->pages_per_block;
-        if (rt_mtd_nand_read(mtd, page, state.readback, 2048, RT_NULL, 0) >= 0 &&
-            rt_mtd_nand_read(mtd, page + 1, state.readback + 2048, 2048, RT_NULL, 0) >= 0)
+        bool read = true;
+        for (uint32_t offset = 0; read && offset < sizeof(state.readback); offset += page_size, ++page)
+            read = rt_mtd_nand_read(mtd, page, state.readback + offset, page_size, RT_NULL, 0) >= 0;
+        if (read)
         {
             uint32_t expected;
             memcpy(&expected, state.readback, sizeof(expected));
-            valid = expected == env_crc32(0, state.readback + 5, 4091);
+            valid = expected == env_crc32(0, state.readback + 5, sizeof(state.readback) - 5u);
         }
         break;
     }
@@ -121,14 +127,15 @@ bool meter_aic_update_prepare(void)
         return false;
     state.candidate = (struct rt_mtd_nand_device *)candidate;
     struct rt_mtd_nand_device *running = (struct rt_mtd_nand_device *)active;
-    if (state.candidate->page_size != 2048 || state.candidate->pages_per_block != 64 ||
-        state.candidate->block_total != 32 || running->page_size != 2048 || running->pages_per_block != 64 ||
-        running->block_total != 32 || state.candidate->block_end - state.candidate->block_start != 31 ||
-        running->block_end - running->block_start != 31 ||
-        !(state.candidate->block_end < running->block_start ||
-          running->block_end < state.candidate->block_start))
+    const struct rt_mtd_nand_device *c = state.candidate;
+    if (!c->page_size || !c->pages_per_block || !c->block_total || running->page_size != c->page_size ||
+        running->pages_per_block != c->pages_per_block || running->block_total != c->block_total ||
+        c->block_end - c->block_start != c->block_total - 1u ||
+        running->block_end - running->block_start != running->block_total - 1u ||
+        !(c->block_end < running->block_start || running->block_end < c->block_start) ||
+        (uint64_t)c->block_total * c->pages_per_block * c->page_size > UINT32_MAX)
         return false;
-    state.capacity = 4u * 1024u * 1024u;
+    state.capacity = c->block_total * c->pages_per_block * c->page_size;
     state.supported = environment(false) && clean_blocks();
     return state.supported;
 }
@@ -164,7 +171,7 @@ static meter_update_error_t begin(void *context, const meter_update_manifest_t *
     (void)context;
     if (!state.supported || !environment(false) || !clean_blocks())
         return METER_UPDATE_UNSUPPORTED;
-    meter_package_policy_t policy = {manifest->size, state.capacity, "d13x_os.itb", manifest->version};
+    meter_package_policy_t policy = {manifest->size, state.capacity, METER_UPDATE_OS_FILE, manifest->version};
     if (!meter_package_init(&state.guard, &policy))
         return METER_UPDATE_FORMAT;
     state.buffered = state.written = state.prefix_size = 0;

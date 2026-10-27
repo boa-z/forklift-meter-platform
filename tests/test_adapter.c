@@ -4,35 +4,16 @@
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%d: %s\n", __LINE__, #x); return 1; } } while (0)
 typedef struct
 {
-    unsigned frames, processes, commands, resets, sends, events;
+    unsigned frames, processes, commands, resets, sends;
     void *update_seen;
-    void *event_seen;
 } state_t;
-static bool on_event(void *ctx, const meter_protocol_event_t *event)
-{
-    state_t *a = ctx;
-    ++a->events;
-    return event->id == 0x55;
-}
 static bool on_frame(void *ctx, const meter_can_frame_t *f, const meter_protocol_services_t *s)
 {
     state_t *a = ctx;
     ++a->frames;
     a->update_seen = s->update_context;
-    a->event_seen = s->event_context;
-    // update 与 event 上下文必须分离：Domain core 与 App 各自独立。
-    if (s->update_context == s->event_context)
-        return false;
     meter_update_t u = {42, {17, f->timestamp_ms, METER_VALUE_VALID, 7}};
-    if (!s->update(s->update_context, &u))
-        return false;
-    if (s->event)
-    {
-        meter_protocol_event_t event = {0x55, f->timestamp_ms, 0};
-        if (!s->event(s->event_context, &event))
-            return false;
-    }
-    return true;
+    return s->update(s->update_context, &u);
 }
 static bool process(void *ctx, uint32_t now, const meter_protocol_services_t *s)
 {
@@ -93,40 +74,40 @@ int main(void)
     meter_runtime_t runtime;
     CHECK(meter_runtime_init(&runtime, &product, meter_core_apply, &core));
     meter_can_tx_port_t tx = {send, &a};
-    // 事件上下文与 Domain 上下文分离绑定。
-    meter_runtime_bind_services(&runtime, on_event, &a, &tx);
+    meter_runtime_bind_tx(&runtime, &tx);
     meter_command_t cmd = {0x123, 0, 0};
     CHECK(!meter_runtime_process(&runtime, 10));
     CHECK(!meter_runtime_command(&runtime, &cmd));
     meter_runtime_connection(&runtime, true);
     meter_can_frame_t f = {.bus = METER_BUS_CAN0, .id = 0x123, .size = 1};
-    CHECK(meter_runtime_push(&runtime, &f));
-    CHECK(meter_runtime_poll(&runtime, 1) == 1);
-    CHECK(a.frames == 1 && a.update_seen == &core && a.event_seen == &a);
-    CHECK(a.update_seen != a.event_seen);
-    CHECK(a.events == 1);
+    CHECK(meter_runtime_receive(&runtime, &f));
+    CHECK(a.frames == 1 && a.update_seen == &core);
     CHECK(value.value == 17 && value.source == 7);
     CHECK(meter_runtime_process(&runtime, 123));
     CHECK(a.processes == 1 && value.timestamp_ms == 123 && value.value == 63);
     CHECK(meter_runtime_command(&runtime, &cmd));
     CHECK(a.commands == 1 && a.sends == 1);
+    /* App 用的命令端口与直接调用等价。 */
+    const meter_command_port_t port = meter_runtime_command_port(&runtime);
+    CHECK(port.send(port.context, &cmd) && a.commands == 2 && a.sends == 2);
     cmd.id = 0x124;
     CHECK(!meter_runtime_command(&runtime, &cmd));
     product.command_route = route_reject;
     cmd.id = 0x123;
     CHECK(!meter_runtime_command(&runtime, &cmd));
     product.command_route = route_ok;
-    // 未绑定 TX 时命令必须拒绝，而不是绕过 adapter。
-    meter_runtime_bind_services(&runtime, on_event, &a, NULL);
+    // 未绑定 TX 时 adapter 看到 NULL，自己拒绝发送。
+    meter_runtime_bind_tx(&runtime, NULL);
     CHECK(!meter_runtime_command(&runtime, &cmd));
-    meter_runtime_bind_services(&runtime, on_event, &a, &tx);
-    CHECK(meter_runtime_push(&runtime, &f));
+    meter_runtime_bind_tx(&runtime, &tx);
     meter_runtime_connection(&runtime, false);
     meter_runtime_connection(&runtime, false);
-    CHECK(a.resets == 1 && runtime.count == 0);
+    CHECK(a.resets == 1 && !meter_runtime_receive(&runtime, &f) && a.frames == 1);
     CHECK(!meter_runtime_command(&runtime, &cmd));
     meter_runtime_connection(&runtime, true);
-    CHECK(meter_runtime_poll(&runtime, 32) == 0);
+    /* 未路由的帧计数后丢弃。 */
+    f.id = 0x124;
+    CHECK(!meter_runtime_receive(&runtime, &f) && runtime.diagnostics.unrouted == 1);
     adapter.on_frame = NULL;
     CHECK(!meter_runtime_init(&runtime, &product, meter_core_apply, &core));
     return 0;

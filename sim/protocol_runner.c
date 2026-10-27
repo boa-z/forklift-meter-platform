@@ -49,8 +49,7 @@ int main(int argc, char **argv)
                 if (*end || b > 255) return 2;
                 f.data[i] = (uint8_t)b;
             }
-            if (!meter_runtime_push(&runtime, &f)) return 2;
-            meter_runtime_poll(&runtime, 1);
+            (void)meter_runtime_receive(&runtime, &f);
         }
         else if (line[0] == 'T')
         {
@@ -68,7 +67,7 @@ int main(int argc, char **argv)
         meter_core_tick(&core, now);
     }
     if (ferror(stdin)) return 2;
-    if (p->evaluate) p->evaluate(&core.snapshot);
+    if (p->app_tick) p->app_tick(&core.snapshot, now);
     printf("{\"product\":"); quoted(p->id);
     printf(",\"revision\":%u,\"dispatched\":%u,\"unrouted\":%u,\"decode_failed\":%u,\"signals\":{",
            (unsigned)core.snapshot.revision, (unsigned)runtime.diagnostics.dispatched,

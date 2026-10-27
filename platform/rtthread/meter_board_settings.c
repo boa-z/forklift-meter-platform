@@ -5,12 +5,8 @@
 #include <rtdevice.h>
 #include <ulog.h>
 
-/* 参考板 PE.17 为 PWM3_B；沿用实板的 50 kHz 与 10% 底座，避免低亮度熄屏。 */
-enum { BACKLIGHT_CHANNEL = 3, BACKLIGHT_PERIOD_NS = 20000, BACKLIGHT_RETRY_MS = 1000 };
 static uint32_t boot_bitrate = 500000u;
-static bool boot_configured, retry_pending;
-static uint8_t applied_brightness, requested_brightness;
-static uint32_t retry_at;
+static bool boot_configured;
 
 bool meter_board_settings_boot(const meter_snapshot_t *snapshot)
 {
@@ -25,6 +21,23 @@ uint32_t meter_board_can_bitrate(void)
 {
     return boot_bitrate;
 }
+#ifdef AIC_FORKLIFT_BACKLIGHT
+/* 通道来自 SDK 板级配置 AIC_PWM_BACKLIGHT_CHANNEL；周期与底座占空比来自 Kconfig。 */
+#ifndef AIC_FORKLIFT_BACKLIGHT_PERIOD_NS
+#define AIC_FORKLIFT_BACKLIGHT_PERIOD_NS 20000
+#endif
+#ifndef AIC_FORKLIFT_BACKLIGHT_FLOOR_PERCENT
+#define AIC_FORKLIFT_BACKLIGHT_FLOOR_PERCENT 10
+#endif
+enum
+{
+    BACKLIGHT_PERIOD_NS = AIC_FORKLIFT_BACKLIGHT_PERIOD_NS,
+    BACKLIGHT_FLOOR = AIC_FORKLIFT_BACKLIGHT_FLOOR_PERCENT,
+    BACKLIGHT_RETRY_MS = 1000
+};
+static bool retry_pending;
+static uint8_t applied_brightness, requested_brightness;
+static uint32_t retry_at;
 bool meter_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
 {
     if (brightness < 10u || brightness > 100u)
@@ -35,16 +48,17 @@ bool meter_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
         return false;
     requested_brightness = brightness;
     struct rt_device_pwm *device = (struct rt_device_pwm *)rt_device_find("pwm");
-    uint32_t pulse = 2000u + (uint32_t)brightness * 180u;
-    struct rt_pwm_configuration readback = {.channel = BACKLIGHT_CHANNEL};
-    bool ok = device && rt_pwm_set(device, BACKLIGHT_CHANNEL, BACKLIGHT_PERIOD_NS, pulse) == RT_EOK &&
-              rt_pwm_enable(device, BACKLIGHT_CHANNEL) == RT_EOK &&
+    const uint32_t period = (uint32_t)BACKLIGHT_PERIOD_NS;
+    const uint32_t pulse = period * (uint32_t)BACKLIGHT_FLOOR / 100u +
+                           (uint32_t)((uint64_t)period * (100u - (uint32_t)BACKLIGHT_FLOOR) * brightness / 10000u);
+    struct rt_pwm_configuration readback = {.channel = AIC_PWM_BACKLIGHT_CHANNEL};
+    bool ok = device && rt_pwm_set(device, AIC_PWM_BACKLIGHT_CHANNEL, period, pulse) == RT_EOK &&
+              rt_pwm_enable(device, AIC_PWM_BACKLIGHT_CHANNEL) == RT_EOK &&
               rt_device_control((rt_device_t)device, PWM_CMD_GET, &readback) == RT_EOK;
     /* 允许硬件时钟量化到相邻纳秒；仍核对真实寄存器读回，不能把 UI 回显视为已应用。 */
     if (ok)
-        ok = readback.period >= BACKLIGHT_PERIOD_NS - 100u &&
-             readback.period <= BACKLIGHT_PERIOD_NS + 100u &&
-             readback.pulse >= pulse - 100u && readback.pulse <= pulse + 100u;
+        ok = readback.period >= period - 100u && readback.period <= period + 100u && readback.pulse + 100u >= pulse &&
+             readback.pulse <= pulse + 100u;
     if (ok)
     {
         applied_brightness = brightness;
@@ -55,10 +69,18 @@ bool meter_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
     else
     {
         if (!retry_pending)
-            LOG_E("backlight apply/readback failed; requested=%u; retry_ms=%u",
-                  (unsigned)brightness, BACKLIGHT_RETRY_MS);
+            LOG_E("backlight apply/readback failed; requested=%u; retry_ms=%u", (unsigned)brightness,
+                  BACKLIGHT_RETRY_MS);
         retry_pending = true;
         retry_at = now_ms + BACKLIGHT_RETRY_MS;
     }
     return ok;
 }
+#else
+bool meter_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
+{
+    /* 背光由 SDK 默认值或 Product 自己负责；设置值仍照常保存。 */
+    (void)now_ms;
+    return brightness >= 10u && brightness <= 100u;
+}
+#endif

@@ -63,26 +63,62 @@ static void test_independent_twenty_and_fifty_ms_periods(void)
 {
     const meter_periodic_frame_t fast = {.frame = {.bus = METER_BUS_CAN0, .id = 0x123u}, .period_ms = 20u};
     const meter_periodic_frame_t slow = {.frame = {.bus = METER_BUS_CAN1, .id = 0x123u}, .period_ms = 50u};
-    meter_periodic_state_t fast_state, slow_state;
-    meter_periodic_message_t message;
-    assert(meter_periodic_reset(&fast_state, &fast, 1u, 0u));
-    assert(meter_periodic_reset(&slow_state, &slow, 1u, 0u));
-    assert(!meter_periodic_prepare(&fast_state, &fast, NULL, true, 19u, &message));
-    assert(meter_periodic_prepare(&fast_state, &fast, NULL, true, 20u, &message));
-    assert(message.frame.bus == METER_BUS_CAN0 && message.deadline_ms == 20u);
-    assert(!meter_periodic_prepare(&slow_state, &slow, NULL, true, 49u, &message));
-    assert(meter_periodic_prepare(&slow_state, &slow, NULL, true, 50u, &message));
-    assert(message.frame.bus == METER_BUS_CAN1 && message.deadline_ms == 50u);
-    assert(meter_periodic_prepare(&fast_state, &fast, NULL, true, 100u, &message));
-    assert(message.deadline_ms == 100u && fast_state.deadline.missed == 3u);
-    assert(!meter_periodic_prepare(&fast_state, &fast, NULL, true, 100u, &message));
-    assert(meter_periodic_prepare(&slow_state, &slow, NULL, true, 100u, &message));
-    assert(message.deadline_ms == 100u && slow_state.deadline.missed == 0u);
-    assert(!meter_periodic_prepare(&slow_state, &slow, NULL, true, 100u, &message));
+    meter_deadline_t fast_state = {0}, slow_state = {0};
+    meter_can_frame_t frame;
+    /* 第一帧在启用时立即发出，之后两个条目各按自己的周期。 */
+    assert(meter_periodic_due(&fast_state, &fast, NULL, 0u, true, false, &frame) && frame.bus == METER_BUS_CAN0);
+    assert(meter_periodic_due(&slow_state, &slow, NULL, 0u, true, false, &frame) && frame.bus == METER_BUS_CAN1);
+    assert(!meter_periodic_due(&fast_state, &fast, NULL, 19u, true, false, &frame));
+    assert(meter_periodic_due(&fast_state, &fast, NULL, 20u, true, false, &frame) && frame.timestamp_ms == 20u);
+    assert(!meter_periodic_due(&slow_state, &slow, NULL, 49u, true, false, &frame));
+    assert(meter_periodic_due(&slow_state, &slow, NULL, 50u, true, false, &frame));
+    /* 迟到只补一帧并记录跳过的周期，不补发突发。 */
+    assert(meter_periodic_due(&fast_state, &fast, NULL, 100u, true, false, &frame));
+    assert(fast_state.missed == 3u && fast_state.next_ms == 120u);
+    assert(!meter_periodic_due(&fast_state, &fast, NULL, 100u, true, false, &frame));
+    assert(meter_periodic_due(&slow_state, &slow, NULL, 100u, true, false, &frame) && slow_state.missed == 0u);
+    /* 不允许发送或上一帧仍在途：期限照常推进，不生成帧。 */
+    assert(!meter_periodic_due(&slow_state, &slow, NULL, 150u, false, false, &frame) && slow_state.next_ms == 200u);
+    assert(!meter_periodic_due(&slow_state, &slow, NULL, 200u, true, true, &frame) && slow_state.next_ms == 250u);
+}
+
+static bool encode_level(const meter_snapshot_t *snapshot, uint32_t now, meter_can_frame_t *frame)
+{
+    (void)now;
+    const meter_value_t level = meter_snapshot_read(snapshot, 1u);
+    /* 值不可用时本周期不发；可用时把值写进模板的第二个字节。 */
+    if (level.state != METER_VALUE_VALID)
+        return false;
+    frame->data[1] = (uint8_t)level.value;
+    return true;
+}
+
+static void test_encoder_reads_the_snapshot(void)
+{
+    static const meter_signal_def_t signals[] = {{"level", "%", 0u, 1u}};
+    static const meter_catalog_t catalog = {.signals = signals, .signal_count = 1u};
+    meter_value_t values[1];
+    meter_core_storage_t storage = {.signals = values, .signal_capacity = 1u};
+    meter_core_t core;
+    assert(meter_core_init(&core, &catalog, &storage));
+    const meter_periodic_frame_t definition = {
+        .frame = {.bus = METER_BUS_CAN0, .id = 0x3c0u, .size = 2u, .data = {0xA5u}}, .period_ms = 10u,
+        .encode = encode_level};
+    assert(meter_periodic_valid(&definition));
+    meter_deadline_t deadline = {0};
+    meter_can_frame_t frame;
+    assert(!meter_periodic_due(&deadline, &definition, &core.snapshot, 0u, true, false, &frame));
+    const meter_update_t level = {1u, {37.0f, 5u, METER_VALUE_VALID, 1u}};
+    assert(meter_core_apply(&core, &level));
+    assert(meter_periodic_due(&deadline, &definition, &core.snapshot, 10u, true, false, &frame));
+    assert(frame.id == 0x3c0u && frame.size == 2u && frame.data[0] == 0xA5u && frame.data[1] == 37u);
+    const meter_periodic_frame_t broken = {.frame = {.bus = METER_BUS_COUNT}, .period_ms = 10u};
+    assert(!meter_periodic_valid(&broken));
 }
 
 int main(void)
 {
+    test_encoder_reads_the_snapshot();
     test_overlapping_bus_and_format_identity();
     test_timeout_keeps_source_value_and_recovers();
     test_independent_twenty_and_fifty_ms_periods();

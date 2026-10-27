@@ -3,21 +3,17 @@
 #include "core/meter_settings.h"
 #include "diagnostics/meter_diagnostics.h"
 #include "storage/meter_nvm.h"
-/** @brief 启动板级 NVM worker；调用前已初始化 Core，返回后由 App poll 接收加载结果。 */
+/* 除 worker 线程外，下列函数都只由运行时线程调用；介质 I/O 全在 worker 里完成。 */
+/** @brief 按 Product 存储策略启动 NVM worker 并投递首次读取；调用前 Core 已初始化。 */
 bool meter_board_nvm_start(meter_core_t *core);
-/** @brief App 唯一 owner 处理结果、观察设置并调度保存；没有阻塞存储 I/O。 */
+/** @brief 领取 worker 结果、处理 MSH 维护请求并调度保存；不做阻塞 I/O。 */
 void meter_board_nvm_poll(uint32_t now, meter_diag_storage_t *status);
-/** @brief App 通知设置变化；只复制 RAM，不等待保存。 */
+/** @brief 设置可能变化后调用：编码当前设置，内容不同才进入去抖保存。 */
 bool meter_board_nvm_changed(uint32_t now);
-/** @brief App 查询启动加载是否已结束，避免迟到加载覆盖用户修改。 */
+/** @brief 启动读取是否已结束（未启用持久化视为已结束），避免迟到的读取覆盖用户修改。 */
 bool meter_board_nvm_ready(void);
-/** @brief OTA/生命周期以具体版本申请保存并检查 durable；均只能从 App 调用。 */
+/** @brief 升级激活前申请立即保存，返回需要等到 durable 的版本号；0 表示无需等待。 */
 uint64_t meter_board_nvm_flush(void);
+/** @brief 目标版本是否已经写入介质。 */
 bool meter_board_nvm_barrier(uint64_t target);
-/** @brief App 显式重读并重试失败记录，不覆盖当前 RAM。 */
-bool meter_board_nvm_retry(void);
-/** @brief App 在 durable 且无在途 I/O 后请求退出，不强杀 worker。 */
-void meter_board_nvm_stop(void);
-/** @brief App 处理退出结果后返回 true；等待时资源保持有效。 */
-bool meter_board_nvm_stopped(void);
 #endif

@@ -29,16 +29,15 @@ int main(void)
                                   .value = {1.25f, 10, METER_VALUE_VALID, 7},
                                   .age_ms = 2,
                                   .stale_ms = 50};
-    meter_trace_entry_t entries[] = {{UINT32_MAX, METER_TRACE_SDO, SDO_START, 17, 0},
-                                     {2, METER_TRACE_SDO, SDO_TIMEOUT, 17, 1}};
+    meter_trace_entry_t entries[] = {{UINT32_MAX, METER_TRACE_CAN, CAN_RX_DROP, 17, 0},
+                                     {2, METER_TRACE_CAN, CAN_ERROR, 17, 1}};
     meter_diag_view_t view = {.snapshot = &snapshot,
                               .build = &info,
                               .signal = &signal,
                               .entries = entries,
                               .entry_count = 2,
                               .cleared = 2};
-    const char *names[] = {"info", "diag",   "runtime", "can",   "pdo",
-                           "sdo",  "domain", "touch",   "trace", "storage"};
+    const char *names[] = {"info", "diag", "runtime", "can", "domain", "touch", "trace", "storage"};
     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
         run(names[i], NULL, &view);
     run("info", NULL, &view);
@@ -47,18 +46,16 @@ int main(void)
     run("signal", "vehicle.speed", &view);
     assert(strstr(output, "value=1.25") && strstr(output, "state=VALID") && strstr(output, "source=7"));
     run("trace", "dump", &view);
-    assert(strstr(output, "4294967295 SDO START") < strstr(output, "2 SDO TIMEOUT"));
+    assert(strstr(output, "4294967295 CAN RX_DROP") < strstr(output, "2 CAN ERROR"));
     run("trace", "clear", &view);
     assert(strstr(output, "cleared=2 result=OK"));
     snapshot.can[1] = (meter_diag_can_t){.available = true, .rx_seen = true, .last_rx_ms = UINT32_MAX - 2};
     run("can", "1", &view);
     assert(strstr(output, "last_rx_age_ms=15") && strstr(output, "bitrate=unavailable") &&
            !strstr(output, "can0"));
-    snapshot.sdo = (meter_diag_sdo_t){
-        .available = true, .operation = 1, .state = 4, .node = 12, .index = 0x2000, .last_abort = 0x5040000};
-    run("sdo", NULL, &view);
-    assert(strstr(output, "operation=WRITE") && strstr(output, "state=TIMEOUT") &&
-           strstr(output, "last_abort=0x05040000"));
+    const char *retired[] = {"meter", "pdo"};
+    meter_diag_query_t retired_query;
+    assert(!meter_diag_query(2, retired, &retired_query));
     snapshot.storage.available = true;
     snapshot.storage.backend = "eeprom";
     snapshot.storage.state = 5;
@@ -74,7 +71,7 @@ int main(void)
     assert(!meter_diag_query(3, invalid, &q));
     invalid[1] = "signal";
     assert(!meter_diag_query(2, invalid, &q));
-    invalid[1] = "sdo";
+    invalid[1] = "storage";
     invalid[2] = "write";
     assert(!meter_diag_query(3, invalid, &q));
     invalid[1] = "trace";

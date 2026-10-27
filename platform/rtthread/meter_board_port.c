@@ -2,7 +2,6 @@
 #define LOG_LVL LOG_LVL_INFO
 #include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_board_color.h"
-#include "platform/rtthread/meter_board_settings.h"
 #include "platform/rtthread/meter_board_testcard.h"
 #include "lv_aic_display.h"
 #include "lv_aic_indev.h"
@@ -15,6 +14,13 @@
 #include <rtthread.h>
 #include <string.h>
 #include <ulog.h>
+#ifndef AIC_FORKLIFT_CAN0_DEVICE
+#define AIC_FORKLIFT_CAN0_DEVICE "can0"
+#endif
+#ifndef AIC_FORKLIFT_CAN1_DEVICE
+#define AIC_FORKLIFT_CAN1_DEVICE "can1"
+#endif
+static const char *const can_names[METER_BUS_COUNT] = {AIC_FORKLIFT_CAN0_DEVICE, AIC_FORKLIFT_CAN1_DEVICE};
 static rt_device_t can_devices[METER_BUS_COUNT];
 static unsigned next_bus;
 static struct rt_semaphore *rx_wake;
@@ -32,13 +38,9 @@ uint32_t meter_board_now_ms(void)
 {
     return (uint32_t)aic_get_time_ms();
 }
-static uint32_t board_now(void *ctx)
-{
-    (void)ctx;
-    return meter_board_now_ms();
-}
-/* 此 Demo 独占显示层；包含视频的产品必须提供自己的层策略。 */
-static bool board_display_takeover(void)
+#ifdef AIC_FORKLIFT_DISPLAY_EXCLUSIVE
+/* UI 独占显示层：关掉视频层与额外 UI 矩形，全局 alpha 255，关闭色键。用视频层的产品在 Kconfig 关掉此项。 */
+static bool display_takeover(void)
 {
     struct mpp_fb *fb = mpp_fb_open();
     if (!fb)
@@ -66,66 +68,68 @@ static bool board_display_takeover(void)
         LOG_E("display exclusive takeover failed");
     return ok;
 }
-static bool board_display(void *ctx)
+#endif
+bool meter_board_display_init(void)
 {
-    (void)ctx;
-    if (!board_display_takeover())
+#ifdef AIC_FORKLIFT_DISPLAY_EXCLUSIVE
+    if (!display_takeover())
         return false;
+#endif
     int result = lv_aic_init();
     if (result != LV_AIC_OK)
-        LOG_E("display/touch initialization failed: %d", result);
-    else
     {
-        meter_board_color_init();
-        meter_board_testcard_init();
+        LOG_E("display/touch initialization failed: %d", result);
+        return false;
     }
-    return result == LV_AIC_OK;
+    if (!lv_aic_get_pointer_indev())
+        LOG_W("no pointer input device; UI runs without touch");
+    meter_board_color_init();
+    meter_board_testcard_init();
+    return true;
 }
-static bool board_touch(void *ctx)
+void meter_board_display_close(meter_diagnostics_t *diag)
 {
-    (void)ctx;
-    return lv_aic_get_pointer_indev() != NULL;
+    lv_aic_deinit();
+    if (diag)
+    {
+        diag->data.touch.available = false;
+        diag->data.ui.available = false;
+        diag->data.ui.flush_available = false;
+    }
 }
-static bool board_can_open(void *ctx, meter_bus_role_t bus)
+bool meter_board_can_open(meter_bus_role_t bus, uint32_t bitrate, meter_diagnostics_t *diag)
 {
-    meter_diagnostics_t *diag = ctx;
-    static const char *const names[] = {"can0", "can1"};
     if ((unsigned)bus >= METER_BUS_COUNT)
         return false;
-    meter_diag_can_t *d = &diag->data.can[bus];
-    d->available = true;
-    d->board_available = true;
-    rt_device_t dev = rt_device_find(names[bus]);
-    unsigned flags = RT_DEVICE_FLAG_INT_RX | RT_DEVICE_FLAG_INT_TX;
-    if (!dev || rt_device_open(dev, flags) != RT_EOK)
+    meter_diag_can_t *d = diag ? &diag->data.can[bus] : NULL;
+    if (d)
+        d->available = d->board_available = true;
+    rt_device_t dev = rt_device_find(can_names[bus]);
+    if (!dev || rt_device_open(dev, RT_DEVICE_FLAG_INT_RX | RT_DEVICE_FLAG_INT_TX) != RT_EOK)
     {
-        meter_diagnostics_can(diag, bus, METER_CAN_RX_ERROR, board_now(NULL));
-        ulog_e("meter.can", "cannot open %s", names[bus]);
+        meter_diagnostics_can(diag, bus, METER_CAN_RX_ERROR, meter_board_now_ms());
+        LOG_E("cannot open %s", can_names[bus]);
         return false;
     }
-    /* 速率来自启动时的不可变配置；周期发送仍是公开合成台架数据。 */
-    uint32_t bitrate = meter_board_can_bitrate();
     if (rt_device_control(dev, RT_CAN_CMD_SET_BAUD, (void *)(uintptr_t)bitrate) != RT_EOK ||
-        rt_device_control(dev, RT_DEVICE_CTRL_SET_INT, NULL) != RT_EOK)
+        rt_device_control(dev, RT_DEVICE_CTRL_SET_INT, NULL) != RT_EOK ||
+        rt_device_set_rx_indicate(dev, rx_indicate) != RT_EOK)
     {
-        meter_diagnostics_can(diag, bus, METER_CAN_RX_ERROR, board_now(NULL));
-        ulog_e("meter.can", "cannot configure %s", names[bus]);
-        rt_device_close(dev);
-        return false;
-    }
-    if (rt_device_set_rx_indicate(dev, rx_indicate) != RT_EOK)
-    {
+        meter_diagnostics_can(diag, bus, METER_CAN_RX_ERROR, meter_board_now_ms());
+        LOG_E("cannot configure %s", can_names[bus]);
         (void)rt_device_close(dev);
         return false;
     }
     can_devices[bus] = dev;
-    d->open = true;
-    d->bitrate = bitrate;
-    ulog_i("meter.can", "%s opened at %lu bit/s (public synthetic test bus)", names[bus],
-           (unsigned long)bitrate);
+    if (d)
+    {
+        d->open = true;
+        d->bitrate = bitrate;
+    }
+    LOG_I("bus %u on %s opened at %lu bit/s", (unsigned)bus, can_names[bus], (unsigned long)bitrate);
     return true;
 }
-bool meter_board_can_raw_read(void *ctx, meter_can_frame_t *frame)
+bool meter_board_can_read(meter_can_frame_t *frame)
 {
     for (unsigned i = 0; i < METER_BUS_COUNT; ++i)
     {
@@ -143,13 +147,12 @@ bool meter_board_can_raw_read(void *ctx, meter_can_frame_t *frame)
         frame->extended = msg.ide != 0;
         frame->remote = msg.rtr != 0;
         frame->size = msg.len;
-        frame->timestamp_ms = board_now(ctx);
+        frame->timestamp_ms = meter_board_now_ms();
         memcpy(frame->data, msg.data, msg.len <= sizeof(frame->data) ? msg.len : sizeof(frame->data));
         return true;
     }
     return false;
 }
-
 bool meter_board_can_send(const meter_can_frame_t *frame)
 {
     if (!frame || (unsigned)frame->bus >= METER_BUS_COUNT || !can_devices[frame->bus] || frame->size > 8u)
@@ -162,15 +165,6 @@ bool meter_board_can_send(const meter_can_frame_t *frame)
     message.hdr = -1;
     memcpy(message.data, frame->data, frame->size);
     return rt_device_write(can_devices[frame->bus], 0, &message, sizeof(message)) == sizeof(message);
-}
-meter_rtthread_board_port_t meter_board_port(meter_diagnostics_t *diag)
-{
-    return (meter_rtthread_board_port_t){.display_init = board_display,
-                                         .touch_init = board_touch,
-                                         .can_open = board_can_open,
-                                         .can_read = meter_board_can_raw_read,
-                                         .context = diag,
-                                         .now_ms = board_now};
 }
 void meter_board_diagnostics(meter_diagnostics_t *diag)
 {
@@ -196,33 +190,10 @@ void meter_board_diagnostics(meter_diagnostics_t *diag)
                                                 .invalid_reads = d.invalid_reads};
     }
 }
-void meter_board_can_close(meter_diagnostics_t *diag)
-{
-    for (unsigned i = 0; i < METER_BUS_COUNT; ++i)
-        if (can_devices[i])
-        {
-            (void)rt_device_set_rx_indicate(can_devices[i], RT_NULL);
-            (void)rt_device_close(can_devices[i]);
-            can_devices[i] = NULL;
-            if (diag)
-                diag->data.can[i].open = false;
-        }
-}
-void meter_board_close(meter_diagnostics_t *diag)
-{
-    meter_board_can_close(diag);
-    lv_aic_deinit();
-    if (diag)
-    {
-        diag->data.touch.available = false;
-        diag->data.ui.available = false;
-        diag->data.ui.flush_available = false;
-    }
-}
-
 void meter_board_can_diagnostics(meter_diagnostics_t *diag)
 {
-    if (!diag) return;
+    if (!diag)
+        return;
     for (unsigned bus = 0u; bus < METER_BUS_COUNT; ++bus)
     {
         struct rt_can_status status = {0};

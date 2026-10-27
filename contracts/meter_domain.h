@@ -23,7 +23,7 @@ typedef enum
     METER_LANGUAGE_EN = 0,
     METER_LANGUAGE_ZH = 1
 } meter_language_t;
-/** @brief 本机 CAN 速率选择；持久化取值固定，两个参考板总线共用，重启生效。 */
+/** @brief 本机 CAN 速率选择；取值即持久化字节，禁止重新排序。重启生效，所有已打开的总线共用。 */
 typedef enum
 {
     METER_CAN_RATE_125K = 0,
@@ -242,6 +242,26 @@ static inline bool meter_snapshot_fault_set(meter_snapshot_t *snapshot, uint16_t
     }
     return true;
 }
+/**
+ * @brief App 发布归一化的车型配置（系列与能力位）。
+ *
+ * 未确认时系列与能力必须为零，已确认时系列非零，否则返回 false 且不改快照。内容不变时不推进代次；
+ * 语义变化推进 profile.generation 与快照 revision，代次耗尽时拒绝回绕。只在运行时线程调用。
+ */
+static inline bool meter_snapshot_profile(meter_snapshot_t *snapshot, bool confirmed, uint16_t family,
+                                          uint64_t capabilities)
+{
+    if (!snapshot || (confirmed && family == 0u) || (!confirmed && (family != 0u || capabilities != 0u)))
+        return false;
+    const meter_profile_t current = snapshot->profile;
+    if (current.confirmed == confirmed && current.family == family && current.capabilities == capabilities)
+        return true;
+    if (current.generation == UINT32_MAX)
+        return false;
+    snapshot->profile = (meter_profile_t){current.generation + 1u, family, capabilities, confirmed};
+    ++snapshot->revision;
+    return true;
+}
 /** @brief UI 本地设置意图。METER_ACTION_PARAMETER 使用本地 id，不派发远端事务。其余类别忽略 id。 */
 typedef enum
 {
@@ -262,8 +282,8 @@ typedef struct
 /**
  * @brief UI 提交语义意图的动作回调，在 UI 线程执行。
  *
- * 生产端返回 true 仅表示 QUEUED，不代表 APPLIED；最终以 App 结果/快照为准。返回 false
- * 表示未接纳。实现若需持久化，只投递请求，不得在 UI 线程 等待介质写入完成。
+ * 返回 true 只表示已排入运行时线程的动作队列，结果以之后发布的快照为准；返回 false 表示队列已满或
+ * 运行时不接收设置（升级维护期间）。实现不得在 UI 线程等待介质写入。
  */
 typedef bool (*meter_action_send_t)(void *context, const meter_action_t *action);
 /** @brief 动作回调与其不透明上下文，由产品 UI 在创建时持有。 */
@@ -272,16 +292,4 @@ typedef struct
     meter_action_send_t send;
     void *context;
 } meter_ui_actions_t;
-/**
- * @brief 持久化端口约定，供板级适配层实现。
- *
- * load 把已存字节写入 data 并回填 *size，容量不足返回 false；save 接受 encode 产出的
- * 完整字节串。实际介质写入必须在 UI 线程之外完成，避免阻塞渲染循环。
- */
-typedef struct
-{
-    bool (*load)(void *context, uint8_t *data, size_t capacity, size_t *size);
-    bool (*save)(void *context, const uint8_t *data, size_t size);
-    void *context;
-} meter_persistence_port_t;
 #endif

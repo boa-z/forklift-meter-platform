@@ -1,23 +1,25 @@
 #ifndef METER_BOARD_PORT_H
 #define METER_BOARD_PORT_H
-#include "platform/rtthread/meter_rtthread_adapter.h"
-/** @brief 构造 reference-board Demo 板端接口；diag 在设备整个生命期有效，所有函数由 owner 线程调用。 */
-meter_rtthread_board_port_t meter_board_port(meter_diagnostics_t *diag);
-/** @brief owner 在 LVGL tick 后复制驱动已有统计；无额外采样或串口输出。 */
-void meter_board_diagnostics(meter_diagnostics_t *diag);
-/** @brief 初始化失败时关闭本应用已打开的设备；owner 锁内调用。 */
-void meter_board_close(meter_diagnostics_t *diag);
+#include "contracts/meter_can_frame.h"
+#include "diagnostics/meter_diagnostics.h"
+/* 板级适配：设备名与显示层策略来自 Kconfig（Board resources），不在这里写死某块板。 */
+struct rt_semaphore;
 /** @brief 读取 SDK 单调硬件毫秒时钟；32 位差值允许正常回绕，不依赖 RTOS tick 初值。 */
 uint32_t meter_board_now_ms(void);
-struct rt_semaphore;
-/** @brief 初始化时绑定原生 RX 唤醒信号量；设备关闭前不得释放。 */
+/** @brief UI 线程启动显示与触摸（lvgl-aic），按 Kconfig 接管显示层并加载色彩校正。 */
+bool meter_board_display_init(void);
+/** @brief UI 线程释放显示；仅启动失败路径使用。 */
+void meter_board_display_close(meter_diagnostics_t *diag);
+/** @brief UI 线程复制显示刷新与触摸驱动的既有统计；无额外采样或串口输出。 */
+void meter_board_diagnostics(meter_diagnostics_t *diag);
+/** @brief 绑定 RX 唤醒信号量；任一已打开总线收到帧时释放。 */
 void meter_board_can_wake(struct rt_semaphore *wake);
-/** @brief Protocol 与 TX 全部停止后关闭 CAN；不操作 LVGL。 */
-void meter_board_can_close(meter_diagnostics_t *diag);
-/** @brief Protocol owner 独占读取硬件接收 FIFO。 */
-bool meter_board_can_raw_read(void *, meter_can_frame_t *);
-/** @brief 独立 TX worker 调用可能等待硬件的原生发送接口。 */
-bool meter_board_can_send(const meter_can_frame_t *);
-/** @brief Protocol 复制原生 CAN 驱动计数，保留硬件 FIFO 丢包证据。 */
+/** @brief 运行时线程按 Kconfig 映射打开逻辑总线并设定速率。 */
+bool meter_board_can_open(meter_bus_role_t bus, uint32_t bitrate, meter_diagnostics_t *diag);
+/** @brief 运行时线程轮询各已打开总线的接收 FIFO，取一帧。 */
+bool meter_board_can_read(meter_can_frame_t *frame);
+/** @brief 该总线的发送线程调用；驱动可能等待硬件。 */
+bool meter_board_can_send(const meter_can_frame_t *frame);
+/** @brief 复制原生 CAN 驱动的丢包与错误计数。 */
 void meter_board_can_diagnostics(meter_diagnostics_t *diag);
 #endif

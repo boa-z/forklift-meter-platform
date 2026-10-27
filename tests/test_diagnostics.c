@@ -46,11 +46,10 @@ int main(void)
     meter_core_connection(&core, true, runtime.generation);
     CHECK(core.snapshot.revision == 1);
     meter_can_frame_t f = {.bus = METER_BUS_CAN0, .id = 123, .size = 1, .timestamp_ms = 100, .data = {42}};
-    CHECK(meter_runtime_push(&runtime, &f));
-    CHECK(meter_runtime_poll(&runtime, 1) == 1);
+    CHECK(meter_runtime_receive(&runtime, &f));
     CHECK(meter_diagnostics_snapshot(&d, 101, &first));
     CHECK(first.runtime.counters.accepted == 1 && first.runtime.counters.dispatched == 1 &&
-          first.runtime.depth == 0);
+          first.runtime.adapters == 1);
     CHECK(first.runtime.counters.resets == 1 && first.can[0].rx == 1);
     CHECK(first.domain.updates == 1 && first.domain.valid_transition == 1 && first.domain.signals == 1);
     meter_diag_signal_t signal;
@@ -59,8 +58,7 @@ int main(void)
           strcmp(signal.unit, "m/s") == 0);
     CHECK(!meter_diagnostics_signal(&d, "missing", 101, &signal));
     uint32_t revision = core.snapshot.revision;
-    CHECK(meter_runtime_push(&runtime, &f));
-    meter_runtime_poll(&runtime, 1);
+    CHECK(meter_runtime_receive(&runtime, &f));
     CHECK(core.snapshot.revision == revision);
     meter_core_tick(&core, 110);
     meter_core_tick(&core, 111);
@@ -73,13 +71,10 @@ int main(void)
     CHECK(second.domain.updates == 4 && second.domain.valid_transition == 2 &&
           second.domain.source_switch == 1 && second.domain.error_updates == 1);
     CHECK(first.domain.updates == 1 && first.domain.stale_transition == 0);
-    for (unsigned i = 0; i < METER_RX_CAPACITY; ++i)
-        CHECK(meter_runtime_push(&runtime, &f));
-    CHECK(!meter_runtime_push(&runtime, &f));
-    CHECK(d.data.can[0].rx_drop == 1);
-    CHECK(d.data.runtime.counters.overflow == 1 && d.data.runtime.depth == METER_RX_CAPACITY);
+    /* 断开后收到的帧只计 rx_drop，不进入解码。 */
     meter_runtime_connection(&runtime, false);
-    CHECK(d.data.runtime.depth == 0 && d.data.runtime.counters.resets == 2);
+    CHECK(!meter_runtime_receive(&runtime, &f));
+    CHECK(d.data.can[0].rx_drop == 1 && d.data.runtime.counters.resets == 2 && !d.data.runtime.connected);
     d.data.ui.present_count = UINT32_MAX;
     METER_DIAG_INC(&d, ui, present_count);
     CHECK(d.data.ui.present_count == UINT32_MAX);

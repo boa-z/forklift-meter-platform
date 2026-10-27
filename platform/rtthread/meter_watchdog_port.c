@@ -20,7 +20,7 @@ static meter_watchdog_policy_t policy;
 static bool device_present, armed;
 static uint32_t report_feeds, report_withheld, report_stalls, report_transitions, report_stalled;
 
-static const char *const channel_names[METER_WATCHDOG_CHANNELS] = {"protocol", "app", "ui"};
+static const char *const channel_names[METER_WATCHDOG_CHANNELS] = {"app", "ui"};
 
 static bool arm_watchdog(void)
 {
@@ -35,9 +35,9 @@ static bool arm_watchdog(void)
         LOG_E("cannot start WDT");
         return false;
     }
-    LOG_I("WDT armed: timeout=%us poll=%ums stall protocol/app=%ums ui=%ums",
-          (unsigned)METER_WATCHDOG_TIMEOUT_S, (unsigned)METER_WATCHDOG_POLL_MS,
-          (unsigned)METER_WATCHDOG_PROTOCOL_STALL_MS, (unsigned)METER_WATCHDOG_UI_STALL_MS);
+    LOG_I("WDT armed: timeout=%us poll=%ums stall app=%ums ui=%ums", (unsigned)METER_WATCHDOG_TIMEOUT_S,
+          (unsigned)METER_WATCHDOG_POLL_MS, (unsigned)METER_WATCHDOG_APP_STALL_MS,
+          (unsigned)METER_WATCHDOG_UI_STALL_MS);
     return true;
 }
 
@@ -48,19 +48,17 @@ static void watchdog_entry(void *parameter)
     for (;;)
     {
         meter_execution_liveness_t live;
-        /* runtime 未启动或正在停止时不进入监督态：启动失败与技师发起的停机都不得复位。 */
-        if (meter_execution_liveness(&live) && live.started && !live.stopping)
+        /* runtime 未启动时不进入监督态：启动阶段与启动失败都不得复位。 */
+        if (meter_execution_liveness(&live))
         {
             if (!armed)
                 armed = arm_watchdog();
             if (armed)
             {
                 meter_watchdog_input_t input = {0};
-                input.counter[METER_WATCHDOG_PROTOCOL] = live.protocol_runs;
                 input.counter[METER_WATCHDOG_APP] = live.app_runs;
                 input.counter[METER_WATCHDOG_UI] = live.ui_ticks;
-                input.expected = (1u << METER_WATCHDOG_PROTOCOL) | (1u << METER_WATCHDOG_APP) |
-                                 (1u << METER_WATCHDOG_UI);
+                input.expected = (1u << METER_WATCHDOG_APP) | (1u << METER_WATCHDOG_UI);
                 const uint32_t now = (uint32_t)rt_tick_get_millisecond();
                 if (meter_watchdog_step(&state, &policy, &input, now))
                     (void)rt_device_control(wdt_device, RT_DEVICE_CTRL_WDT_KEEPALIVE, RT_NULL);
@@ -101,7 +99,6 @@ int meter_watchdog_port_init(void)
     }
     device_present = true;
     policy.enabled = true;
-    policy.stall_ms[METER_WATCHDOG_PROTOCOL] = METER_WATCHDOG_PROTOCOL_STALL_MS;
     policy.stall_ms[METER_WATCHDOG_APP] = METER_WATCHDOG_APP_STALL_MS;
     policy.stall_ms[METER_WATCHDOG_UI] = METER_WATCHDOG_UI_STALL_MS;
     meter_watchdog_init(&state);

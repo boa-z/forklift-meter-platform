@@ -1,6 +1,13 @@
 #ifndef METER_UPDATE_BACKEND_H
 #define METER_UPDATE_BACKEND_H
 #include "update/meter_update.h"
+/* 升级包里的 OS 镜像名随芯片变化（<chip>_os.itb）；SConscript 按 PRJ_CHIP 定义 METER_UPDATE_CHIP。 */
+#ifndef METER_UPDATE_CHIP
+#define METER_UPDATE_CHIP d13x
+#endif
+#define METER_UPDATE_TEXT_(x) #x
+#define METER_UPDATE_TEXT(x) METER_UPDATE_TEXT_(x)
+#define METER_UPDATE_OS_FILE METER_UPDATE_TEXT(METER_UPDATE_CHIP) "_os.itb"
 /** @brief SDK 后端组合句柄；原生全局状态只能由单一 Update worker 拥有。 */
 typedef struct
 {

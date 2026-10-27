@@ -17,8 +17,8 @@ bool meter_diag_query(int argc, const char *const *argv, meter_diag_query_t *q)
 {
     if (!q || !argv || argc < 2 || argc > 3 || !argv[0] || strcmp(argv[0], "meter") || !argv[1])
         return false;
-    static const char *const names[] = {"info",   "diag",   "runtime", "can",   "pdo",    "sdo",
-                                        "domain", "signal", "touch",   "trace", "storage"};
+    static const char *const names[] = {"info",  "diag",  "runtime", "can",    "domain",
+                                        "signal", "touch", "trace",   "storage"};
     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
         if (!strcmp(argv[1], names[i]))
         {
@@ -56,17 +56,14 @@ bool meter_diag_query(int argc, const char *const *argv, meter_diag_query_t *q)
 }
 const char *meter_trace_module_name(uint16_t module)
 {
-    static const char *const names[] = {"UNKNOWN", "RUNTIME", "CAN", "PDO", "SDO", "DOMAIN", "PRODUCT"};
+    static const char *const names[] = {"UNKNOWN", "RUNTIME", "CAN", "UNKNOWN", "UNKNOWN", "DOMAIN", "PRODUCT"};
     return module < sizeof(names) / sizeof(names[0]) ? names[module] : "UNKNOWN";
 }
 const char *meter_trace_event_name(uint16_t m, uint16_t e)
 {
-    static const char *const runtime[] = {"CONNECT", "DISCONNECT", "QUEUE_OVERFLOW", "RESET",
+    static const char *const runtime[] = {"CONNECT", "DISCONNECT", "UNKNOWN", "UNKNOWN",
                                           "INVALID_FRAME"};
     static const char *const can[] = {"RX_DROP", "TX_BUSY", "ERROR"};
-    static const char *const pdo[] = {"RX", "STALE", "RECOVER", "DECODE_ERROR"};
-    static const char *const sdo[] = {"QUEUE",   "START", "COMPLETE", "ABORT",
-                                      "TIMEOUT", "RETRY", "RESET",    "FAILED"};
     static const char *const domain[] = {"STALE", "RECOVER", "SOURCE_SWITCH", "ERROR"};
     static const char *const product[] = {"READY", "FAILED"};
     const char *const *names = NULL;
@@ -81,10 +78,6 @@ const char *meter_trace_event_name(uint16_t m, uint16_t e)
         NAMES(runtime);
     case METER_TRACE_CAN:
         NAMES(can);
-    case METER_TRACE_PDO:
-        NAMES(pdo);
-    case METER_TRACE_SDO:
-        NAMES(sdo);
     case METER_TRACE_DOMAIN:
         NAMES(domain);
     case METER_TRACE_PRODUCT:
@@ -103,14 +96,11 @@ static void runtime(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, voi
         emit(ctx, "runtime unavailable");
         return;
     }
-    line(emit, ctx, "runtime connected=%u generation=%lu depth=%lu capacity=%lu adapters=%lu", d->connected,
-         U(d->generation), U(d->depth), U(d->capacity), U(d->adapters));
-    line(emit, ctx,
-         "runtime accepted=%lu dispatched=%lu malformed=%lu unrouted=%lu decode_failed=%lu overflow=%lu "
-         "resets=%lu",
+    line(emit, ctx, "runtime connected=%u generation=%lu adapters=%lu", d->connected, U(d->generation),
+         U(d->adapters));
+    line(emit, ctx, "runtime accepted=%lu dispatched=%lu malformed=%lu unrouted=%lu decode_failed=%lu resets=%lu",
          U(d->counters.accepted), U(d->counters.dispatched), U(d->counters.malformed),
-         U(d->counters.unrouted), U(d->counters.decode_failed), U(d->counters.overflow),
-         U(d->counters.resets));
+         U(d->counters.unrouted), U(d->counters.decode_failed), U(d->counters.resets));
 }
 static void can(const meter_diag_snapshot_t *s, unsigned bus, meter_diag_line_fn emit, void *ctx)
 {
@@ -134,44 +124,6 @@ static void can(const meter_diag_snapshot_t *s, unsigned bus, meter_diag_line_fn
         line(emit, ctx, "can%u last_tx_age_ms=%lu", bus, U(s->uptime_ms - d->last_tx_ms));
     else
         line(emit, ctx, "can%u last_tx_age_ms=unavailable", bus);
-}
-static void pdo(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, void *ctx)
-{
-    const meter_diag_pdo_t *d = &s->pdo;
-    if (!d->available)
-    {
-        emit(ctx, "pdo unavailable");
-        return;
-    }
-    line(emit, ctx, "pdo bindings=%lu rx=%lu tx=%lu decode_error=%lu", U(d->bindings), U(d->rx), U(d->tx),
-         U(d->decode_error));
-    line(emit, ctx, "pdo state=%s timeout_ms=%lu stale=%lu recover=%lu",
-         !d->seen         ? "UNKNOWN"
-         : d->stale_state ? "STALE"
-                          : "FRESH",
-         U(d->timeout_ms), U(d->stale), U(d->recover));
-    if (d->seen)
-        line(emit, ctx, "pdo last_rx_age_ms=%lu", U(s->uptime_ms - d->last_rx_ms));
-    else
-        emit(ctx, "pdo last_rx_age_ms=unavailable");
-}
-static void sdo(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, void *ctx)
-{
-    const meter_diag_sdo_t *d = &s->sdo;
-    static const char *const states[] = {"IDLE", "PENDING", "SUCCESS", "ABORTED", "TIMEOUT"};
-    if (!d->available)
-    {
-        emit(ctx, "sdo unavailable");
-        return;
-    }
-    line(emit, ctx, "sdo bus=%u node=%u depth=%lu active_request=%lu operation=%s", d->bus, d->node,
-         U(d->depth), U(d->active_request), d->operation == 0 ? "READ" : "WRITE");
-    line(emit, ctx, "sdo index=0x%04x subindex=%u state=%s attempt=%u", d->index, d->subindex,
-         d->state < 5 ? states[d->state] : "UNKNOWN", d->attempt);
-    line(emit, ctx, "sdo queued=%lu started=%lu completed=%lu aborted=%lu timeout=%lu retry=%lu",
-         U(d->queued), U(d->started), U(d->completed), U(d->aborted), U(d->timeout), U(d->retry));
-    line(emit, ctx, "sdo tx_busy=%lu queue_full=%lu reset=%lu last_abort=0x%08lx", U(d->tx_busy),
-         U(d->queue_full), U(d->reset), U(d->last_abort));
 }
 static void domain(const meter_diag_snapshot_t *s, meter_diag_line_fn emit, void *ctx)
 {
@@ -260,8 +212,6 @@ void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, 
         runtime(s, emit, ctx);
         for (unsigned i = 0; i < METER_BUS_COUNT; ++i)
             can(s, i, emit, ctx);
-        pdo(s, emit, ctx);
-        sdo(s, emit, ctx);
         domain(s, emit, ctx);
         touch(s, emit, ctx);
         if (s->ui.available)
@@ -283,12 +233,6 @@ void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, 
         for (unsigned i = 0; i < METER_BUS_COUNT; ++i)
             if (q->bus < 0 || (unsigned)q->bus == i)
                 can(s, i, emit, ctx);
-        break;
-    case METER_QUERY_PDO:
-        pdo(s, emit, ctx);
-        break;
-    case METER_QUERY_SDO:
-        sdo(s, emit, ctx);
         break;
     case METER_QUERY_DOMAIN:
         domain(s, emit, ctx);

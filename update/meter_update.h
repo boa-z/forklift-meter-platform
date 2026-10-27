@@ -5,6 +5,7 @@
 #include <stdint.h>
 #define METER_UPDATE_BLOCK_SIZE 512u
 #define METER_UPDATE_ID_SIZE 32u
+#include "contracts/meter_can_frame.h"
 #include "contracts/meter_update_view.h"
 /** @brief 可诊断错误；激活写入错误不能解释为已回滚。 */
 typedef enum
@@ -31,11 +32,13 @@ typedef struct
     uint32_t size;
     uint8_t sha256[32];
 } meter_update_manifest_t;
-/** @brief Product 明确选择升级身份、容量、超时和准入结果。 */
+/** @brief Product 明确选择升级身份、容量、超时与 UDS 寻址。 */
 typedef struct meter_update_policy
 {
     const char *product, *hardware;
     uint32_t max_size, timeout_ms;
+    meter_bus_role_t bus;              /* UDS 所在逻辑总线，零值为 CAN0 */
+    uint32_t request_id, response_id;  /* 11 位物理寻址；零值使用 0x7E0/0x7E8 */
 } meter_update_policy_t;
 /** @brief 只有独立 Update worker 调用此同步后端，禁止在协议回调中调用。 */
 typedef struct

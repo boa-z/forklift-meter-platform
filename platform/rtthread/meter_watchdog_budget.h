@@ -20,9 +20,6 @@
 #define METER_WATCHDOG_POLL_MS 200u
 #endif
 /** @brief 各 owner 允许的最长停滞时间；0 表示该通道只被观察、不参与判停滞。 */
-#ifndef METER_WATCHDOG_PROTOCOL_STALL_MS
-#define METER_WATCHDOG_PROTOCOL_STALL_MS 4000u
-#endif
 #ifndef METER_WATCHDOG_APP_STALL_MS
 #define METER_WATCHDOG_APP_STALL_MS 4000u
 #endif
@@ -30,7 +27,7 @@
 #define METER_WATCHDOG_UI_STALL_MS 3000u
 #endif
 /**
- * @brief 监督线程优先级：必须低于全部被监督的 owner（App=20、NVM=21、Update=25），
+ * @brief 监督线程优先级：必须低于全部被监督的 owner（运行时=19、NVM=21、UI=22、Update=25），
  * 这样它只在其余 owner 都让出 CPU 时才运行；任何高优先级忙等都会导致停止喂狗。
  */
 #ifndef METER_WATCHDOG_THREAD_PRIO

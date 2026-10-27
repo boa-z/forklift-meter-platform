@@ -1,5 +1,6 @@
 #include "sim/product_host.h"
 #include "sim/domain_fixture.h"
+#include "runtime/meter_periodic.h"
 #include "platform/host/host_platform.h"
 #include "contracts/meter_wall_clock.h"
 #include "ui/common/i18n/meter_i18n_runtime.h"
@@ -65,6 +66,8 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     meter_runtime_connection(&runtime,true);
     meter_core_connection(&core,true,runtime.generation);
     if (p->app_reset) p->app_reset(runtime.generation);
+    /* 主机没有发送硬件：周期帧照常编码以覆盖 Product 的编码器，结果丢弃。 */
+    meter_deadline_t periodic[8] = {0};
     if (fixture && !meter_fixture_load(&core,fixture)) return 4;
     lv_init();
     if (!meter_i18n_init() || !meter_host_open(hidden)) return 5;
@@ -80,11 +83,12 @@ int meter_product_host(int argc, char **argv, void (*step)(meter_runtime_t *, ui
     {
         uint32_t now=n*16;
         if (!fixture && step) step(&runtime,now);
-        meter_runtime_poll(&runtime,32);
-        if (!meter_runtime_process(&runtime,now)) return 7;
-        meter_core_tick(&core, now);
-        if(p->app_tick) p->app_tick(&core.snapshot,now);
-        if(p->evaluate) p->evaluate(&core.snapshot);
+        meter_runtime_step(&runtime,&core,now,true);
+        for (size_t i = 0; i < p->periodic_count && i < 8u; ++i)
+        {
+            meter_can_frame_t frame;
+            (void)meter_periodic_due(&periodic[i], &p->periodic[i], &core.snapshot, now, true, false, &frame);
+        }
         (void)meter_i18n_set_language(core.snapshot.language);
         p->ui->present(ui,&core.snapshot,now);
         lv_tick_inc(16); lv_timer_handler();

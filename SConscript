@@ -45,7 +45,10 @@ images_dir = os.path.join(AIC_ROOT, 'output', prj_name, 'images')
 meter_dir = os.path.join(AIC_ROOT, 'output', prj_name, 'meter')
 release = release_tool.prepare(cwd, AIC_ROOT, product, meter_dir, can_update, os.environ,
                                config_value('AIC_FORKLIFT_VERSION_SEQUENCE'))
-release_tool.register_packaging(release, images_dir, os.environ.get('PRJ_CHIP', 'd13x') + '_os.itb')
+# OS 镜像名随芯片变化；固件里的升级端点与打包工具用同一个名字。
+chip = os.environ.get('PRJ_CHIP') or config_value('PRJ_CHIP') or 'd13x'
+os_image = chip + '_os.itb'
+release_tool.register_packaging(release, images_dir, os_image)
 
 Env.Append(CPPDEFINES=['LV_USE_TRANSLATION=1', 'AIC_LVGL_TOUCH_POLL_FALLBACK_MS=20'] +
            selection.lvgl_defines(product))
@@ -87,8 +90,7 @@ common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_rtc_port.c', 'platform/rtthread/meter_watchdog_port.c',
           'platform/rtthread/meter_board_settings.c', 'platform/rtthread/meter_eeprom_i2c.c',
           'platform/rtthread/meter_board_color.c', 'platform/rtthread/meter_board_testcard.c',
-          'platform/common/meter_display_gamma.c',
-          'platform/common/meter_display_ccm.c',
+          'platform/common/meter_display_gamma.c', 'platform/common/meter_display_ccm.c',
           'storage/meter_file.c', 'platform/common/meter_diag_commands.c',
           'platform/rtthread/debug/meter_debug_console.c', 'platform/rtthread/debug/meter_debug_log.c']
 common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protocol_common', 'ui_math', 'ui_common')
@@ -106,7 +108,7 @@ if can_update:
     ota = os.path.join(AIC_ROOT, 'packages', 'artinchip', 'ota')
     crypto = os.path.join(AIC_ROOT, 'packages', 'third-party', 'mbedtls', 'mbedtls')
     protocol = os.path.join(cwd, 'third_party', 'iso14229', 'src')
-    Env.Append(CPPDEFINES=['METER_ENABLE_CAN_UPDATE', 'METER_AIC_OTA'])
+    Env.Append(CPPDEFINES=['METER_ENABLE_CAN_UPDATE', 'METER_AIC_OTA', 'METER_UPDATE_CHIP=' + chip])
     app_update = ['platform/rtthread/meter_update_port.c', 'platform/rtthread/meter_update_backend_aic.c',
                   'update/meter_update.c', 'update/meter_package.c', 'protocols/uds/meter_uds.c',
                   'platform/rtthread/meter_sha256_aic.c']

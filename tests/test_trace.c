@@ -18,7 +18,7 @@ int main(void)
     CHECK(ring.count == 0 && ring.overwritten == 0);
     CHECK(meter_trace_snapshot(&ring, copy, 256) == 0);
     for (unsigned i = 0; i < 300; ++i)
-        meter_trace_append(&ring, UINT32_MAX - 100 + i, METER_TRACE_SDO, SDO_START, i, 2 * i);
+        meter_trace_append(&ring, UINT32_MAX - 100 + i, METER_TRACE_CAN, CAN_RX_DROP, i, 2 * i);
     CHECK(ring.count == 256 && ring.write_index == 44 && ring.overwritten == 44);
     CHECK(meter_trace_snapshot(&ring, copy, 256) == 256);
     for (unsigned i = 0; i < 256; ++i)

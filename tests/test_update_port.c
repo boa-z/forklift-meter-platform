@@ -62,6 +62,8 @@ static void setup(void)
     memset(&results, 0, sizeof(results));
     memset(&service, 0, sizeof(service));
     released = 0;
+    rx_id = 0x7e0u;
+    tx_id = 0x7e8u;
     service.state = METER_UPDATE_DOWNLOADING;
     service.generation = 9;
     service.opened = true;
@@ -238,9 +240,9 @@ int main(void)
     test_product.update_exclusive = false;
     meter_board_update_poll(&core, true);
     assert(shared.admitted && !meter_board_update_exclusive());
-    meter_board_update_stop();
-    assert(shared.stopping && !shared.admitted && !meter_board_update_stopped());
-    assert(!submit(NULL, &job));
+    /* UDS 寻址来自升级策略：零值使用 0x7E0/0x7E8，帧只在策略指定的总线与标识上被消费。 */
+    meter_can_frame_t foreign = {.bus = METER_BUS_CAN1, .id = rx_id, .size = 1u};
+    assert(!meter_board_update_frame(&foreign));
     test_optional_storage_barrier();
     test_snapshot_contract();
     return 0;

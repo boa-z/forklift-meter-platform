@@ -12,8 +12,8 @@ extern size_t meter_debug_trace_since(uint32_t *cursor, meter_trace_entry_t *out
 void meter_debug_log_drain(void)
 {
     size_t count = meter_debug_trace_since(&cursor, log_copy, METER_TRACE_CAPACITY);
-    static const char *const tags[] = {"meter.runtime", "meter.runtime", "meter.can",    "meter.pdo",
-                                       "meter.sdo",     "meter.domain",  "meter.product"};
+    static const char *const tags[] = {"meter.runtime", "meter.runtime", "meter.can",    "meter.runtime",
+                                       "meter.runtime", "meter.domain",  "meter.product"};
     for (size_t i = 0; i < count; ++i)
     {
         const meter_trace_entry_t *e = &log_copy[i];
@@ -21,21 +21,11 @@ void meter_debug_log_drain(void)
         switch (e->module)
         {
         case METER_TRACE_RUNTIME:
-            warning = e->event == RUNTIME_QUEUE_OVERFLOW || e->event == RUNTIME_INVALID_FRAME;
+            warning = e->event == RUNTIME_INVALID_FRAME;
             info = e->event == RUNTIME_CONNECT || e->event == RUNTIME_DISCONNECT;
             break;
         case METER_TRACE_CAN:
             warning = e->event == CAN_ERROR || e->event == CAN_RX_DROP;
-            break;
-        case METER_TRACE_PDO:
-            warning = e->event == PDO_STALE || e->event == PDO_DECODE_ERROR;
-            info = e->event == PDO_RECOVER;
-            break;
-        case METER_TRACE_SDO:
-            if (e->event == SDO_FAILED)
-                ulog_e("meter.sdo", "request=%lu exhausted abort=0x%08lx", (unsigned long)e->arg0,
-                       (unsigned long)e->arg1);
-            warning = e->event == SDO_TIMEOUT || e->event == SDO_ABORT;
             break;
         case METER_TRACE_PRODUCT:
             info = e->event == PRODUCT_READY;

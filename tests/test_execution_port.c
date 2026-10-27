@@ -1,141 +1,172 @@
-/* 真实 owner 实现的确定性 IPC 测试；不把替身计为真实线程/HIL。 */
+/* 固件运行时端口的确定性测试：真实端口代码 + 无调度器的 RT-Thread 替身，逐轮调用 app_step/tx_service。 */
 #include "platform/rtthread/meter_execution_port.c"
-#include <assert.h>
 #include "tests/stubs/execution/fixture.h"
-static bool decode(const meter_can_frame_t *f, const meter_protocol_services_t *s) { (void)f; (void)s; return true; }
-static bool on_frame(void *ctx, const meter_can_frame_t *f, const meter_protocol_services_t *s) { (void)ctx; return decode(f,s); }
+
+static unsigned resets, ticks, frames_seen, commands_seen, encodes;
+static uint8_t counter;
+static bool on_frame(void *ctx, const meter_can_frame_t *f, const meter_protocol_services_t *s)
+{
+    (void)ctx;
+    ++frames_seen;
+    meter_update_t u = {1u, {(float)f->data[0], f->timestamp_ms, METER_VALUE_VALID, 1u}};
+    return s->update(s->update_context, &u);
+}
 static bool command(void *ctx, const meter_command_t *c, const meter_protocol_services_t *s)
 {
-    (void)ctx; (void)c;
-    meter_can_frame_t f = {.id = 0x123u, .bus = METER_BUS_CAN0, .size = 1u};
+    (void)ctx;
+    ++commands_seen;
+    meter_can_frame_t f = {.bus = METER_BUS_CAN0, .id = 0x600u + c->id, .size = 1u};
     return s->tx->send(s->tx->context, &f);
 }
+static void adapter_reset(void *ctx)
+{
+    (void)ctx;
+}
 static bool route(void *ctx, const meter_command_t *c, meter_frame_route_owner_t *owner)
-{ (void)ctx; (void)c; *owner = 1u; return true; }
-static meter_command_stage_t completion_for(const meter_command_t *c)
-{ return c->id == 2u ? METER_COMMAND_TX_COMPLETED : METER_COMMAND_REMOTE_CONFIRMED; }
+{
+    (void)ctx;
+    (void)c;
+    *owner = 1u;
+    return true;
+}
+static void app_reset(uint32_t generation)
+{
+    (void)generation;
+    ++resets;
+}
+static void app_run(uint32_t now, const meter_command_port_t *commands)
+{
+    /* 命令同步交给适配器：同一轮里连发两条都应被接受。 */
+    if (now == 100u)
+    {
+        meter_command_t a = {.id = 1u}, b = {.id = 2u};
+        assert(commands->send(commands->context, &a) && commands->send(commands->context, &b));
+    }
+}
+static void app_tick(meter_snapshot_t *snapshot, uint32_t now)
+{
+    (void)snapshot;
+    (void)now;
+    ++ticks;
+}
+static bool encode(const meter_snapshot_t *snapshot, uint32_t now, meter_can_frame_t *frame)
+{
+    (void)now;
+    ++encodes;
+    frame->data[0] = (uint8_t)meter_snapshot_read(snapshot, 1u).value;
+    frame->data[1] = counter++;
+    return true;
+}
+static meter_execution_liveness_t live(void)
+{
+    meter_execution_liveness_t l;
+    assert(meter_execution_liveness(&l));
+    return l;
+}
 int main(void)
 {
     static const meter_signal_def_t signal[] = {{.id = 1u, .key = "a", .unit = "", .stale_ms = 0u}};
     static const meter_catalog_t catalog = {.signals = signal, .signal_count = 1u};
-    static const meter_auth_profile_t auth = {.local_settings = true};
-    static const meter_capability_profile_t caps = {.language_selection = true};
-    static const meter_protocol_adapter_t adapter = {.on_frame = on_frame, .command = command};
+    static const meter_protocol_adapter_t adapter = {.on_frame = on_frame, .command = command, .reset = adapter_reset};
     static const meter_protocol_binding_t binding[] = {{.owner = 1u, .adapter = &adapter}};
     static const meter_protocol_profile_t profile = {binding, 1u};
     static const meter_frame_route_t entry[] = {{METER_BUS_CAN0, 0x100u, false, 1u}};
     static const meter_route_profile_t routes = {entry, 1u};
-    static const meter_product_t product = {.catalog = &catalog, .auth = &auth, .capabilities = &caps,
-        .protocols = &profile, .routes = &routes, .command_route = route, .command_completion = completion_for};
-    static meter_core_t core; static meter_value_t values[1];
-    meter_core_storage_t store = {.signals = values, .signal_capacity = 1u};
-    assert(meter_core_init(&core, &catalog, &store));
-    config.core = &core; config.product = &product; initialized = true;
-    meter_execution_init(&execution);
-    assert(meter_execution_transition(&execution, METER_EXEC_READY));
-    assert(meter_execution_transition(&execution, METER_EXEC_RUNNING));
-    set_mode(METER_MODE_NORMAL); shared.state = METER_EXEC_RUNNING;
-    actions.limit = 1u; action_results.limit = 1u; action_credit.value = 1u;
-    meter_action_t action = {.kind = METER_ACTION_BRIGHTNESS, .value = 30.0f};
-    assert(meter_execution_action(NULL, &action));
-    assert(core.snapshot.brightness == 80u && !meter_execution_action(NULL, &action));
-    apply_actions(1u);
-    meter_request_result_t result;
-    assert(meter_execution_action_result(&result) && result.code == METER_RESULT_APPLIED);
-    assert(core.snapshot.brightness == 30u && changes == 1u);
-    uint64_t first = result.id.serial;
-    assert(meter_execution_action(NULL, &action)); set_mode(METER_MODE_UPDATE_MAINTENANCE);
-    apply_actions(2u); assert(meter_execution_action_result(&result));
-    assert(result.code == METER_RESULT_REJECTED && result.id.serial > first && changes == 1u);
-    assert(!meter_execution_action(NULL, &action));
-    batches.limit = 1u;
-    meter_update_t update = {1u, {5.0f, 0u, METER_VALUE_VALID, 1u}};
-    meter_update_batch_t batch = {.generation = 1u, .sequence = 1u, .source = 1u, .updates = &update, .count = 1u};
-    assert(submit_batch(NULL, &batch) == METER_BATCH_QUEUED);
-    update.value.value = 99.0f;
-    assert(submit_batch(NULL, &batch) == METER_BATCH_IPC_FULL && shared.batch_full == 1u);
-    batch_message_t received; assert(rt_mq_recv(&batches, &received, sizeof(received), 0) == 0);
-    assert(received.updates[0].value.value == 5.0f);
-    set_mode(METER_MODE_NORMAL); commands.limit = 1u;
-    assert(meter_runtime_init(&protocol, &product, meter_batch_builder_add, &builder));
-    meter_runtime_connection(&protocol, true); protocol.generation = shared.generation;
-    static const meter_can_tx_port_t tx = {.send = send_protocol};
-    meter_runtime_bind_services(&protocol, NULL, NULL, &tx);
-    tx_owner[0].ordinary.limit = 16u;
-    meter_command_t request = {.id = 1u}; meter_request_id_t id;
-    assert(meter_execution_command(&request, 100u, &id) == METER_REQUEST_QUEUED);
-    meter_command_stage_t stage;
-    assert(meter_execution_command_result(id, &stage, false) && stage == METER_COMMAND_QUEUED);
-    command_poll(0u, shared.generation, true);
-    assert(meter_execution_command_result(id, &stage, false) && stage == METER_COMMAND_APPLIED);
-    assert(shared.command_sent == 1u && !meter_execution_command_result(id, &stage, true));
-    shared.command_done[0] = 1u; command_poll(1u, shared.generation, true);
-    assert(meter_execution_command_result(id, &stage, false) && stage == METER_COMMAND_TX_COMPLETED);
-    command_progress(NULL, id, METER_COMMAND_REMOTE_CONFIRMED);
-    assert(meter_execution_command_result(id, &stage, true) && stage == METER_COMMAND_REMOTE_CONFIRMED);
-    assert(meter_execution_command(&request, 10u, &id) == METER_REQUEST_QUEUED);
-    command_poll(2u, shared.generation, true); command_poll(12u, shared.generation, true);
-    assert(meter_execution_command_result(id, &stage, true) && stage == METER_COMMAND_FAILED);
-    assert(meter_execution_command(&request, 10u, &id) == METER_REQUEST_QUEUED);
-    command_poll(14u, shared.generation + 1u, false);
-    assert(meter_execution_command_result(id, &stage, true) && stage == METER_COMMAND_CANCELLED);
-    request.id = 2u;
-    assert(meter_execution_command(&request, 10u, &id) == METER_REQUEST_QUEUED);
-    command_poll(20u, shared.generation, true);
-    shared.command_done[0] = 1u; command_poll(21u, shared.generation, true);
-    command_poll(100u, shared.generation, true);
-    assert(meter_execution_command_result(id, &stage, true) && stage == METER_COMMAND_TX_COMPLETED);
-    meter_diagnostics_t session_diag; meter_diagnostics_init(&session_diag);
-    meter_runtime_bind_diagnostics(&protocol, &session_diag);
-    assert(meter_runtime_session(&protocol, 123u));
-    assert(protocol.generation == 123u && session_diag.data.runtime.generation == 123u);
-    assert(protocol.count == 0u && protocol.connected);
-    /* 使用真实短锁 mailbox 路径：替代、跳过、驱动结果、代次隔离、队列公平性。 */
-    meter_periodic_frame_t definitions[2] = {
-        {.frame = {.id = 0x100u, .bus = METER_BUS_CAN0, .size = 1u, .data = {1u}}, .period_ms = 10u,
-         .critical = true, .backlog = METER_TX_REPLACE_PENDING},
-        {.frame = {.id = 0x101u, .bus = METER_BUS_CAN0, .size = 1u, .data = {2u}}, .period_ms = 20u}
-    };
-    meter_product_t periodic_product = product;
-    periodic_product.periodic = definitions; periodic_product.periodic_count = 2u;
-    config.product = &periodic_product;
-    meter_mode_policy_t normal = meter_execution_policy(METER_MODE_NORMAL);
-    for (size_t i = 0u; i < 2u; ++i) assert(meter_periodic_reset(&periodic_state[i], &definitions[i], shared.generation, 0u));
-    periodic_poll(shared.generation, normal, 10u);
-    assert(periodic_slots[0].ready && periodic_slots[0].message.deadline_ms == 10u);
-    periodic_poll(shared.generation, normal, 20u);
-    assert(periodic_slots[0].replaced == 1u && periodic_slots[0].message.deadline_ms == 20u && periodic_slots[1].ready);
-    meter_periodic_message_t pm;
-    assert(periodic_take(&tx_owner[0], &pm) && pm.entry == 0u);
-    assert(!meter_periodic_sendable(&pm, shared.generation, 30u));
-    periodic_poll(shared.generation, normal, 30u);
-    assert(periodic_slots[0].inflight && !periodic_slots[0].ready);
-    periodic_result(&pm, 30u, 30u, false, true);
-    assert(periodic_state[0].busy);
-    periodic_poll(shared.generation, normal, 31u);
-    assert(!periodic_state[0].busy && periodic_state[0].failed == 2u);
-    assert(periodic_take(&tx_owner[0], &pm) && pm.entry == 1u);
-    uint32_t next_generation = shared.generation + 1u;
-    assert(meter_periodic_reset(&periodic_state[1], &definitions[1], next_generation, 31u));
-    periodic_result(&pm, 32u, 33u, true, false);
-    periodic_poll(next_generation, normal, 34u);
-    assert(periodic_state[1].completed == 0u);
-    /* maintenance 的普通槽不能重新生成，保留 critical；复位后下一整周期开始。 */
-    shared.generation = next_generation;
-    for (size_t i = 0u; i < 2u; ++i) assert(meter_periodic_reset(&periodic_state[i], &definitions[i], next_generation, 40u));
-    meter_mode_policy_t maintenance = {.critical_tx = true};
-    periodic_poll(next_generation, maintenance, 60u);
-    assert(periodic_slots[0].ready && !periodic_slots[1].ready);
-    config.product = &product;
-    shared.state = METER_EXEC_STOPPING;
-    assert(!meter_execution_ui_shutdown_requested());
-    meter_execution_ui_stopped(); assert(!shared.ui_done);
-    shared.ui_release = true;
-    assert(meter_execution_ui_shutdown_requested() && !meter_execution_stopped());
-    meter_execution_ui_stopped(); assert(shared.ui_done && !meter_execution_stopped());
-    meter_can_frame_t blocked = {.bus = METER_BUS_CAN0};
-    assert(!meter_execution_can_submit(&blocked, false));
+    static const meter_periodic_frame_t periodic[] = {
+        {.frame = {.bus = METER_BUS_CAN0, .id = 0x303u, .size = 8u}, .period_ms = 50u, .encode = encode}};
+    static const meter_product_t product = {.catalog = &catalog, .protocols = &profile, .routes = &routes,
+        .command_route = route, .periodic = periodic, .periodic_count = 1u, .app_reset = app_reset,
+        .app_run = app_run, .app_tick = app_tick};
+    static meter_core_t core;
+    static meter_value_t values[3][1];
+    static meter_diagnostics_t diagnostics;
+    meter_core_storage_t domain = {.signals = values[0], .signal_capacity = 1u};
+    meter_core_storage_t presented = {.signals = values[1], .signal_capacity = 1u};
+    meter_core_storage_t ui = {.signals = values[2], .signal_capacity = 1u};
+    assert(meter_core_init(&core, &catalog, &domain));
+    meter_execution_config_t c = {.product = &product, .core = &core, .published_storage = presented,
+                                  .public_diagnostics = &diagnostics};
+
+    /* 启动前不接收动作，看门狗不监督。 */
+    meter_action_t brightness = {.kind = METER_ACTION_BRIGHTNESS, .value = 30.0f};
+    meter_execution_liveness_t l;
+    assert(meter_execution_start(&c) && !meter_execution_action(NULL, &brightness) && !meter_execution_liveness(&l));
+    /* 启动：只打开 Product 用到的总线，速率取启动时锁存值；进入第一个会话。 */
+    assert(app_start() && opened[METER_BUS_CAN0] == 1u && opened[METER_BUS_CAN1] == 0u && opened_bitrate == 250000u);
+    assert(resets == 1u && generation != 0u && core.snapshot.connected);
+    observed_revision = core.snapshot.revision;
+    publish();
+    started = true;
+    meter_snapshot_t view = {0};
+    meter_update_view_t update;
+    bool normal = false;
+    assert(meter_execution_present(&view, &ui, &update, &normal) && normal);
+    assert(!strcmp(update.current_version, METER_FIRMWARE_DISPLAY_VERSION));
+
+    /* 一轮里：收帧直接写进 Core；周期帧立刻按快照编码入队；同一条目在途时不再排下一帧。 */
+    rx_queue[rx_count++] = (meter_can_frame_t){.bus = METER_BUS_CAN0, .id = 0x100u, .size = 1u, .data = {42u}};
+    fake_now = 10u;
+    assert(app_step(fake_now) == 1u && frames_seen == 1u && meter_snapshot_read(&core.snapshot, 1u).value == 42.0f);
+    assert(encodes == 1u && periodic_in_flight[0] && ticks == 1u && changes == 1u);
+    assert(meter_execution_present(&view, &ui, &update, &normal) && meter_snapshot_read(&view, 1u).value == 42.0f);
+    fake_now = 40u;
+    (void)app_step(fake_now);
+    assert(encodes == 1u);
+    assert(tx_service(&tx[METER_BUS_CAN0]) && sends == 1u && sent[0].id == 0x303u && sent[0].data[0] == 42u);
+    assert(!periodic_in_flight[0] && !tx_service(&tx[METER_BUS_CAN0]));
+    fake_now = 60u;
+    (void)app_step(fake_now);
+    assert(encodes == 2u && periodic_in_flight[0]);
+    fake_now = 110u;
+    (void)app_step(fake_now);
+    assert(encodes == 2u && periodic_deadline[0].missed == 0u);
+    /* 超过一个周期还没交给驱动的周期帧作废，不积压。 */
+    fake_now = 111u;
+    assert(tx_service(&tx[METER_BUS_CAN0]) && sends == 1u && tx[METER_BUS_CAN0].dropped == 1u);
+
+    /* 命令端口同步：app_run 一轮连发两条，适配器都接受且帧都入队。 */
+    fake_now = 100u;
+    periodic_deadline[0].next_ms = 1000u;
+    (void)app_step(fake_now);
+    assert(commands_seen == 2u);
+    assert(tx_service(&tx[METER_BUS_CAN0]) && tx_service(&tx[METER_BUS_CAN0]) && sends == 3u);
+    assert(sent[1].id == 0x601u && sent[2].id == 0x602u);
+
+    /* 动作队列不是单信用：UI 连发两个动作都能入队，下一轮按序应用。 */
+    meter_action_t units = {.kind = METER_ACTION_UNITS, .value = 1.0f};
+    assert(meter_execution_action(NULL, &brightness) && meter_execution_action(NULL, &units));
+    fake_now = 200u;
+    (void)app_step(fake_now);
+    assert(core.snapshot.brightness == 30u && core.snapshot.imperial && actions_rejected == 0u);
+    meter_action_t invalid = {.kind = METER_ACTION_BRIGHTNESS, .value = 5.0f};
+    assert(meter_execution_action(NULL, &invalid));
+    (void)app_step(fake_now);
+    assert(actions_rejected == 1u && core.snapshot.brightness == 30u);
+
+    /* 设置尚未加载完成时不接收动作。 */
+    nvm_ready = false;
+    assert(!meter_execution_action(NULL, &brightness));
+    nvm_ready = true;
+
+    /* 会话切换：旧代次里还没发出的协议帧作废，Product 工作流复位。 */
+    meter_command_t late = {.id = 3u};
+    assert(meter_runtime_command(&runtime, &late));
+    restart_session();
+    assert(resets == 2u && tx_service(&tx[METER_BUS_CAN0]) && sends == 3u && tx[METER_BUS_CAN0].dropped == 2u);
+    /* 升级帧不属于会话，代次切换后照常发送。 */
+    meter_can_frame_t uds = {.bus = METER_BUS_CAN0, .id = 0x7e8u, .size = 8u};
+    assert(meter_execution_can_submit(&uds, true));
+    restart_session();
+    assert(tx_service(&tx[METER_BUS_CAN0]) && sends == 4u && sent[3].id == 0x7e8u);
+    /* 未打开的总线不接收帧。 */
+    uds.bus = METER_BUS_CAN1;
+    assert(!meter_execution_can_submit(&uds, true));
+
+    /* 看门狗心跳：运行时一轮推进 app_runs，UI 每次发布统计推进 ui_ticks。 */
+    uint32_t runs = live().app_runs;
+    (void)app_step(fake_now);
+    meter_diagnostics_t ui_diag = {0};
+    meter_execution_ui_diagnostics(&ui_diag);
+    assert(live().app_runs == runs + 1u && live().ui_ticks == 1u);
     return 0;
 }
-
-uint32_t meter_board_now_ms(void) { return rt_tick_get_millisecond(); }

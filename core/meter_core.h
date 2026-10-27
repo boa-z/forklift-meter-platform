@@ -1,6 +1,5 @@
 #ifndef METER_CORE_H
 #define METER_CORE_H
-#include "contracts/meter_batch.h"
 #include "contracts/meter_domain.h"
 #include "diagnostics/meter_diagnostics.h"
 /**
@@ -29,19 +28,14 @@ bool meter_core_init_with_settings(meter_core_t *core, const meter_catalog_t *ca
 /**
  * @brief 写入一个信号值，作为 meter_update_sink_t 使用。
  *
- * 身份未声明返回 false；非有限浮点降级为 ERROR。生产路径仅 App 调用；宿主实现与 UI 串行同线程。
+ * 身份未声明返回 false；非有限浮点降级为 ERROR。只在运行时线程调用（主机上与 UI 串行同线程）。
  */
 bool meter_core_apply(void *context, const meter_update_t *update);
-/** @brief App 独占调用；先验证整批身份、代数、来源仲裁，再一次提交。
- * @details 失败不修改 Domain；策略必须为纯判定。同步无 I/O，不持有 batch 指针。
- */
-bool meter_core_apply_batch(meter_core_t *core, const meter_update_batch_t *batch);
 /** @brief 按目录中每个信号自己的 stale_ms 降级；0 表示不自动超时。 */
 void meter_core_tick(meter_core_t *core, uint32_t now_ms);
 /** @brief 更新连接状态与代数；断开时立即把所有 VALID 降级为 STALE，并保留最后可读值。 */
 void meter_core_connection(meter_core_t *core, bool connected, uint32_t generation);
-/** @brief 应用 UI 设置动作；越界或未知类别返回 false 且不改变状态。原生路径在 App 线程执行；宿主与 UI 串行。
- */
+/** @brief 应用 UI 设置动作；越界或未知类别返回 false 且不改变状态。只在运行时线程调用。 */
 bool meter_core_action(meter_core_t *core, const meter_action_t *action);
 /** @brief 只校验不写入：按身份检查参数值域，单位与范围由产品目录定义。 */
 bool meter_core_parameter_valid(const meter_core_t *core, uint16_t id, float value);
@@ -51,10 +45,4 @@ bool meter_core_parameter(meter_core_t *core, uint16_t id, float value);
 const meter_snapshot_t *meter_core_snapshot(const meter_core_t *core);
 /** @brief 绑定诊断及公共 Domain 视图；目录/存储/诊断实例须覆盖绑定期，owner 线程调用。 */
 void meter_core_bind_diagnostics(meter_core_t *core, meter_diagnostics_t *diag);
-/** 仅 App 可显式启用的配置发布。未知配置要求系列和能力均为零，已确认配置
- * 要求系列非零。语义变化推进配置代数及快照修订号；耗尽时拒绝回绕，返回
- * false 且不修改状态。本接口不重新解释或失效信号，不取消任务或改变健康状态。
- * Product App 必须在发布下一份快照前使相关值及目录失效。并发读取者不得借用
- * 活动 core 状态，必须使用已有的加锁快照复制。 */
-bool meter_core_profile(meter_core_t *core, bool confirmed, uint16_t family, uint64_t capabilities);
 #endif

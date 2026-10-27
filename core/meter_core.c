@@ -105,8 +105,9 @@ bool meter_core_init_with_settings(meter_core_t *core, const meter_catalog_t *ca
     }
     return true;
 }
-static bool apply_value(meter_core_t *core, const meter_update_t *update, bool arbitrate)
+bool meter_core_apply(void *context, const meter_update_t *update)
 {
+    meter_core_t *core = context;
     if (!core || !update || (unsigned)update->value.state > METER_VALUE_ERROR)
         return false;
     size_t index = meter_catalog_index(core->snapshot.catalog, update->signal);
@@ -120,7 +121,7 @@ static bool apply_value(meter_core_t *core, const meter_update_t *update, bool a
     }
     const meter_value_t current = core->snapshot.signals[index];
     const meter_source_policy_fn_t policy = core->snapshot.catalog->source_policy;
-    if (arbitrate && policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
+    if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
         return false;
     METER_DIAG_INC(core->diag, domain, updates);
     if (value.state == METER_VALUE_ERROR)
@@ -146,32 +147,6 @@ static bool apply_value(meter_core_t *core, const meter_update_t *update, bool a
         return true;
     core->snapshot.signals[index] = value;
     ++core->snapshot.revision;
-    return true;
-}
-bool meter_core_apply(void *context, const meter_update_t *update)
-{
-    return apply_value(context, update, true);
-}
-bool meter_core_apply_batch(meter_core_t *core, const meter_update_batch_t *batch)
-{
-    if (!core || !batch || !batch->updates || !batch->count || !batch->sequence ||
-        !batch->source || batch->generation != core->snapshot.generation) return false;
-    const meter_catalog_t *c = core->snapshot.catalog;
-    for (size_t i = 0u; i < batch->count; ++i)
-    {
-        const meter_update_t *u = &batch->updates[i];
-        size_t index = meter_catalog_index(c, u->signal);
-        if (index >= c->signal_count || u->value.source != batch->source ||
-            (unsigned)u->value.state > (unsigned)METER_VALUE_ERROR) return false;
-        for (size_t j = 0u; j < i; ++j)
-            if (batch->updates[j].signal == u->signal) return false;
-        meter_value_t value = u->value;
-        if (!isfinite(value.value)) { value.value = 0.0f; value.state = METER_VALUE_ERROR; }
-        if (c->source_policy && !c->source_policy(c->source_policy_context, u->signal,
-                                                 &value, &core->snapshot.signals[index])) return false;
-    }
-    for (size_t i = 0u; i < batch->count; ++i)
-        (void)apply_value(core, &batch->updates[i], false);
     return true;
 }
 void meter_core_tick(meter_core_t *core, uint32_t now_ms)
@@ -276,19 +251,4 @@ bool meter_core_action(meter_core_t *core, const meter_action_t *action)
 const meter_snapshot_t *meter_core_snapshot(const meter_core_t *core)
 {
     return core ? &core->snapshot : NULL;
-}
-
-bool meter_core_profile(meter_core_t *core, bool confirmed, uint16_t family, uint64_t capabilities)
-{
-    if (!core || (confirmed && family == 0u) || (!confirmed && (family != 0u || capabilities != 0u)))
-        return false;
-    const meter_profile_t current = core->snapshot.profile;
-    if (current.confirmed == confirmed && current.family == family && current.capabilities == capabilities)
-        return true;
-    if (current.generation == UINT32_MAX)
-        return false;
-    const meter_profile_t next = {current.generation + 1u, family, capabilities, confirmed};
-    core->snapshot.profile = next;
-    ++core->snapshot.revision;
-    return true;
 }

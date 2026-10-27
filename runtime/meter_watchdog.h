@@ -12,8 +12,7 @@
  */
 typedef enum
 {
-    METER_WATCHDOG_PROTOCOL = 0,
-    METER_WATCHDOG_APP,
+    METER_WATCHDOG_APP = 0,
     METER_WATCHDOG_UI,
     METER_WATCHDOG_CHANNELS
 } meter_watchdog_channel_t;

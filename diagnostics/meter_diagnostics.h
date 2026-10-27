@@ -3,17 +3,17 @@
 #include "contracts/meter_can_frame.h"
 #include "contracts/meter_domain.h"
 #include "diagnostics/meter_trace.h"
-/** @brief 保留原 Runtime counters 并追加 resets，避免两套计数真源。 */
+/** @brief 协议运行时计数：收到（accepted）后要么分发成功、要么未路由或解码失败。 */
 typedef struct
 {
-    uint32_t accepted, overflow, malformed, unrouted, decode_failed, dispatched, resets;
+    uint32_t accepted, malformed, unrouted, decode_failed, dispatched, resets;
 } meter_runtime_diagnostics_t;
 /** @brief Runtime 对外状态，无私有指针。 */
 typedef struct
 {
     bool available, connected;
     uint32_t generation;
-    size_t depth, capacity, adapters;
+    size_t adapters;
     meter_runtime_diagnostics_t counters;
 } meter_diag_runtime_t;
 /** @brief 总线统计；available 表示已接入观测，board_available 表示硬件状态已知。 */
@@ -22,23 +22,6 @@ typedef struct
     bool available, board_available, open, rx_seen, tx_seen;
     uint32_t bitrate, rx, tx, rx_drop, tx_busy, rx_error, tx_error, last_rx_ms, last_tx_ms;
 } meter_diag_can_t;
-/** @brief 静态 PDO 绑定聚合统计；默认不为正常每帧生成 Trace。 */
-typedef struct
-{
-    bool available, seen, stale_state;
-    uint32_t bindings, timeout_ms, last_rx_ms, rx, tx, decode_error, stale, recover;
-} meter_diag_pdo_t;
-/** @brief SDO 当前通道与累计统计；operation 为 0=READ、1=WRITE，state 对应调度器生命周期。 */
-typedef struct
-{
-    bool available;
-    meter_bus_role_t bus;
-    uint8_t node, subindex, operation, state;
-    uint16_t index, attempt;
-    uint32_t active_request, last_abort, queued, started, completed, aborted, timeout, retry, tx_busy,
-        queue_full, reset;
-    size_t depth;
-} meter_diag_sdo_t;
 /** @brief Domain 统计不改变 Domain revision；结构规模来自产品目录。 */
 typedef struct
 {
@@ -77,8 +60,6 @@ typedef struct
     uint32_t uptime_ms;
     meter_diag_runtime_t runtime;
     meter_diag_can_t can[METER_BUS_COUNT];
-    meter_diag_pdo_t pdo;
-    meter_diag_sdo_t sdo;
     meter_diag_domain_t domain;
     meter_diag_ui_t ui;
     meter_diag_touch_t touch;

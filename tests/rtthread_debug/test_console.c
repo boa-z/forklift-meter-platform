@@ -73,25 +73,25 @@ int main(void)
     meter_diagnostics_init(&diag);
     assert(meter_debug_init(&diag, &info));
     meter_debug_lock();
-    meter_trace_append(&diag.trace, 120, METER_TRACE_SDO, SDO_START, 1, 0);
+    meter_trace_append(&diag.trace, 120, METER_TRACE_CAN, CAN_RX_DROP, 1, 0);
     meter_debug_unlock();
     assert(query("info", NULL) == 0 && strstr(output, "platform : abcdef"));
-    assert(query("trace", "dump") == 0 && strstr(output, "SDO START"));
+    assert(query("trace", "dump") == 0 && strstr(output, "CAN RX_DROP"));
     assert(diag.trace.count == 1);
     assert(query("trace", "clear now") != 0 && diag.trace.count == 1);
     assert(query("trace", "clear") == 0 && strstr(output, "cleared=1 result=OK") && diag.trace.count == 0);
     assert(query("signal", "missing") == 0 && strstr(output, "not found"));
-    const char *names[] = {"diag", "runtime", "can", "pdo", "sdo", "domain", "touch", "trace"};
+    const char *names[] = {"diag", "runtime", "can", "domain", "touch", "trace", "storage"};
     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++)
         assert(query(names[i], NULL) == 0);
     /* 正常流量保持静默；WARN 限频，终态错误必须是 ERROR。 */
     meter_debug_lock();
-    meter_trace_append(&diag.trace, 0, METER_TRACE_PDO, PDO_RX, 0, 0);
-    meter_trace_append(&diag.trace, 0, METER_TRACE_PDO, PDO_STALE, 0, 0);
-    meter_trace_append(&diag.trace, 10, METER_TRACE_PDO, PDO_STALE, 0, 0);
-    meter_trace_append(&diag.trace, 1000, METER_TRACE_PDO, PDO_STALE, 0, 0);
-    meter_trace_append(&diag.trace, 1100, METER_TRACE_PDO, PDO_RECOVER, 0, 0);
-    meter_trace_append(&diag.trace, 1200, METER_TRACE_SDO, SDO_FAILED, 17, 0x05040000);
+    meter_trace_append(&diag.trace, 0, METER_TRACE_DOMAIN, DOMAIN_STALE, 0, 0);
+    meter_trace_append(&diag.trace, 0, METER_TRACE_CAN, CAN_RX_DROP, 0, 0);
+    meter_trace_append(&diag.trace, 10, METER_TRACE_CAN, CAN_RX_DROP, 0, 0);
+    meter_trace_append(&diag.trace, 1000, METER_TRACE_CAN, CAN_RX_DROP, 0, 0);
+    meter_trace_append(&diag.trace, 1100, METER_TRACE_RUNTIME, RUNTIME_CONNECT, 0, 0);
+    meter_trace_append(&diag.trace, 1200, METER_TRACE_PRODUCT, PRODUCT_FAILED, 17, 0x05040000);
     meter_trace_append(&diag.trace, 1201, METER_TRACE_PRODUCT, PRODUCT_READY, 0, 0);
     meter_debug_unlock();
     meter_debug_log_drain();

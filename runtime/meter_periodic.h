@@ -1,36 +1,25 @@
 #ifndef METER_PERIODIC_RUNTIME_H
 #define METER_PERIODIC_RUNTIME_H
 #include "contracts/meter_periodic.h"
-/** @brief Protocol 独占状态；TX worker 不读写此结构。 */
+/** @brief 单调毫秒期限；周期必须小于半周期（contracts/meter_time.h）。 */
 typedef struct
 {
-    meter_deadline_t deadline;
-    uint32_t generation, wire, proposed_wire;
-    uint64_t ticket, pending_ticket;
-    bool busy;
-    uint32_t skipped, stale, rejected, completed, failed;
-} meter_periodic_state_t;
-/** @brief App 持短锁更新 publication；失败不修改，数组独立、容量充足。 */
-bool meter_tx_publish(meter_tx_publication_t *publication, size_t capacity, const meter_tx_value_t *values,
-                      size_t count, uint32_t generation, uint32_t now);
-/** @brief 持 publication 短锁深复制；目标数组必须独立且容量充足。 */
-bool meter_tx_copy(meter_tx_publication_t *destination, size_t capacity,
-                   const meter_tx_publication_t *source);
-/** @brief 检查 Product 周期配置及语义依赖范围，不执行 encoder。 */
-bool meter_periodic_valid(const meter_periodic_frame_t *definition, size_t value_count);
-/** @brief Protocol 新代次复位 wire/deadline；旧结果因 generation 不同被拒绝。 */
-bool meter_periodic_reset(meter_periodic_state_t *state, const meter_periodic_frame_t *definition,
-                          uint32_t generation, uint32_t now);
-/** @brief 到期只准备一帧；按计划跳过历史周期，忙槽不积累 backlog。 */
-bool meter_periodic_prepare(meter_periodic_state_t *state, const meter_periodic_frame_t *definition,
-                            const meter_tx_publication_t *publication, bool allowed, uint32_t now,
-                            meter_periodic_message_t *message);
-/** @brief Protocol 提交队列准入；失败不推进 wire。 */
-bool meter_periodic_admit(meter_periodic_state_t *state, const meter_periodic_frame_t *definition,
-                          const meter_periodic_message_t *message);
-/** @brief Protocol 消费当前身份；失败、取消和旧结果不得推进完成型 wire。 */
-bool meter_periodic_complete(meter_periodic_state_t *state, const meter_periodic_frame_t *definition,
-                             const meter_periodic_result_t *result);
-/** @brief TX owner 在驱动调用前校验代次和期限，不证明物理 wire 时间。 */
-bool meter_periodic_sendable(const meter_periodic_message_t *message, uint32_t generation, uint32_t now);
+    uint32_t period_ms, next_ms, missed, late_ms;
+    bool armed;
+} meter_deadline_t;
+/** @brief 从 now 起按 period 排第一个期限；period 为零或过大时返回 false 且不改对象。 */
+bool meter_deadline_arm(meter_deadline_t *deadline, uint32_t now, uint32_t period);
+/** @brief 到期只返回一次 true，按计划推进并记录跳过的周期；不补发、不累积漂移。 */
+bool meter_deadline_take(meter_deadline_t *deadline, uint32_t now);
+/** @brief Product 周期定义是否可用（总线、长度、周期）。 */
+bool meter_periodic_valid(const meter_periodic_frame_t *definition);
+/**
+ * @brief 运行时线程每轮调用：期限到达且条目允许发送时，用 encode 从快照生成一帧。
+ *
+ * in_flight 为 true（上一帧还没被发送线程取走）时只推进期限、不再生成新帧，避免积压。
+ * 返回 true 表示 *frame 已就绪，由调用方交给该总线的发送队列。
+ */
+bool meter_periodic_due(meter_deadline_t *deadline, const meter_periodic_frame_t *definition,
+                        const meter_snapshot_t *snapshot, uint32_t now, bool allowed, bool in_flight,
+                        meter_can_frame_t *frame);
 #endif

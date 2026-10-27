@@ -14,7 +14,7 @@ RULES = {
     'contracts': ('contracts/',),
     'core': ('contracts/', 'core/', 'diagnostics/'),
     'diagnostics': ('contracts/', 'diagnostics/'),
-    'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/'),
+    'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/', 'core/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
     'ui': ('contracts/', 'ui/', 'generated/'),
 }
@@ -24,7 +24,6 @@ for product in PRODUCTS:
     RULES.update({
         product + '/ui': ('contracts/', 'ui/common/') + own,
         product + '/application': ('contracts/',) + own,
-        product + '/services': ('contracts/', 'runtime/') + own,
         product + '/protocol': ('contracts/', 'protocols/common/') + own,
     })
 errors=[]
