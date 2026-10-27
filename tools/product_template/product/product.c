@@ -21,12 +21,8 @@ static const meter_frame_route_t entries[]={
 #include "generated/can/routes.inc"
 };
 static const meter_route_profile_t routes={entries,sizeof(entries)/sizeof(entries[0])};
-static const meter_capability_profile_t capabilities={.language_selection=true};
-static const meter_locale_profile_t locale={"en","@PRODUCT_ID@"};
-static const meter_resource_profile_t resources={"assets/README.md"};
-static const meter_auth_profile_t auth={true,false};
+/* 最小 Product：一路 DBC 解码与 UI。按需再加 periodic、app_run/app_tick、local_action、storage、update。 */
 static const meter_product_t product={.id="@PRODUCT_ID@",.protocols=&protocols,.routes=&routes,.catalog=&product_catalog,
-    .ui=UI_FACTORY,.capabilities=&capabilities,.locale=&locale,.resources=&resources,.auth=&auth,
-    .command_route=product_command_route,.command_route_context=NULL};
+    .ui=UI_FACTORY,.command_route=product_command_route,.command_route_context=NULL};
 /** @brief 返回静态产品定义；实例及其所引用对象在进程生命周期内有效。 */
 const meter_product_t *meter_product_get(void) { return &product; }

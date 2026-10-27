@@ -1,10 +1,10 @@
 #include "catalog/catalog.h"
 #include "contracts/meter_firmware.h"
 
-/* 每个 owner 独立存储；扩展目录时同步调整容量，不共享可变数组。 */
+/* 运行时 Domain、发给 UI 的发布副本、UI 自己的副本各一份；扩展目录时同步调整容量，不共享可变数组。 */
 enum { PRODUCT_SIGNAL_CAPACITY = 1 };
-static meter_value_t domain[PRODUCT_SIGNAL_CAPACITY], presentation[PRODUCT_SIGNAL_CAPACITY];
-static meter_value_t diagnostic[PRODUCT_SIGNAL_CAPACITY], ui[PRODUCT_SIGNAL_CAPACITY];
+static meter_value_t domain[PRODUCT_SIGNAL_CAPACITY], presentation[PRODUCT_SIGNAL_CAPACITY],
+    ui[PRODUCT_SIGNAL_CAPACITY];
 
 static bool locale_init(void)
 {
@@ -20,7 +20,6 @@ bool meter_firmware_compose(meter_firmware_composition_t *out)
     *out = (meter_firmware_composition_t){
         .domain = {.signals = domain, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
         .presentation = {.signals = presentation, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
-        .diagnostic = {.signals = diagnostic, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
         .ui = {.signals = ui, .signal_capacity = PRODUCT_SIGNAL_CAPACITY},
         .locale_init = locale_init};
     return true;
