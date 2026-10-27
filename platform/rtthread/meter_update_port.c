@@ -30,7 +30,6 @@ static struct rt_thread update_thread;
 static rt_ubase_t update_stack[12288 / sizeof(rt_ubase_t)];
 static struct rt_mutex lock;
 static struct rt_event barrier_event;
-static meter_aic_update_t backend;
 static meter_firmware_update_t service;
 static meter_uds_t uds;
 static UDSTpISOTpC_t transport;
@@ -381,7 +380,7 @@ bool meter_board_update_start(void)
     tx_id = p->update->response_id ? p->update->response_id : 0x7e8u;
     if ((unsigned)uds_bus >= METER_BUS_COUNT || rx_id > 0x7ffu || tx_id > 0x7ffu || rx_id == tx_id)
         return false;
-    meter_update_backend_t b = meter_aic_update_backend(&backend);
+    meter_update_backend_t b = meter_aic_update_backend();
     (void)meter_aic_update_prepare();
     if (!meter_update_init(&service, p->update, &b))
         return false;

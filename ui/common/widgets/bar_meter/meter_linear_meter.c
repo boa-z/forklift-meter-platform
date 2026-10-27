@@ -2,7 +2,6 @@
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
-#include <string.h>
 struct meter_linear_meter
 {
     meter_language_t language;
@@ -40,10 +39,9 @@ meter_linear_meter_t *meter_linear_meter_create(lv_obj_t *p, int x, int y, int w
 {
     if (min >= max)
         return NULL;
-    meter_linear_meter_t *b = lv_malloc(sizeof(*b));
+    meter_linear_meter_t *b = lv_zalloc(sizeof(*b));
     if (!b)
         return NULL;
-    memset(b, 0, sizeof(*b));
     b->style = *meter_widget_style_default();
     b->min = min;
     b->max = max;

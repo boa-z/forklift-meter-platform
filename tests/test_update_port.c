@@ -351,9 +351,8 @@ const meter_product_t *meter_product_get(void)
     assert(diagnostic_test);
     return &test_product;
 }
-meter_update_backend_t meter_aic_update_backend(meter_aic_update_t *a)
+meter_update_backend_t meter_aic_update_backend(void)
 {
-    (void)a;
     UNEXPECTED();
     return (meter_update_backend_t){0};
 }

@@ -2,7 +2,6 @@
 #include "ui/common/formatter/meter_format.h"
 #include "ui/common/widgets/meter_widgets.h"
 #include <math.h>
-#include <string.h>
 struct meter_ring
 {
     meter_language_t language;
@@ -50,10 +49,9 @@ meter_ring_t *meter_arc_bar_create(lv_obj_t *parent, int x, int y, int diameter,
     if (!isfinite(start) || !isfinite(end) || diameter <= 0 || stroke < 1 || stroke * 2 > diameter || start < 0 ||
         start > 360 || end < 0 || end > 360 || start >= end)
         return NULL;
-    meter_ring_t *r = lv_malloc(sizeof(*r));
+    meter_ring_t *r = lv_zalloc(sizeof(*r));
     if (!r)
         return NULL;
-    memset(r, 0, sizeof(*r));
     r->max = 100;
     r->unit = unit;
     r->style = *meter_widget_style_default();
@@ -68,7 +66,6 @@ meter_ring_t *meter_arc_bar_create(lv_obj_t *parent, int x, int y, int diameter,
     lv_obj_set_clickable(r->arc, false);
     lv_obj_set_style_arc_width(r->arc, stroke, LV_PART_MAIN);
     lv_obj_set_style_arc_width(r->arc, stroke, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(r->arc, lv_color_black(), LV_PART_MAIN);
     lv_obj_add_event_cb(r->arc, dispose, LV_EVENT_DELETE, r);
     r->label = meter_text(r->arc, 0, 0, "", r->style.value_font, 0);
     r->validity = meter_text(r->arc, 0, 0, "", r->style.label_font, 0);

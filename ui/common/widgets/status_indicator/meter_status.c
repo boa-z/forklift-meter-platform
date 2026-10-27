@@ -1,6 +1,5 @@
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/widgets/meter_widgets.h"
-#include <string.h>
 struct meter_status
 {
     meter_language_t language;
@@ -22,10 +21,9 @@ static void apply_style(meter_status_t *s)
 }
 meter_status_t *meter_status_create(lv_obj_t *p, int x, int y, const char *name, const lv_image_dsc_t *icon)
 {
-    meter_status_t *s = lv_malloc(sizeof(*s));
+    meter_status_t *s = lv_zalloc(sizeof(*s));
     if (!s)
         return NULL;
-    memset(s, 0, sizeof(*s));
     s->style = *meter_widget_style_default();
     s->root = lv_obj_create(p);
     lv_obj_remove_style_all(s->root);

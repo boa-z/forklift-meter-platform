@@ -280,9 +280,9 @@ static meter_update_error_t activate(void *context, const meter_update_manifest_
         return METER_UPDATE_BACKEND;
     return METER_UPDATE_OK;
 }
-meter_update_backend_t meter_aic_update_backend(meter_aic_update_t *adapter)
+meter_update_backend_t meter_aic_update_backend(void)
 {
-    return (meter_update_backend_t){adapter, begin, write_block, verify, activate, release};
+    return (meter_update_backend_t){NULL, begin, write_block, verify, activate, release};
 }
 
 #ifndef AIC_NFTL_SUPPORT

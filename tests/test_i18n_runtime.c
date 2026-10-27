@@ -90,6 +90,10 @@ static int format_flow(void)
     CHECK(meter_i18n_format(text, sizeof(text), "{0}",
                             &(meter_i18n_arg_t){METER_I18N_ARG_U32, {.u32 = 4294967295u}}, 1u) == 10u &&
           !strcmp(text, "4294967295"));
+    const meter_i18n_arg_t minimum = meter_i18n_arg_s(INT32_MIN);
+    CHECK(meter_i18n_format(text, sizeof(text), "{0}", &minimum, 1u) == 11u &&
+          !strcmp(text, "-2147483648"));
+    CHECK(meter_i18n_format(text, 6u, "{0}", &minimum, 1u) == 5u && !strcmp(text, "-2147"));
     CHECK(meter_i18n_format(NULL, 0u, "x", NULL, 0u) == 0u);
     return 0;
 }

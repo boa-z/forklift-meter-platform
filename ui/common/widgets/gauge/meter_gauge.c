@@ -3,8 +3,6 @@
 #include "ui/common/widgets/meter_widgets.h"
 #include "ui/common/widgets/needle/meter_needle.h"
 #include <math.h>
-#include <string.h>
-#include <stdio.h>
 struct meter_gauge
 {
     meter_language_t language;
@@ -15,7 +13,6 @@ struct meter_gauge
     float current, from, target;
     meter_value_state_t state;
     char text[48];
-    char validity[32];
 };
 static void animate(void *context, int32_t progress);
 static void apply_style(meter_gauge_t *g)
@@ -56,9 +53,7 @@ static void redraw(meter_gauge_t *g)
     lv_label_set_text_static(g->value, g->text);
     lv_obj_align(g->value, LV_ALIGN_BOTTOM_MID, 0, -26);
     /* 未收到数据时读数已显示占位符，不重复占用状态文字区域。 */
-    snprintf(g->validity, sizeof(g->validity), "%s",
-             g->state == METER_VALUE_UNKNOWN ? "" : meter_i18n_state(g->state));
-    lv_label_set_text_static(g->state_label, g->validity);
+    lv_label_set_text_static(g->state_label, g->state == METER_VALUE_UNKNOWN ? "" : meter_i18n_state(g->state));
     lv_obj_align(g->state_label, LV_ALIGN_BOTTOM_MID, 0, -7);
 }
 static void animate(void *context, int32_t progress)
@@ -72,10 +67,9 @@ meter_gauge_t *meter_gauge_create(lv_obj_t *parent, int x, int y, const meter_ga
     if (!c || c->min >= c->max || truncf(c->min) != c->min || truncf(c->max) != c->max || c->ticks < 2 ||
         !c->major_every || c->diameter < 50)
         return NULL;
-    meter_gauge_t *g = lv_malloc(sizeof(*g));
+    meter_gauge_t *g = lv_zalloc(sizeof(*g));
     if (!g)
         return NULL;
-    memset(g, 0, sizeof(*g));
     g->config = *c;
     g->current = c->min;
     /* target 必须与初始指针一致；否则首次目标值为 0 会被误判为已完成。 */
@@ -98,14 +92,10 @@ meter_gauge_t *meter_gauge_create(lv_obj_t *parent, int x, int y, const meter_ga
     lv_scale_set_angle_range(g->scale, (uint32_t)(c->end_angle - c->start_angle));
     lv_scale_set_rotation(g->scale, (int)c->start_angle);
     lv_obj_set_style_arc_width(g->scale, 2, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(g->scale, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_line_color(g->scale, lv_color_black(), LV_PART_ITEMS);
     lv_obj_set_style_line_width(g->scale, 2, LV_PART_ITEMS);
-    lv_obj_set_style_line_color(g->scale, lv_color_black(), LV_PART_INDICATOR);
     lv_obj_set_style_line_width(g->scale, 2, LV_PART_INDICATOR);
     lv_obj_set_style_length(g->scale, 7, LV_PART_ITEMS);
     lv_obj_set_style_length(g->scale, 13, LV_PART_INDICATOR);
-    lv_obj_set_style_text_color(g->scale, lv_color_black(), LV_PART_INDICATOR);
     lv_obj_set_style_text_font(g->scale, &lv_font_montserrat_14, LV_PART_INDICATOR);
     g->needle = lv_line_create(g->root);
     lv_obj_set_style_line_width(g->needle, 4, 0);
@@ -115,7 +105,6 @@ meter_gauge_t *meter_gauge_create(lv_obj_t *parent, int x, int y, const meter_ga
     lv_obj_set_size(g->hub, 12, 12);
     lv_obj_center(g->hub);
     lv_obj_set_style_radius(g->hub, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(g->hub, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(g->hub, 255, 0);
     g->value = meter_text(g->root, 0, 0, "", g->style.value_font, 0);
     g->state_label = meter_text(g->root, 0, 0, "", g->style.label_font, 0);

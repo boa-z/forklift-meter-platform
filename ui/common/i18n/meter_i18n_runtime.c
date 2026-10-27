@@ -1,6 +1,7 @@
 #include "ui/common/i18n/meter_i18n_runtime.h"
 #include "ui/common/formatter/meter_format.h"
 #include <lvgl.h>
+#include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -306,21 +307,6 @@ static size_t put_text(char *out, size_t size, size_t used, const char *text)
         used = put_char(out, size, used, *text);
     return used;
 }
-static size_t put_number(char *out, size_t size, size_t used, uint32_t value, bool negative)
-{
-    char digits[11];
-    size_t n = 0u;
-    do
-    {
-        digits[n++] = (char)('0' + (value % 10u));
-        value /= 10u;
-    } while (value != 0u);
-    if (negative)
-        used = put_char(out, size, used, '-');
-    while (n != 0u)
-        used = put_char(out, size, used, digits[--n]);
-    return used;
-}
 size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_i18n_arg_t *args,
                          size_t count)
 {
@@ -340,13 +326,16 @@ size_t meter_i18n_format(char *out, size_t size, const char *templ, const meter_
             const meter_i18n_arg_t *arg = &args[c[1] - '0'];
             if (arg->kind == METER_I18N_ARG_STR)
                 used = put_text(out, size, used, arg->value.str);
-            else if (arg->kind == METER_I18N_ARG_S32)
-                used =
-                    put_number(out, size, used,
-                               arg->value.s32 < 0 ? 0u - (uint32_t)arg->value.s32 : (uint32_t)arg->value.s32,
-                               arg->value.s32 < 0);
             else
-                used = put_number(out, size, used, arg->value.u32, false);
+            {
+                /* 只有固定格式串交给 libc；翻译模板仍按带类型的位置参数解析。 */
+                char number[12];
+                if (arg->kind == METER_I18N_ARG_S32)
+                    snprintf(number, sizeof(number), "%" PRId32, arg->value.s32);
+                else
+                    snprintf(number, sizeof(number), "%" PRIu32, arg->value.u32);
+                used = put_text(out, size, used, number);
+            }
             c += 2;
         }
         else

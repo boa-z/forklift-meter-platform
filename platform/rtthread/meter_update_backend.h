@@ -8,13 +8,8 @@
 #define METER_UPDATE_TEXT_(x) #x
 #define METER_UPDATE_TEXT(x) METER_UPDATE_TEXT_(x)
 #define METER_UPDATE_OS_FILE METER_UPDATE_TEXT(METER_UPDATE_CHIP) "_os.itb"
-/** @brief SDK 后端组合句柄；原生全局状态只能由单一 Update worker 拥有。 */
-typedef struct
-{
-    uint32_t rejected_sessions;
-} meter_aic_update_t;
-/** @brief 返回当前构建选定后端；默认拒绝写入，可选组合使用原生 OS-only 安装器。 */
-meter_update_backend_t meter_aic_update_backend(meter_aic_update_t *);
+/** @brief 返回原生 OS-only 安装器；SDK 全局状态只能由单一 Update worker 拥有。 */
+meter_update_backend_t meter_aic_update_backend(void);
 /** @brief 查询当前 SDK 是否满足应用要求的完整升级契约。 */
 bool meter_aic_update_supported(void);
 /** @brief 返回稳定的能力阻塞原因，不将自动确认当作健康确认。 */
