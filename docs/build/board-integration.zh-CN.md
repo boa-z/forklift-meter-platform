@@ -28,7 +28,7 @@ CAN 速率是持久化设置（125、250 或 500 kbit/s），所有已打开的�
 
 ## 显示、分辨率与方向
 
-分辨率、旋转、虚拟分辨率与触摸设备来自 SDK 屏幕配置和 lvgl-aic 端口选项；框架不假设屏幕尺寸。Product UI 按当前显示的 `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` 自行布局。竖屏版本是另一份板级 defconfig（或另一个 Product 构建），不是框架修改。
+分辨率、旋转与触摸设备来自 SDK 屏幕配置和 SDK 的 LVGL 包（`lvgl-ui`）选项；框架不假设屏幕尺寸。Product UI 按当前显示的 `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` 自行布局。竖屏版本是另一份板级 defconfig（或另一个 Product 构建），不是框架修改。
 
 ## 固件升级
 

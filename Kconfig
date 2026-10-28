@@ -2,9 +2,11 @@ menu "Forklift meter platform"
 config AIC_FORKLIFT_METER_PLATFORM_APP
     bool "Enable product-aware forklift meter application"
     default n
-    depends on AIC_LVGL_PORT && !LPKG_USING_LVGL
+    depends on LPKG_USING_LVGL && LVGL_V_9 && LPKG_MPP
     help
-      Build the selected Product package with the application-owned LVGL 9.6 port.
+      Build the selected Product package on the SDK's own LVGL 9 package (lvgl-ui), with its
+      GE2D draw backend, MPP image decoder, display and touch ports. The Product UI runs in the
+      SDK's LVGL thread; set that thread's stack with LPKG_LVGL_THREAD_STACK_SIZE.
 config AIC_FORKLIFT_PRODUCT_ROOT
     string "Product root for the firmware build"
     default ""
@@ -15,13 +17,6 @@ config AIC_FORKLIFT_PRODUCT_ROOT
       the build. The METER_PRODUCT_ROOT environment variable overrides this setting.
 
 if AIC_FORKLIFT_METER_PLATFORM_APP
-
-config AIC_FORKLIFT_UI_THREAD_STACK_SIZE
-    int "UI thread stack size in bytes"
-    default 32768
-    range 16384 262144
-    help
-      Stack budget for the LVGL owner thread. Product fonts and UI determine the budget.
 
 menu "Board resources"
 config AIC_FORKLIFT_CAN0_DEVICE
@@ -149,4 +144,3 @@ config AIC_FORKLIFT_DISPLAY_CCM
 endif
 endmenu
 
-source "application/rt-thread/forklift-meter-platform/third_party/lvgl-aic/Kconfig"

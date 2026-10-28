@@ -22,7 +22,7 @@ static void run(const char *name, const char *arg, const meter_diag_view_t *v)
 int main(void)
 {
     meter_diag_snapshot_t snapshot = {.uptime_ms = 12};
-    meter_build_info_t info = {"demo", "abc", "sdk", "9.6.0", "aic", "board", "date", "time", "fw-1", "Product-1.0-V1"};
+    meter_build_info_t info = {"demo", "abc", "sdk", "9.1.0", "board", "date", "time", "fw-1", "Product-1.0-V1"};
     meter_diag_signal_t signal = {.id = 3,
                                   .key = "vehicle.speed",
                                   .unit = "m/s",

@@ -3,9 +3,6 @@
 #include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_board_color.h"
 #include "platform/rtthread/meter_board_testcard.h"
-#include "lv_aic_display.h"
-#include "lv_aic_indev.h"
-#include "lvgl_aic.h"
 #include <lvgl.h>
 #include <aic_core.h>
 #include <aic_time.h>
@@ -69,19 +66,43 @@ static bool display_takeover(void)
     return ok;
 }
 #endif
+static uint32_t flush_count;
+static uint32_t touch_events;
+static void flush_event(lv_event_t *event)
+{
+    (void)event;
+    ++flush_count;
+}
+static void touch_event(lv_event_t *event)
+{
+    (void)event;
+    ++touch_events;
+}
+static lv_indev_t *pointer_indev(void)
+{
+    for (lv_indev_t *indev = lv_indev_get_next(NULL); indev; indev = lv_indev_get_next(indev))
+        if (lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER)
+            return indev;
+    return NULL;
+}
 bool meter_board_display_init(void)
 {
+    /* SDK 的 LVGL 线程已经建好显示与输入设备（lv_port_disp_init / lv_port_indev_init）。 */
+    lv_display_t *display = lv_display_get_default();
+    if (!display)
+    {
+        LOG_E("no LVGL display");
+        return false;
+    }
 #ifdef AIC_FORKLIFT_DISPLAY_EXCLUSIVE
     if (!display_takeover())
         return false;
 #endif
-    int result = lv_aic_init();
-    if (result != LV_AIC_OK)
-    {
-        LOG_E("display/touch initialization failed: %d", result);
-        return false;
-    }
-    if (!lv_aic_get_pointer_indev())
+    lv_display_add_event_cb(display, flush_event, LV_EVENT_FLUSH_FINISH, NULL);
+    lv_indev_t *pointer = pointer_indev();
+    if (pointer)
+        lv_indev_add_event_cb(pointer, touch_event, LV_EVENT_PRESSED, NULL);
+    else
         LOG_W("no pointer input device; UI runs without touch");
     meter_board_color_init();
     meter_board_testcard_init();
@@ -89,7 +110,6 @@ bool meter_board_display_init(void)
 }
 void meter_board_display_close(meter_diagnostics_t *diag)
 {
-    lv_aic_deinit();
     if (diag)
     {
         diag->data.touch.available = false;
@@ -177,23 +197,21 @@ void meter_board_diagnostics(meter_diagnostics_t *diag)
     if (!diag)
         return;
     diag->data.ui.flush_available = true;
-    diag->data.ui.flush_count = lv_aic_display_flush_count_get();
-    lv_aic_touch_diagnostics_t d;
-    if (lv_aic_indev_get_diagnostics(lv_aic_get_pointer_indev(), &d) == LV_AIC_OK)
+    diag->data.ui.flush_count = flush_count;
+    lv_indev_t *pointer = pointer_indev();
+    lv_display_t *display = lv_display_get_default();
+    if (pointer && display)
     {
+        /* SDK 的输入驱动不暴露中断、读取与恢复计数，这些字段保持 0；这里只报告 LVGL 看得到的。 */
+        lv_point_t point;
+        lv_indev_get_point(pointer, &point);
         diag->data.touch = (meter_diag_touch_t){.available = true,
-                                                .range_x = d.range_x,
-                                                .range_y = d.range_y,
-                                                .x = d.x,
-                                                .y = d.y,
-                                                .state = d.state,
-                                                .irq = d.irqs,
-                                                .reads = d.reads,
-                                                .events = d.events,
-                                                .delivered = d.deliveries,
-                                                .recovered = d.recovered,
-                                                .empty_reads = d.empty_reads,
-                                                .invalid_reads = d.invalid_reads};
+                                                .range_x = lv_display_get_horizontal_resolution(display),
+                                                .range_y = lv_display_get_vertical_resolution(display),
+                                                .x = point.x,
+                                                .y = point.y,
+                                                .state = lv_indev_get_state(pointer),
+                                                .events = touch_events};
     }
 }
 void meter_board_can_diagnostics(meter_diagnostics_t *diag)

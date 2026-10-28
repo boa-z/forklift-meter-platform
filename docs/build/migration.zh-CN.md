@@ -7,9 +7,9 @@
 ## 初始提取顺序
 1. 建立独立的 contracts、有界协议运行时、回调路由和产品组合。
 2. 添加合成 Demo 协议和小型生成的域目录。
-3. 使用可复用仪表组合原创的四页 LVGL 9.6 UI。
+3. 使用可复用仪表组合原创的四页 LVGL UI。
 4. 验证主机、SDL、依赖边界、来源和公共导出。
-5. 将锁定的 lvgl-aic 适配器与隔离的 RT-Thread SDK 构建集成。
+5. 运行在 SDK 自带的 LVGL 9 包上（GE2D、MPP、显示与触摸移植），与隔离的 RT-Thread SDK 构建集成。
 
 私有库存和供体基线保留在本仓库之外。现有私有产品不会被静默重写，也不会被断言兼容；其明确集成流程见 downstream.md。
 
@@ -25,6 +25,6 @@
 | ui/common | Original | 翻译运行时与显示测试卡，不含产品文案；可视控件属于 Product（Demo 的在 `products/demo/ui/widgets`） |
 | products/demo/ui and products/demo/assets | Original | 属主页面、导航、翻译包和字体子集 |
 | platform | Original | 主机和 RT-Thread 适配器 |
-| LVGL / lvgl-aic | Pinned public upstream | 渲染和单板适配 |
+| LVGL | SDK `lvgl-ui` 包（9.1） | 渲染和单板适配 |
 
 初始提取后已增加可选 CAN 固件升级。当前实现与限制见[协议](../runtime/protocols.zh-CN.md)及[升级集成](../ota/can-update.zh-CN.md)。该参考实现并未证明客户协议或产品合格性。

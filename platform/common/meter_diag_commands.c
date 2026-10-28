@@ -195,7 +195,6 @@ void meter_diag_render(const meter_diag_query_t *q, const meter_diag_view_t *v, 
         FIELD("platform", platform_revision);
         FIELD("sdk", sdk_revision);
         FIELD("lvgl", lvgl_version);
-        FIELD("lvgl-aic", lvgl_aic_revision);
         FIELD("board", board);
         FIELD("build_date", build_date);
         FIELD("build_time", build_time);

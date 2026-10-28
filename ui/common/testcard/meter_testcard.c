@@ -76,8 +76,8 @@ static lv_obj_t *fill(lv_obj_t *parent, uint32_t rgb, int32_t x, int32_t y, int3
         return NULL;
     }
     lv_obj_remove_style_all(obj);
-    lv_obj_set_scrollable(obj, false);
-    lv_obj_set_clickable(obj, false);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_pos(obj, x, y);
     lv_obj_set_size(obj, w, h);
     lv_obj_set_style_bg_color(obj, lv_color_hex(rgb), 0);
@@ -94,7 +94,7 @@ static lv_obj_t *text(lv_obj_t *parent, int32_t x, int32_t y, int32_t w, const l
     {
         return NULL;
     }
-    lv_obj_set_clickable(label, false);
+    lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
     lv_label_set_text(label, value);
     lv_obj_set_pos(label, x, y);
     if (w > 0)
@@ -116,7 +116,7 @@ static bool make_root(uint32_t rgb)
         return false;
     }
     /* 整屏盖住 Product 界面；可点击但无回调，触摸在这里被吸收，不会落到下面的控件。 */
-    lv_obj_set_clickable(card_root, true);
+    lv_obj_add_flag(card_root, LV_OBJ_FLAG_CLICKABLE);
     return true;
 }
 
@@ -147,8 +147,8 @@ static void render_grid(void)
         return;
     }
     lv_obj_remove_style_all(page_root);
-    lv_obj_set_scrollable(page_root, false);
-    lv_obj_set_clickable(page_root, false);
+    lv_obj_remove_flag(page_root, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(page_root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_pos(page_root, 0, 0);
     lv_obj_set_size(page_root, LV_PCT(100), LV_PCT(100));
 

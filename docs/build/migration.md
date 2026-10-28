@@ -7,9 +7,9 @@ This repository starts with a clean Git history. Its application code, example p
 ## Original extraction sequence
 1. Establish independent contracts, bounded protocol runtime, callback routing and product composition.
 2. Add a synthetic demo protocol and small generated domain catalogs.
-3. Compose an original four-page LVGL 9.6 UI from reusable instruments.
+3. Compose an original four-page LVGL UI from reusable instruments.
 4. Validate host, SDL, dependency boundaries, provenance and public export.
-5. Integrate the pinned lvgl-aic adapter with an isolated RT-Thread SDK build.
+5. Run on the SDK's own LVGL 9 package (GE2D, MPP, display and touch ports) in an isolated RT-Thread SDK build.
 
 Private inventory and donor baselines remain outside this repository. Existing private products are not silently rewritten or asserted compatible; see downstream.md for their explicit integration procedure.
 
@@ -25,6 +25,6 @@ Private inventory and donor baselines remain outside this repository. Existing p
 | ui/common | Original | Translation runtime and the display test card, without product wording; visual widgets live in Products (the Demo's in `products/demo/ui/widgets`) |
 | products/demo/ui and products/demo/assets | Original | Product-owned pages, navigation, translation pack and font subset |
 | platform | Original | Host and RT-Thread adapters |
-| LVGL / lvgl-aic | Pinned public upstream | Rendering and board adaptation |
+| LVGL | SDK `lvgl-ui` package (9.1) | Rendering and board adaptation |
 
 The original extraction has since gained optional CAN firmware update. See [protocols](../runtime/protocols.md) and [update integration](../ota/can-update.md) for current implementation and limits. Customer protocols and product qualification are not established by this reference implementation.

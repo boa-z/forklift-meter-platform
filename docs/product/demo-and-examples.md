@@ -26,7 +26,7 @@ The Framework carries no example Products. A second Product for a regression or 
 6. Commit and push the Product in its own repository; the Framework records nothing about it.
 
 ```text
-git submodule update --init third_party/lvgl third_party/lvgl-aic third_party/iso14229 tools/ota
+git submodule update --init third_party/lvgl third_party/lv_i18n third_party/iso14229 tools/ota
 git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 git -C products/demo switch -c codex/demo-change
 cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=products/demo

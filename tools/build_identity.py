@@ -132,10 +132,9 @@ def hardware_identity(product_root):
 
 def generate(platform, sdk, board, output, product=None):
     values = {'PLATFORM': revision(platform), 'SDK': revision(sdk),
-              'LVGL_AIC': revision(os.path.join(platform, 'third_party', 'lvgl-aic')),
               'BOARD': str(board).strip(chr(34))}
     # Python 2.7 与 3 的 dict 迭代顺序不同；按显式键序输出，保证同一输入生成同一头文件。
-    keys = ['PLATFORM', 'SDK', 'LVGL_AIC', 'BOARD']
+    keys = ['PLATFORM', 'SDK', 'BOARD']
     if product:
         # 身份头此前记录不了选中的 Product，选错产品只能上板才发现。
         values['PRODUCT'] = product_identity(product)

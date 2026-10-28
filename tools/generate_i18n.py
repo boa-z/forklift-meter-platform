@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Product 语言资源 -> 框架翻译服务的静态语言表与翻译包（无 Node、无第三方依赖）。
+"""Product 语言资源 -> 框架翻译服务的静态语言表与 lv_i18n 语言包（无 Node、无第三方依赖）。
 
 输入是 Product 的语言清单（默认 <product>/i18n/languages.json）与每种语言一份扁平译文
 （<code>.json：键 -> 文字）。源语言的译文决定键集合；语言编号就是持久化的语言字节，清单显式
 写出，生成器只校验、不重排。输出一对 C 文件：meter_i18n_language_t 语言表、
-lv_translation_add_static 版式的翻译包、各语言自称的键，以及（声明了 fonts 时）各语言的字体文件。
+lv_i18n 版式的语言包（每种语言一张 lv_i18n_lang_t，源语言排第一作回退；形如 <键>.one / <键>.other
+且 <键>.other 存在的消息进入复数表）、各语言自称的键，以及（声明了 fonts 时）各语言的字体文件。
 
 检查：编号连续且唯一、键集合一致、占位符 {0}..{9} 与源语言一致、文字非空且不含控制字符、
 complete=false 的语言缺译文时用源语言占位并在 --report 中列出、声明了字体文件时逐字检查字形覆盖
@@ -21,7 +22,10 @@ from pathlib import Path
 
 FRAMEWORK = Path(__file__).resolve().parents[1]
 LVGL_AP = FRAMEWORK / 'third_party/lvgl/src/misc/lv_text_ap.c'
-PLURALS = {'one_other': 'METER_PLURAL_ONE_OTHER', 'other_only': 'METER_PLURAL_OTHER_ONLY'}
+# 复数规则 -> lv_i18n 的 locale_plural_fn 函数体；新增规则时与 CLDR 对齐。
+PLURALS = {'one_other': '    return n == 1 ? LV_I18N_PLURAL_TYPE_ONE : LV_I18N_PLURAL_TYPE_OTHER;',
+           'other_only': '    (void)n;\n    return LV_I18N_PLURAL_TYPE_OTHER;'}
+PLURAL_FORMS = {'zero': 'ZERO', 'one': 'ONE', 'two': 'TWO', 'few': 'FEW', 'many': 'MANY', 'other': 'OTHER'}
 KEY = re.compile(r'^[A-Za-z0-9_]+(?:(?:\.|::)[A-Za-z0-9_]+)*$')
 SYMBOL = re.compile(r'^[a-z][a-z0-9_]*$')
 PLACEHOLDER = re.compile(r'(?<!\{)\{(\d)\}')
@@ -266,6 +270,23 @@ def c_string(text):
     return f'"{out}"'
 
 
+def split_plurals(keys):
+    """键 -> (单数消息的行号, {基础键: {形式: 行号}})：<基础键>.<形式> 且 <基础键>.other 存在才算复数。"""
+    others = {key[:-len('.other')] for key in keys if key.endswith('.other')}
+    singular, plural = [], {}
+    for row, key in enumerate(keys):
+        base, _, form = key.rpartition('.')
+        if form in PLURAL_FORMS and base in others:
+            plural.setdefault(base, {})[form] = row
+        else:
+            singular.append(row)
+    return singular, plural
+
+
+def identifier(code):
+    return re.sub(r'[^a-z0-9]', '_', code.lower())
+
+
 def render(manifest_path, manifest, enabled, keys, columns):
     symbol = manifest['symbol']
     upper = symbol.upper()
@@ -280,24 +301,40 @@ def render(manifest_path, manifest, enabled, keys, columns):
               f'#define {upper}_LANGUAGE_COUNT {count}u\n',
               f'/* 首次开机（没有已存设置）使用的语言。 */\n#define {upper}_DEFAULT_LANGUAGE {default_id}u\n',
               f'extern const meter_i18n_language_t {symbol}_languages[{upper}_LANGUAGE_COUNT];\n',
-              f'extern const meter_i18n_pack_t {symbol}_pack;\n',
+              f'/* lv_i18n 语言包，以 NULL 结尾；第一项是源语言，译文缺失时回退到它。 */\n',
+              f'extern const lv_i18n_language_pack_t {symbol}_pack[{upper}_LANGUAGE_COUNT + 1u];\n',
               f'/* 各语言名称的消息键（语言选择页），按语言编号。 */\n',
               f'extern const char *const {symbol}_name_keys[{upper}_LANGUAGE_COUNT];\n']
-    source = [banner, f'#include "{symbol}.h"\n#include <stddef.h>\n',
-              'static const char *const languages[] = {' +
-              ', '.join(c_string(item['code']) for item in enabled) + ', NULL};\n',
-              'static const char *const tags[] = {\n']
-    source += [f'    {c_string(key)},\n' for key in keys]
-    source.append('    NULL};\n/* 按键分行，每行依次是各语言（顺序同 languages）。 */\n'
-                  'static const char *const translations[] = {\n')
-    for row, key in enumerate(keys):
-        source.append(f'    /* {key} */\n')
-        source += [f'    {c_string(columns[item["code"]][row])},\n' for item in enabled]
-    source.append('};\n')
-    source.append(f'const meter_i18n_pack_t {symbol}_pack = {{languages, tags, translations}};\n')
+    source = [banner, f'#include "{symbol}.h"\n#include <stddef.h>\n']
+    idents = [identifier(item['code']) for item in enabled]
+    if len(set(idents)) != len(idents):
+        fail('语言码转成 C 标识符后重复：' + ', '.join(item['code'] for item in enabled))
+    singular, plural = split_plurals(keys)
+    for item, name in zip(enabled, idents):
+        column = columns[item['code']]
+        rule = PLURALS[item.get('plural', 'other_only')]
+        source.append(f'\n/* {item["code"]} */\nstatic const lv_i18n_phrase_t {name}_singulars[] = {{\n')
+        source += [f'    {{{c_string(keys[row])}, {c_string(column[row])}}},\n' for row in singular]
+        source.append('    {NULL, NULL}};\n')
+        forms = sorted({form for rows in plural.values() for form in rows}, key=list(PLURAL_FORMS).index)
+        for form in forms:
+            source.append(f'static const lv_i18n_phrase_t {name}_plural_{form}[] = {{\n')
+            source += [f'    {{{c_string(base)}, {c_string(column[rows[form]])}}},\n'
+                       for base, rows in plural.items() if form in rows]
+            source.append('    {NULL, NULL}};\n')
+        source.append(f'static uint8_t {name}_plural_rule(int32_t n)\n{{\n{rule}\n}}\n')
+        source.append(f'static const lv_i18n_lang_t {name}_lang = {{\n'
+                      f'    .locale_name = {c_string(item["code"])},\n    .singulars = {name}_singulars,\n')
+        if forms:
+            source.append('    .plurals = {' + ', '.join(
+                f'[LV_I18N_PLURAL_TYPE_{PLURAL_FORMS[form]}] = {name}_plural_{form}' for form in forms) + '},\n')
+        source.append(f'    .locale_plural_fn = {name}_plural_rule}};\n')
+    order = sorted(range(count), key=lambda i: (enabled[i]['code'] != manifest['source'], i))
+    source.append(f'\nconst lv_i18n_language_pack_t {symbol}_pack[{upper}_LANGUAGE_COUNT + 1u] = {{\n')
+    source += [f'    &{idents[i]}_lang,\n' for i in order]
+    source.append('    NULL};\n')
     source.append(f'const meter_i18n_language_t {symbol}_languages[{upper}_LANGUAGE_COUNT] = {{\n')
-    source += [f'    {{(meter_language_t){item["id"]}, {c_string(item["code"])}, NULL, NULL, '
-               f'{PLURALS[item.get("plural", "other_only")]}}},\n' for item in enabled]
+    source += [f'    {{(meter_language_t){item["id"]}, {c_string(item["code"])}, NULL, NULL}},\n' for item in enabled]
     source.append('};\n')
     source.append(f'const char *const {symbol}_name_keys[{upper}_LANGUAGE_COUNT] = {{\n')
     source += [f'    {c_string(item["name_key"]) if "name_key" in item else "NULL"},\n' for item in enabled]

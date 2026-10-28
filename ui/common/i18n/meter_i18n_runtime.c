@@ -3,44 +3,57 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-/* A handful of packs is the realistic ceiling for a meter; languages live in the Product's table. */
-#define MAX_PACKS 8u
 /* The numbering a Product gets when it installs no table of its own. */
 static const meter_i18n_language_t default_languages[] = {
-    {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL, METER_PLURAL_ONE_OTHER},
-    {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL, METER_PLURAL_OTHER_ONLY}};
+    {METER_LANGUAGE_EN, METER_LANGUAGE_CODE_EN, NULL, NULL},
+    {METER_LANGUAGE_ZH, METER_LANGUAGE_CODE_ZH, NULL, NULL}};
 static const meter_i18n_language_t *languages = default_languages;
 static size_t language_total = sizeof(default_languages) / sizeof(default_languages[0]);
-static const meter_i18n_pack_t *packs[MAX_PACKS];
-static size_t pack_total;
-/* A face binding remembers the face the object was designed with, so a language without a face
-   for the role gives it back instead of leaving the previous language's face behind. */
-typedef struct
+static meter_language_t selected = METER_LANGUAGE_EN;
+static const lv_i18n_language_pack_t *pack;
+static uint32_t language_event;
+
+/* Everything the service keeps per object: the translation tag of a label, the face the object was
+   designed with (so a language without a face for the role gives it back instead of leaving the
+   previous language's face behind), and membership of the language-change broadcast. */
+typedef struct binding
 {
+    struct binding *next;
+    lv_obj_t *obj;
+    char *tag;
+    const char *shown; /* the text this service last wrote: a different one means a plain write took over */
     const lv_font_t *designed;
     meter_font_role_t role;
-} face_binding_t;
+    bool has_role;
+} binding_t;
+static binding_t *bindings;
 
 static void reset_registry(void)
 {
-    memset(packs, 0, sizeof(packs));
-    pack_total = 0u;
+    /* Objects of a previous LVGL lifetime are gone and took their bindings with them. */
+    bindings = NULL;
+    pack = NULL;
+    __lv_i18n_reset();
     languages = default_languages;
     language_total = sizeof(default_languages) / sizeof(default_languages[0]);
+    selected = METER_LANGUAGE_EN;
 }
 /* Ids equal table positions (checked at registration), so the persisted byte indexes the table. */
 static const meter_i18n_language_t *find_language(meter_language_t id)
 {
     return (size_t)id < language_total ? &languages[id] : NULL;
 }
+/* lv_i18n keeps the current locale itself; a language the pack lacks reads the fallback language. */
+static void apply_locale(void)
+{
+    if (!pack)
+        return;
+    if (lv_i18n_set_locale(languages[selected].code) != 0)
+        (void)lv_i18n_set_locale(pack[0]->locale_name);
+}
 bool meter_i18n_init(void)
 {
-    /* LVGL clears its translation state on lv_init(); a selected language means this lifetime was
-       already initialised and the registry (and the Product's packs) must be kept. */
-    if (lv_translation_get_language() != NULL)
-        return true;
     reset_registry();
-    lv_translation_set_language(METER_LANGUAGE_CODE_EN);
     return true;
 }
 bool meter_i18n_register_languages(const meter_i18n_language_t *table, size_t count)
@@ -57,23 +70,25 @@ bool meter_i18n_register_languages(const meter_i18n_language_t *table, size_t co
     }
     languages = table;
     language_total = count;
+    if ((size_t)selected >= language_total)
+        selected = METER_LANGUAGE_EN;
+    apply_locale();
     return true;
 }
 size_t meter_i18n_language_count(void)
 {
     return language_total;
 }
-bool meter_i18n_register_pack(const meter_i18n_pack_t *pack)
+bool meter_i18n_register_pack(const lv_i18n_language_pack_t *tables)
 {
-    if (!pack || !pack->languages || !pack->tags || !pack->translations || !pack->languages[0])
+    if (!tables || !tables[0])
         return false;
-    for (size_t i = 0u; i < pack_total; ++i)
-        if (packs[i]->tags == pack->tags)
-            return true;
-    if (pack_total == MAX_PACKS ||
-        !lv_translation_add_static(pack->languages, pack->tags, pack->translations))
+    if (pack)
+        return pack == tables;
+    if (lv_i18n_init(tables) != 0)
         return false;
-    packs[pack_total++] = pack;
+    pack = tables;
+    apply_locale();
     return true;
 }
 const char *meter_i18n_language_code(meter_language_t language)
@@ -85,98 +100,13 @@ const char *meter_i18n_language_code(meter_language_t language)
 }
 meter_language_t meter_i18n_selected_language(void)
 {
-    const char *code = lv_translation_get_language();
-    for (size_t i = 0u; code && i < language_total; ++i)
-        if (lv_strcmp(languages[i].code, code) == 0)
-            return languages[i].id;
-    return METER_LANGUAGE_EN;
+    return selected;
 }
-bool meter_i18n_set_language(meter_language_t language)
+uint32_t meter_i18n_language_event(void)
 {
-    const meter_i18n_language_t *known = find_language(language);
-    if (!known)
-        return false;
-    const char *current = lv_translation_get_language();
-    if (current && lv_strcmp(current, known->code) == 0)
-        return true;
-    lv_translation_set_language(known->code);
-    return true;
-}
-/* Newest pack first, the order lv_translation_get() itself walks. */
-static const char *lookup(const char *code, const char *tag)
-{
-    for (size_t p = pack_total; p-- > 0u;)
-    {
-        const meter_i18n_pack_t *pack = packs[p];
-        size_t columns = 0u, column = 0u;
-        bool found = false;
-        while (pack->languages[columns])
-        {
-            if (lv_strcmp(pack->languages[columns], code) == 0)
-            {
-                column = columns;
-                found = true;
-            }
-            ++columns;
-        }
-        if (!found)
-            continue;
-        for (size_t row = 0u; pack->tags[row]; ++row)
-        {
-            if (lv_strcmp(pack->tags[row], tag) != 0)
-                continue;
-            const char *text = pack->translations[row * columns + column];
-            if (text)
-                return text;
-            break;
-        }
-    }
-    return NULL;
-}
-const char *meter_i18n_tr_in(meter_language_t language, const char *tag)
-{
-    if (!tag || !tag[0])
-        return "";
-    const char *text = lookup(meter_i18n_language_code(language), tag);
-    if (!text)
-        text = lookup(METER_LANGUAGE_CODE_EN, tag);
-    return text ? text : tag;
-}
-const char *meter_i18n_find(const char *tag)
-{
-    const char *code = lv_translation_get_language();
-    return tag && tag[0] && code ? lookup(code, tag) : NULL;
-}
-const char *meter_i18n_tr(const char *tag)
-{
-    if (!tag || !tag[0])
-        return "";
-    /* LVGL answers for every pack, including ones a Product added with lv_translation_add_static
-       directly; it hands back the very pointer it was given when it has no translation. */
-    const char *text = lv_tr(tag);
-    if (text != tag)
-        return text;
-    return meter_i18n_tr_in(meter_i18n_selected_language(), tag);
-}
-const char *meter_i18n_tr_plural(const char *tag, unsigned count)
-{
-    if (!tag || !tag[0])
-        return "";
-    const meter_i18n_language_t *known = find_language(meter_i18n_selected_language());
-    const bool one = known && known->plural == METER_PLURAL_ONE_OTHER && count == 1u;
-    char variant[96];
-    /* The variant buffer is only a lookup key: a miss makes lv_tr() hand the key back, and that
-       pointer must never escape, so a miss returns the base tag instead. */
-    if (one)
-    {
-        snprintf(variant, sizeof(variant), "%s.one", tag);
-        const char *text = meter_i18n_tr(variant);
-        if (text != variant)
-            return text;
-    }
-    snprintf(variant, sizeof(variant), "%s.other", tag);
-    const char *text = meter_i18n_tr(variant);
-    return text != variant ? text : tag;
+    if (language_event == 0u)
+        language_event = lv_event_register_id();
+    return language_event;
 }
 /* The face a language registered for the role, or NULL when it has none. */
 static const lv_font_t *substitute_face(meter_language_t language, meter_font_role_t role)
@@ -185,6 +115,92 @@ static const lv_font_t *substitute_face(meter_language_t language, meter_font_ro
     if (!known)
         return NULL;
     return role == METER_FONT_VALUE ? known->value_font : known->label_font;
+}
+static void resolve_face(lv_obj_t *obj, const binding_t *binding)
+{
+    const lv_font_t *face = substitute_face(meter_i18n_selected_language(), binding->role);
+    if (!face)
+        face = binding->designed;
+    /* LVGL 9 invalidates on every style write, so an unchanged face must not be rewritten. */
+    if (face && lv_obj_get_style_text_font(obj, 0) != face)
+        lv_obj_set_style_text_font(obj, face, 0);
+}
+static void retranslate(binding_t *binding)
+{
+    if (binding->has_role)
+        resolve_face(binding->obj, binding);
+    if (!binding->tag)
+        return;
+    const char *current = lv_label_get_text(binding->obj);
+    if (binding->shown && lv_strcmp(current, binding->shown) != 0)
+    {
+        /* A plain lv_label_set_text() after the tag ends the text binding; the face binding stays. */
+        lv_free(binding->tag);
+        binding->tag = NULL;
+        binding->shown = NULL;
+        return;
+    }
+    binding->shown = meter_i18n_tr(binding->tag);
+    /* Same text, same pixels: skip the write that would invalidate the label. */
+    if (lv_strcmp(current, binding->shown) != 0)
+        lv_label_set_text(binding->obj, binding->shown);
+}
+bool meter_i18n_set_language(meter_language_t language)
+{
+    if (!find_language(language))
+        return false;
+    if (language == selected)
+        return true;
+    selected = language;
+    apply_locale();
+    for (binding_t *binding = bindings, *next; binding; binding = next)
+    {
+        next = binding->next;
+        retranslate(binding);
+        (void)lv_obj_send_event(binding->obj, METER_EVENT_LANGUAGE_CHANGED, NULL);
+    }
+    return true;
+}
+static const char *phrase_find(const lv_i18n_phrase_t *phrases, const char *tag)
+{
+    for (; phrases && phrases->msg_id; ++phrases)
+        if (lv_strcmp(phrases->msg_id, tag) == 0 && phrases->translation)
+            return phrases->translation;
+    return NULL;
+}
+static const lv_i18n_lang_t *find_table(const char *code)
+{
+    for (size_t i = 0u; pack && pack[i] != NULL; ++i)
+        if (lv_strcmp(pack[i]->locale_name, code) == 0)
+            return pack[i];
+    return NULL;
+}
+const char *meter_i18n_tr_in(meter_language_t language, const char *tag)
+{
+    if (!tag || !tag[0])
+        return "";
+    const lv_i18n_lang_t *table = pack ? find_table(meter_i18n_language_code(language)) : NULL;
+    const char *text = table ? phrase_find(table->singulars, tag) : NULL;
+    if (!text && pack)
+        text = phrase_find(pack[0]->singulars, tag);
+    return text ? text : tag;
+}
+const char *meter_i18n_find(const char *tag)
+{
+    const lv_i18n_lang_t *table = tag && tag[0] && pack ? find_table(languages[selected].code) : NULL;
+    return table ? phrase_find(table->singulars, tag) : NULL;
+}
+const char *meter_i18n_tr(const char *tag)
+{
+    if (!tag || !tag[0])
+        return "";
+    return lv_i18n_get_text(tag);
+}
+const char *meter_i18n_tr_plural(const char *tag, unsigned count)
+{
+    if (!tag || !tag[0])
+        return "";
+    return lv_i18n_get_text_plural(tag, (int32_t)count);
 }
 const lv_font_t *meter_font_get(meter_language_t language, meter_font_role_t role)
 {
@@ -198,36 +214,61 @@ void meter_i18n_apply_font(lv_obj_t *label, meter_language_t language, meter_fon
     if (label)
         lv_obj_set_style_text_font(label, meter_font_get(language, role), 0);
 }
-static void resolve_face(lv_obj_t *obj, const face_binding_t *binding)
+static void binding_event(lv_event_t *event)
 {
-    const lv_font_t *face = substitute_face(meter_i18n_selected_language(), binding->role);
-    if (!face)
-        face = binding->designed;
-    /* LVGL 9 invalidates on every style write, so an unchanged face must not be rewritten. */
-    if (face && lv_obj_get_style_text_font(obj, 0) != face)
-        lv_obj_set_style_text_font(obj, face, 0);
+    binding_t *binding = lv_event_get_user_data(event);
+    for (binding_t **link = &bindings; *link; link = &(*link)->next)
+        if (*link == binding)
+        {
+            *link = binding->next;
+            break;
+        }
+    lv_free(binding->tag);
+    lv_free(binding);
 }
-static void face_event(lv_event_t *event)
+/* One binding per object, created on first use and released with the object. */
+static binding_t *binding_of(lv_obj_t *obj)
 {
-    face_binding_t *binding = lv_event_get_user_data(event);
-    if (lv_event_get_code(event) == LV_EVENT_DELETE)
-    {
-        lv_free(binding);
+    for (binding_t *binding = bindings; binding; binding = binding->next)
+        if (binding->obj == obj)
+            return binding;
+    binding_t *binding = lv_malloc_zeroed(sizeof(*binding));
+    if (!binding)
+        return NULL;
+    binding->obj = obj;
+    binding->next = bindings;
+    bindings = binding;
+    lv_obj_add_event_cb(obj, binding_event, LV_EVENT_DELETE, binding);
+    return binding;
+}
+void meter_i18n_on_language_change(lv_obj_t *obj, void (*cb)(lv_event_t *), void *user_data)
+{
+    if (!obj || !cb || !binding_of(obj))
         return;
-    }
-    resolve_face(lv_event_get_target_obj(event), binding);
+    lv_obj_add_event_cb(obj, cb, METER_EVENT_LANGUAGE_CHANGED, user_data);
+}
+void meter_i18n_label_set_tag(lv_obj_t *label, const char *tag)
+{
+    binding_t *binding = label && tag && tag[0] ? binding_of(label) : NULL;
+    if (!binding)
+        return;
+    char *copy = lv_strdup(tag);
+    if (!copy)
+        return;
+    lv_free(binding->tag);
+    binding->tag = copy;
+    binding->shown = NULL;
+    retranslate(binding);
 }
 void meter_i18n_bind_font(lv_obj_t *obj, meter_font_role_t role)
 {
-    if (!obj)
-        return;
-    face_binding_t *binding = lv_malloc(sizeof(*binding));
+    binding_t *binding = obj ? binding_of(obj) : NULL;
     if (!binding)
         return;
-    binding->designed = lv_obj_get_style_text_font(obj, 0);
+    if (!binding->has_role)
+        binding->designed = lv_obj_get_style_text_font(obj, 0);
     binding->role = role;
-    lv_obj_add_event_cb(obj, face_event, LV_EVENT_TRANSLATION_LANGUAGE_CHANGED, binding);
-    lv_obj_add_event_cb(obj, face_event, LV_EVENT_DELETE, binding);
+    binding->has_role = true;
     resolve_face(obj, binding);
 }
 void meter_i18n_bind_text(lv_obj_t *label, const char *tag, meter_font_role_t role)
@@ -235,8 +276,7 @@ void meter_i18n_bind_text(lv_obj_t *label, const char *tag, meter_font_role_t ro
     if (!label)
         return;
     meter_i18n_bind_font(label, role);
-    if (tag && tag[0])
-        lv_label_set_translation_tag(label, tag);
+    meter_i18n_label_set_tag(label, tag);
 }
 /* Isolated presentation form -> base letter (Unicode decomposition <isolated>), sorted by form. */
 static const uint16_t isolated_forms[][2] = {
@@ -280,11 +320,11 @@ static bool isolated_glyph_dsc(const lv_font_t *font, lv_font_glyph_dsc_t *dsc, 
     return base != 0u && face->get_glyph_dsc(face, dsc, base, 0u);
 }
 /* LVGL records this font as the glyph's owner; drawing and releasing the glyph belong to the face. */
-static const void *isolated_glyph_bitmap(lv_font_glyph_dsc_t *dsc, lv_draw_buf_t *draw_buf)
+static const void *isolated_glyph_bitmap(lv_font_glyph_dsc_t *dsc, uint32_t letter, lv_draw_buf_t *draw_buf)
 {
     const lv_font_t *self = dsc->resolved_font;
     dsc->resolved_font = self->user_data;
-    const void *bitmap = dsc->resolved_font->get_glyph_bitmap(dsc, draw_buf);
+    const void *bitmap = dsc->resolved_font->get_glyph_bitmap(dsc, isolated_base(letter), draw_buf);
     dsc->resolved_font = self;
     return bitmap;
 }

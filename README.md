@@ -33,7 +33,7 @@ See the [Build and Product guide](docs/build/build.md) for Product manifests, SD
 
 ## Firmware boundary
 
-Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`; the RT-Thread port (one runtime thread plus TX, NVM, update and watchdog workers) is in `platform/rtthread/`, see [production runtime](docs/runtime/runtime-production.md). Both host and firmware use the application-owned `third_party/lvgl` and `third_party/lvgl-aic` pins. Firmware must disable the SDK legacy LVGL package so that each image has one LVGL implementation.
+Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`; the RT-Thread port (one runtime thread plus TX, NVM, update and watchdog workers) is in `platform/rtthread/`, see [production runtime](docs/runtime/runtime-production.md). Firmware runs on the SDK's own LVGL 9 package (`lvgl-ui`, with its GE2D draw backend, MPP decoder, display and touch ports) and starts the Product UI from the SDK LVGL thread; the host simulator and tests build against `third_party/lvgl` pinned to the same 9.1 line. The lookup runtime for translations is the `third_party/lv_i18n` submodule. The LVGL 9.6 port with its own display, touch and GE2D layer lives on the `dev/lvgl-9.6` branch.
 
 ## Documentation
 

@@ -7,7 +7,7 @@
 bool product_locale_init(void)
 {
     return meter_i18n_register_languages(product_i18n_languages, PRODUCT_I18N_LANGUAGE_COUNT) &&
-        meter_i18n_register_pack(&product_i18n_pack);
+        meter_i18n_register_pack(product_i18n_pack);
 }
 static void *create(void *parent,const meter_ui_actions_t *actions)
 {

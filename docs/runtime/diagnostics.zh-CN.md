@@ -17,7 +17,7 @@ Runtime 与板级 driver 计数描述不同边界。Runtime 记录 accepted/disp
 Domain 统计接受的 update，含数值未变化的 update；revision 只随真实 Domain 变化。来源与有效性转移独立计数，读取诊断或累计计数不改变 revision。参数、设置、故障元数据来自公共 Domain snapshot，不读取 Core 私有字段。signal 用 canonical key 查找并复制值，key/unit 借用不可变 Product catalog 的生命周期。age 用无符号毫秒差，适用范围为一个 uint32 时钟周期；UNKNOWN 明确显示，其数值 age 不能当作已收到数据的证明。
 
 
-UI present_count 在展示入口统计，flush_count 来自 lvgl-aic；Touch 提供缓存计数和坐标。Storage 显示所选 backend 及 RAM/in-flight/durable revision，仅无后端时输出 unavailable。尚未实现 slow_frame；新增计数在 UINT32_MAX 饱和，原 Runtime 计数保持既有算术规则。
+UI present_count 在展示入口统计，flush_count 统计默认显示的 LVGL flush-finish 事件；Touch 提供指针位置、状态和 LVGL 可见的按下次数，SDK 的输入驱动没有中断和读取计数，这些字段保持 0。Storage 显示所选 backend 及 RAM/in-flight/durable revision，仅无后端时输出 unavailable。尚未实现 slow_frame；新增计数在 UINT32_MAX 饱和，原 Runtime 计数保持既有算术规则。
 
 ## Trace 与日志策略
 
@@ -52,7 +52,7 @@ meter_testcard grid
 meter_testcard patch 0x0DD462
 ```
 
-未知或多余参数只显示 usage，不修改状态。CAN capture 预留为后续有界静态过滤缓冲（bus/id/count），没有无限实时 dump，也不在 RX callback 同步打印 UART。signal 不存在时明确报告；Demo 已知 key 为 vehicle.speed。info 输出 Product、platform SHA、SDK SHA、LVGL 版本、lvgl-aic revision、board、编译日期/时间和 uptime。
+未知或多余参数只显示 usage，不修改状态。CAN capture 预留为后续有界静态过滤缓冲（bus/id/count），没有无限实时 dump，也不在 RX callback 同步打印 UART。signal 不存在时明确报告；Demo 已知 key 为 vehicle.speed。info 输出 Product、platform SHA、SDK SHA、LVGL 版本、board、编译日期/时间和 uptime。
 
 SCons 通过 tools/build_identity.py 自动生成身份。生成的头文件还会以 METER_BUILD_PRODUCT 记录选中的 Product（取清单 identity.id，否则取 meter_product_t.id），并以 METER_BUILD_PRODUCT_REVISION 记录其版本，因此归档的头文件本身就能说明镜像由哪个 Product 组成。干净仓库输出完整 SHA，dirty 仓库附加源码/状态指纹，包含未忽略的未跟踪源码；板名从 Kconfig 规范化。源码身份与镜像 SHA256 共同绑定证据，只有日期不足以识别镜像。仓库不可访问时显示 unavailable。SDK 可能因其他私有子模块脏而带标记，不得为了去掉标记清理其他任务的文件。
 

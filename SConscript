@@ -50,8 +50,8 @@ chip = os.environ.get('PRJ_CHIP') or config_value('PRJ_CHIP') or 'd13x'
 os_image = chip + '_os.itb'
 release_tool.register_packaging(release, images_dir, os_image)
 
-Env.Append(CPPDEFINES=['LV_USE_TRANSLATION=1', 'AIC_LVGL_TOUCH_POLL_FALLBACK_MS=20'] +
-           selection.lvgl_defines(product))
+# LVGL、GE2D 绘制后端、MPP 解码与显示/触摸移植全部来自 SDK 的 lvgl-ui 包；这里只补 Product 用到的字号。
+Env.Append(CPPDEFINES=selection.lvgl_defines(product))
 
 # SDK 的根 SConscript 用 variant_dir=output/<prj>、duplicate=0 加载整棵树。只有 Glob() 返回的节点带
 # variant_dir 映射；DefineGroup 对字符串调用 File() 会在源码旁就地编译。应用目录内用变体感知的 Glob，
@@ -97,16 +97,14 @@ common += [p for group in ('storage', 'diagnostics', 'core', 'runtime', 'protoco
            for p in platform_manifest[group]]
 print('METER sources   : ' + str(len(product_sources)))
 
-lvgl = os.path.join(cwd, 'third_party', 'lvgl-aic')
-group = SConscript('third_party/lvgl-aic/SConscript')
-# 在移植层默认配置前加载 Product 的原生 LVGL 选项；所有翻译单元使用同一份配置。
+# 在 SDK 的 lv_conf.h 之前加载 Product 的原生 LVGL 选项；所有翻译单元使用同一份配置。
 product_lvgl_config = selection.lvgl_config(product)
 if product_lvgl_config:
     Env.Prepend(CCFLAGS=['-include', product_lvgl_config])
-group += DefineGroup('FORKLIFT-METER-PLATFORM', [build_source(p) for p in common + [str(s) for s in product_sources]],
+group = DefineGroup('FORKLIFT-METER-PLATFORM', [build_source(p) for p in common + [str(s) for s in product_sources]],
     depend=['AIC_FORKLIFT_METER_PLATFORM_APP'],
-    CPPPATH=[cwd, product, meter_dir, os.path.join(lvgl, 'include'), os.path.join(lvgl, 'port')] + selection.include_dirs(product),
-    CPPDEFINES=['LV_LVGL_H_INCLUDE_SIMPLE', 'METER_RTTHREAD=1'])
+    CPPPATH=[cwd, product, meter_dir] + selection.include_dirs(product),
+    CPPDEFINES=['METER_RTTHREAD=1'])
 
 if can_update:
     ota = os.path.join(AIC_ROOT, 'packages', 'artinchip', 'ota')

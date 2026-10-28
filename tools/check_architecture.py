@@ -16,13 +16,13 @@ RULES = {
     'diagnostics': ('contracts/', 'diagnostics/'),
     'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/', 'core/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
-    'ui': ('contracts/', 'ui/', 'generated/'),
+    'ui': ('contracts/', 'ui/', 'generated/', 'third_party/lv_i18n/'),
 }
 for product in PRODUCTS:
     # Product 内部如何分层由 Product 自己决定；框架只限制它能触及哪些框架目录。
     own = (product + '/',)
     RULES.update({
-        product + '/ui': ('contracts/', 'ui/common/') + own,
+        product + '/ui': ('contracts/', 'ui/common/', 'third_party/lv_i18n/') + own,
         product + '/application': ('contracts/',) + own,
         product + '/protocol': ('contracts/', 'protocols/common/') + own,
     })
@@ -124,25 +124,8 @@ for area in ('ui','products','protocols','platform'):
     for file in filter(first_party, (ROOT/area).rglob('*.c')):
         for match in re.findall(r'snapshot(?:\.|->)\w+\s*\[\s*(?:METER|DEMO)_[A-Z0-9_]+', file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} indexes domain storage by identity: {match}')
-# lv_translation 会遍历所有已注册的翻译包查找标签，被重复声明的标签将按注册顺序而非设计意图命中。
-# 唯一的例外是 Product 有意用同名标签覆盖框架 meter.* 词汇的措辞（框架只内置英文）；其余重复一律报错。
-def tag_arrays(text):
-    return re.findall(r'\w*tags\[\]\s*=\s*\{(.*?)\}\s*;', text, re.S)
-framework_tags=set()
-for block in tag_arrays((ROOT/'ui/common/i18n/meter_i18n_runtime.c').read_text(encoding='utf-8')):
-    framework_tags.update(re.findall(r'"([^"]+)"', block))
-# 每个 Product 单独成一套：两个 Product 从不链接到一起，各自的同名标签互不冲突。
-for product in PRODUCTS:
-    owners={}
-    packs = list((ROOT/product).glob('ui/*_i18n.c')) + list((ROOT/product).glob('**/generated/*i18n*.c'))
-    for file in filter(first_party, packs):
-        for block in tag_arrays(file.read_text(encoding='utf-8')):
-            for tag in re.findall(r'"([^"]+)"', block):
-                if tag in framework_tags:
-                    continue
-                if tag in owners:
-                    errors.append(f'Translation tag {tag} claimed by {owners[tag]} and {file.name}')
-                owners[tag]=file.name
+# 一个 Product 只有一个 lv_i18n 语言包，键在生成它的 JSON 里唯一（generate_i18n.py 拒绝重复键），
+# 不再有多个翻译包按注册顺序互相覆盖的问题。
 for group, files in manifest.items():
     assert len(files)==len(set(files)), group
     for file in files:

@@ -69,7 +69,7 @@ typedef struct
 /** @brief 固件身份字符串由构建系统提供，生命周期覆盖程序运行期。 */
 typedef struct
 {
-    const char *product, *platform_revision, *sdk_revision, *lvgl_version, *lvgl_aic_revision, *board,
+    const char *product, *platform_revision, *sdk_revision, *lvgl_version, *board,
         *build_date, *build_time, *firmware_version, *display_version;
 } meter_build_info_t;
 /** @brief 调用者持有的静态诊断实例；字段仅允许 owner 更新，跨线程由宿主锁保护。 */

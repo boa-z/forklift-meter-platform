@@ -69,7 +69,7 @@ class IdentityTests(unittest.TestCase):
             self.assertEqual(values['PRODUCT'], 'declared-id')
             names = [line.split()[1] for line in header.read_text(encoding='utf-8').splitlines()
                      if line.startswith('#define METER_BUILD_') and line.endswith('"')]
-            self.assertEqual(names, ['METER_BUILD_PLATFORM', 'METER_BUILD_SDK', 'METER_BUILD_LVGL_AIC',
+            self.assertEqual(names, ['METER_BUILD_PLATFORM', 'METER_BUILD_SDK',
                                      'METER_BUILD_BOARD', 'METER_BUILD_PRODUCT', 'METER_BUILD_PRODUCT_REVISION'])
             without = identity.generate(str(root), None, '"host"', str(root / 'build/plain.h'))
             self.assertNotIn('PRODUCT', without)

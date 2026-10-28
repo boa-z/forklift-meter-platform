@@ -1,12 +1,12 @@
 [submodule "third_party/lvgl"]
 	path = third_party/lvgl
 	url = https://github.com/lvgl/lvgl.git
-[submodule "third_party/lvgl-aic"]
-	path = third_party/lvgl-aic
-	url = https://github.com/boa-z/lvgl-aic.git
 [submodule "third_party/iso14229"]
 	path = third_party/iso14229
 	url = https://github.com/driftregion/iso14229.git
 [submodule "tools/ota"]
 	path = tools/ota
 	url = https://github.com/boa-z/meter-ota-host.git
+[submodule "third_party/lv_i18n"]
+	path = third_party/lv_i18n
+	url = https://github.com/boa-z/lv_i18n-runtime.git

@@ -6,11 +6,11 @@
 struct rt_semaphore;
 /** @brief 读取 SDK 单调硬件毫秒时钟；32 位差值允许正常回绕，不依赖 RTOS tick 初值。 */
 uint32_t meter_board_now_ms(void);
-/** @brief UI 线程启动显示与触摸（lvgl-aic），按 Kconfig 接管显示层并加载色彩校正。 */
+/** @brief LVGL 线程在 SDK 建好显示与触摸之后调用：按 Kconfig 接管显示层并加载色彩校正。 */
 bool meter_board_display_init(void);
-/** @brief UI 线程释放显示；仅启动失败路径使用。 */
+/** @brief LVGL 线程清除显示诊断标志；显示本身属于 SDK，仅启动失败路径使用。 */
 void meter_board_display_close(meter_diagnostics_t *diag);
-/** @brief UI 线程复制显示刷新与触摸驱动的既有统计；无额外采样或串口输出。 */
+/** @brief LVGL 线程复制显示刷新次数与 LVGL 可见的触摸状态；无额外采样或串口输出。 */
 void meter_board_diagnostics(meter_diagnostics_t *diag);
 /** @brief 绑定 RX 唤醒信号量；任一已打开总线收到帧时释放。 */
 void meter_board_can_wake(struct rt_semaphore *wake);

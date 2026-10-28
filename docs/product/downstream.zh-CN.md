@@ -44,7 +44,7 @@ UI 主机的合成数据源在 start 之后才推进。Product 自己启动的�
 
 `product/sources.json` 在共用源文件组之外，可声明 `rtthread`（仅固件）、`host_support`（仅链接进 Host Application）、`include_dirs`（两端共用）和 `host_include_dirs`（仅 Host）。路径必须位于 Product 内且真实存在，头文件路径必须是目录。硬件源文件和主机替身分组列出。Product 的 CMake 入口可在添加 Framework 前设置 `LV_BUILD_CONF_PATH`，启用需要的 LVGL 组件和原生文件系统后端。
 
-固件可通过 `lvgl.config` 指定 Product 内的配置头；所有翻译单元在移植层默认配置前包含它。直接使用原生 `LV_*` 选项，并从该头包含移植层基线。UI 所有者线程的栈预算使用 `AIC_FORKLIFT_UI_THREAD_STACK_SIZE`，被禁用的 SDK LVGL 包下面的选项不会配置本应用。
+固件可通过 `lvgl.config` 指定 Product 内的配置头；所有翻译单元在 SDK 的 `lv_conf.h` 之前包含它，用来补充 SDK 配置没有定义的原生 `LV_*` 选项（例如 `LV_USE_BIDI`）。UI 在 SDK 的 LVGL 线程里运行，栈预算使用 `LPKG_LVGL_THREAD_STACK_SIZE`。
 
 CAN TX 端口可选的 `stop()` 接受单向静默请求。已有 TX worker 拒绝新提交、丢弃排队帧，在当前驱动写返回后选择控制器原生 listen 模式；保留 RX 缓冲区，不因协议会话复位而恢复发送。请求被接受不表示硬件已完成切换，静默及无 ACK 仍需上板验证。
 
@@ -55,7 +55,7 @@ CAN TX 端口可选的 `stop()` 接受单向静默请求。已有 TX worker 拒�
 | 需求 | 位置 |
 |---|---|
 | 换 CAN 控制器、EEPROM 位置、用文件存设置、不独占显示层、自己控制背光 | 板级 defconfig，见[板级接入](../build/board-integration.zh-CN.md) |
-| 分辨率、竖屏布局、触摸 | SDK 屏幕与 lvgl-aic 配置；Product UI 布局 |
+| 分辨率、竖屏布局、触摸 | SDK 屏幕与触摸配置；Product UI 布局 |
 | CANopenNode、私有协议、多条总线 | Product 在 `METER_BUS_CAN0`/`METER_BUS_CAN1` 上的适配器与路由 |
 | MCU 串口、摄像头、振动、光感 | Product 代码与线程；视频要设 `AIC_FORKLIFT_DISPLAY_EXCLUSIVE=n`，自动亮度要设 `AIC_FORKLIFT_BACKLIGHT=n` |
 | 不需要诊断或升级 | 不设 `update`，或 `AIC_FORKLIFT_CAN_UPDATE=n` |
@@ -89,7 +89,7 @@ meter_core_init(&core, &private_catalog, &storage);
 key  →  language catalog (static arrays, generated)  →  text
 ```
 
-- **目录**：按 LVGL `lv_translation_add_static` 的版式生成静态包（语言码、以 NULL 结尾的键、键×语言）。运行时没有 JSON 或文件解析；来源留在 Product 里，生成 C 数组。`python tools/generate_i18n.py --product-root products/my-product` 从 `i18n/languages.json` 与每种语言一份扁平的 `<code>.json` 生成，并检查语言编号、键集合、`{n}` 占位符、缺失译文（语言未声明 `complete: false` 时为错误）、所声明字体文件的字形覆盖（阿拉伯文按 LVGL 字形变换后检查）以及 `meter_i18n_tr("...")` 字面键；`--check` 在已提交的生成文件过期时失败。来源更复杂（客户表、绑定关系）的 Product 可以保留自己的生成器，只要产出同样的翻译包与语言表。
+- **目录**：生成静态的 lv_i18n 语言包：每种语言一张 `lv_i18n_lang_t` 表（源语言排第一，作回退语言），每对 `<键>.one` / `<键>.other` 进入复数表。运行时没有 JSON 或文件解析；来源留在 Product 里，生成 C 数组。`python tools/generate_i18n.py --product-root products/my-product` 从 `i18n/languages.json` 与每种语言一份扁平的 `<code>.json` 生成，并检查语言编号、键集合、`{n}` 占位符、缺失译文（语言未声明 `complete: false` 时为错误）、所声明字体文件的字形覆盖（阿拉伯文按 LVGL 字形变换后检查）以及 `meter_i18n_tr("...")` 字面键；`--check` 在已提交的生成文件过期时失败。来源更复杂（客户表、绑定关系）的 Product 可以保留自己的生成器，只要产出同样的翻译包与语言表。 查表运行时是 vendored 的 `third_party/lv_i18n` 子模块；SDK 的 LVGL 9.1 没有 `lv_translation`。
 - **语言表**：编号属于 Product：`meter_i18n_register_languages(table, count)` 接收一张表，第 *i* 项的 id 就是 *i*（持久化的语言字节），带唯一的包列名、可选的标签/数值字体和复数规则。它替换内置默认（`0` en、`1` zh-CN），没有数量上限，必须活得比 LVGL 久。编号只能追加；重排会让每份已存设置换了含义。
 - **注册**：在建任何界面之前，从 UI 工厂的 `create()`（固件与主机运行器都会调用的唯一钩子）和/或 `meter_firmware_composition_t.locale_init` 注册：先语言表，再对每个包调用 `meter_i18n_register_pack()`。注册幂等，`meter_i18n_init()` 之后在一个 LVGL 生命周期内有效。两个运行器都会检查 `meter_catalog_t.language_count` 接受的每个 id 都已注册。
 - **唯一来源**：持久化的 `snapshot.language` 决定语言。主循环在 `present_update()` 与 `present()` 之前调用 `meter_i18n_set_language()`，LVGL 随后向每个对象发送 `LV_EVENT_TRANSLATION_LANGUAGE_CHANGED`。

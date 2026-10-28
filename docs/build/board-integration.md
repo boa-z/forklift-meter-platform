@@ -28,7 +28,7 @@ The CAN bit rate is a persisted setting (125, 250 or 500 kbit/s) shared by all o
 
 ## Display, resolution and orientation
 
-Resolution, rotation, virtual resolution and the touch device come from the SDK panel configuration and the lvgl-aic port options; the Framework does not assume a screen size. The Product UI lays itself out from `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` of the active display. A portrait variant is a different board defconfig (or Product build), not a Framework change.
+Resolution, rotation and the touch device come from the SDK panel configuration and the SDK LVGL package options (`lvgl-ui`); the Framework does not assume a screen size. The Product UI lays itself out from `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` of the active display. A portrait variant is a different board defconfig (or Product build), not a Framework change.
 
 ## Firmware update
 

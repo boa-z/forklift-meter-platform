@@ -33,7 +33,7 @@ Product manifest、SDK OneStep 构建和可选 CAN OTA 组合方式见[构建与
 
 ## 固件边界（Firmware boundary）
 
-Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。主机与固件均使用应用持有的 `third_party/lvgl` 和 `third_party/lvgl-aic` 固定依赖。固件必须关闭 SDK 旧 LVGL package，确保每个镜像只有一套 LVGL 实现。
+Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。固件运行在 SDK 自带的 LVGL 9 包（`lvgl-ui`，含 GE2D 绘制后端、MPP 解码、显示与触摸移植）上，Product UI 由 SDK 的 LVGL 线程启动；主机仿真与测试使用固定到同一 9.1 系列的 `third_party/lvgl`。翻译查表运行时是 `third_party/lv_i18n` 子模块。自带显示、触摸与 GE2D 层的 LVGL 9.6 移植在 `dev/lvgl-9.6` 分支。
 
 ## 文档（Documentation）
 
