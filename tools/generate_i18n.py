@@ -25,6 +25,9 @@ FRAMEWORK = Path(__file__).resolve().parents[1]
 # 阿拉伯字形变换表取自固件链接的同一份 LVGL（SDK 的 lvgl-ui 包），METER_LVGL_ROOT 可指向别处。
 LVGL_AP = (Path(os.environ['METER_LVGL_ROOT']) if os.environ.get('METER_LVGL_ROOT') else
            FRAMEWORK.parents[2] / 'packages/artinchip/lvgl-ui/lvgl_v9/lvgl') / 'src/misc/lv_text_ap.c'
+# LVGL 9.1（SDK 自带的版本）的阿拉伯字形表里，teh marbuta（U+0629）的词首形指向 U+FE95（teh 的孤立形），后续 LVGL 才改为孤立形：
+# 它跟在不连写的字母后面时会画成 teh。这是 SDK 里的缺陷，字体补不了，所以只提示不报错。
+SHAPING_DEFECTS = {('ة', 0xFE95): 'U+0629 跟在不连写的字母后面时，LVGL 9.1 画成 U+FE95（另一个字母的孤立形），字体里没有这个呈现形'}
 # 复数规则 -> lv_i18n 的 locale_plural_fn 函数体；新增规则时与 CLDR 对齐。
 PLURALS = {'one_other': '    return n == 1 ? LV_I18N_PLURAL_TYPE_ONE : LV_I18N_PLURAL_TYPE_OTHER;',
            'other_only': '    (void)n;\n    return LV_I18N_PLURAL_TYPE_OTHER;'}
@@ -222,9 +225,11 @@ def arabic_forms():
 
 
 def check_glyphs(manifest_path, manifest, enabled, keys, columns):
+    """逐字检查字形覆盖；返回已知的 LVGL 缺陷提示（不算错误）。"""
+    notes = []
     roles, defaults = font_roles(manifest, enabled)
     if not roles:
-        return
+        return notes
     directory = manifest_path.parent / manifest.get('font_dir', '.')
     cache = {}
 
@@ -251,12 +256,20 @@ def check_glyphs(manifest_path, manifest, enabled, keys, columns):
                 if char in forms:
                     # 不与后一字连写的字母，"词首形"就是孤立形。
                     isolated = forms[char][3]
-                    lost += [f'{char}->U+{ord(f):04X}' for f in sorted(set(forms[char]))
-                             if ord(f) not in have and (f != isolated or ord(char) not in have)]
+                    for f in sorted(set(forms[char])):
+                        if ord(f) in have or (f == isolated and ord(char) in have):
+                            continue
+                        if (char, ord(f)) in SHAPING_DEFECTS:
+                            note = f'{item["code"]}: {SHAPING_DEFECTS[(char, ord(f))]}'
+                            if note not in notes:
+                                notes.append(note)
+                        else:
+                            lost.append(f'{char}->U+{ord(f):04X}')
                 elif ord(char) not in have and unicodedata.category(char) not in ('Mn', 'Cf'):
                     lost.append(f'{char}(U+{ord(char):04X})')
             if lost:
                 fail(f'{item["code"]}: {role} 字体 {face}（含默认 {defaults[role]} 回退）画不出 {" ".join(lost[:12])}')
+    return notes
 
 
 def check_sources(product, manifest, keys):
@@ -371,7 +384,7 @@ def main(argv=None):
     try:
         manifest, enabled = load_manifest(manifest_path)
         keys, columns, report = resolve(manifest_path, manifest, enabled)
-        check_glyphs(manifest_path, manifest, enabled, keys, columns)
+        notes = check_glyphs(manifest_path, manifest, enabled, keys, columns)
         check_sources(product, manifest, keys)
         header, source = render(manifest_path, manifest, enabled, keys, columns)
     except I18nError as error:
@@ -388,6 +401,8 @@ def main(argv=None):
         else:
             output.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding='utf-8', newline='\n')
+    for note in notes:
+        print(f'NOTE: {note}')
     for code, missing in report.items():
         if missing and args.report:
             print(f'{code}: 草稿，缺 {len(missing)} 条：{", ".join(missing)}')

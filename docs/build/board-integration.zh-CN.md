@@ -30,6 +30,8 @@ CAN 速率是持久化设置（125、250 或 500 kbit/s），所有已打开的�
 
 分辨率、旋转与触摸设备来自 SDK 屏幕配置和 SDK 的 LVGL 包（`lvgl-ui`）选项；框架不假设屏幕尺寸。Product UI 按当前显示的 `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` 自行布局。竖屏版本是另一份板级 defconfig（或另一个 Product 构建），不是框架修改。
 
+SDK 源码一律不改。UI 在 SDK 的 LVGL 线程里启动，靠链接器选项 `-Wl,--wrap=lv_user_gui_init`（`main.c` 先运行 SDK 的实现，再启动 Product UI）；LVGL 选项由应用叠加在 SDK 的 `lv_conf.h` 之上。GE2D 绘制默认关闭（`AIC_FORKLIFT_DRAW_GE2D`）：UI 直接渲染到扫描输出缓冲，CPU 与 GE2D 混合绘制时台架上出现过图标闪回旧状态；MPP 解码和 SDK 的其他端口保持开启。
+
 ## 固件升级
 
 OS 镜像名随芯片变化（`<PRJ_CHIP>_os.itb`）。CAN 升级后端从 MTD 设备读出 A/B 两个 OS 分区的几何，要求两个分区相同、互不重叠且没有坏块；支持 SPI NAND 启动。Product 的升级策略给出 UDS 总线与标识（默认 CAN0、0x7E0/0x7E8）。见 [CAN 升级](../ota/can-update.zh-CN.md) 与 [存储介质升级](../ota/media-update.zh-CN.md)。

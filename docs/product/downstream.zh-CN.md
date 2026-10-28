@@ -44,7 +44,7 @@ UI 主机的合成数据源在 start 之后才推进。Product 自己启动的�
 
 `product/sources.json` 在共用源文件组之外，可声明 `rtthread`（仅固件）、`host_support`（仅链接进 Host Application）、`include_dirs`（两端共用）和 `host_include_dirs`（仅 Host）。路径必须位于 Product 内且真实存在，头文件路径必须是目录。硬件源文件和主机替身分组列出。Product 的 CMake 入口可在添加 Framework 前设置 `LV_BUILD_CONF_PATH`，启用需要的 LVGL 组件和原生文件系统后端。
 
-固件可通过 `lvgl.config` 指定 Product 内的配置头；所有翻译单元在 SDK 的 `lv_conf.h` 之前包含它，用来补充 SDK 配置没有定义的原生 `LV_*` 选项（例如 `LV_USE_BIDI`）。UI 在 SDK 的 LVGL 线程里运行，栈预算使用 `LPKG_LVGL_THREAD_STACK_SIZE`。
+固件可通过 `lvgl.config` 指定 Product 内的配置头；所有翻译单元在 SDK 的 `lv_conf.h` 之后包含它（经 `platform/rtthread/lvgl/lv_conf.h`，它用 `#include_next` 取 SDK 的文件，SDK 源码不改），用来叠加原生 `LV_*` 选项；SDK 已经定义的选项要先 `#undef` 再重新定义（例如 `LV_USE_FREETYPE`）。UI 在 SDK 的 LVGL 线程里运行，栈预算使用 `LPKG_LVGL_THREAD_STACK_SIZE`。
 
 CAN TX 端口可选的 `stop()` 接受单向静默请求。已有 TX worker 拒绝新提交、丢弃排队帧，在当前驱动写返回后选择控制器原生 listen 模式；保留 RX 缓冲区，不因协议会话复位而恢复发送。请求被接受不表示硬件已完成切换，静默及无 ACK 仍需上板验证。
 

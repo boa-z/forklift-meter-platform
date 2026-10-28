@@ -57,9 +57,8 @@ static void present_tick(lv_timer_t *timer)
     lv_timer_set_period(timer, normal ? 16 : 50);
 }
 
-/* SDK 的 LVGL 线程在显示与输入设备初始化之后调用（弱符号 aic_lvgl_app_init），之后由它的主循环运行
-   lv_timer_handler()；整个 UI 启动与周期呈现都留在这个线程里。 */
-void aic_lvgl_app_init(void)
+/* 整个 UI 启动与周期呈现都留在 SDK 的 LVGL 线程里，由它的主循环运行 lv_timer_handler()。 */
+static void meter_gui_start(void)
 {
     app.product = meter_product_get();
     const meter_product_t *product = app.product;
@@ -113,7 +112,17 @@ void aic_lvgl_app_init(void)
         LOG_E("UI present timer unavailable");
 }
 
-/* 启动全部在 aic_lvgl_app_init() 里完成；RT-Thread 的主线程不需要做事。 */
+/* SDK 的 LVGL 线程在显示与输入设备初始化之后调用 lv_user_gui_init()。SConscript 用链接器的
+   -Wl,--wrap=lv_user_gui_init 把这个调用接到下面的函数上：先跑 SDK 原来的实现，再启动本应用的 UI，
+   不需要改动 SDK 源码。 */
+extern void __real_lv_user_gui_init(void);
+void __wrap_lv_user_gui_init(void)
+{
+    __real_lv_user_gui_init();
+    meter_gui_start();
+}
+
+/* 启动全部在 LVGL 线程里完成；RT-Thread 的主线程不需要做事。 */
 int main(void)
 {
     return 0;
