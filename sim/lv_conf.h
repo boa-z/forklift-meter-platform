@@ -1,5 +1,7 @@
 #ifndef LV_CONF_H
 #define LV_CONF_H
+/* The SDK LVGL aligns draw buffers to the target cache line. */
+#define CACHE_LINE_SIZE 64
 #define LV_COLOR_FORMAT_DEFAULT LV_COLOR_FORMAT_XRGB8888
 #define LV_USE_OS LV_OS_NONE
 #define LV_MEM_SIZE (4U * 1024U * 1024U)

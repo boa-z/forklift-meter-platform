@@ -3,7 +3,7 @@ Copyright 2026 the forklift-meter-platform contributors.
 
 This distribution includes these separately licensed dependencies:
 
-* LVGL v9.1.0 (host simulation; firmware uses the SDK lvgl-ui package), MIT.
+* LVGL 9.1.0 from the Luban-Lite SDK package lvgl-ui (not copied here), MIT.
 * lv_i18n runtime 0.2.1 (third_party/lv_i18n), MIT.
 * Tabler outline icons, commit 0239805680a36bab4e1070529b6744924402d804, MIT.
 * Montserrat generated fonts distributed by LVGL, OFL-1.1.

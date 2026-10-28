@@ -5,7 +5,7 @@
 Run host commands from the Framework root with Python 3, CMake, Ninja and a C/C++ compiler; UI builds also need SDL2 development files. Initialize the pinned dependencies and install host test tools:
 
 ```text
-git submodule update --init third_party/lvgl third_party/lv_i18n third_party/iso14229 tools/ota
+git submodule update --init third_party/lv_i18n third_party/iso14229 tools/ota
 python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt pytest -r tools/ota/requirements.txt
 ```
 

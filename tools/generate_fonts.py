@@ -56,6 +56,10 @@ def main():
     text = re.sub(r'/\*.*?\*/|//[^\r\n]*', '', text, flags=re.S)
     symbols = ''.join(sorted({c for c in text if ord(c) > 127}))
     manifest_path = ROOT / 'assets/fonts.json'
+    if not (PLATFORM / FONT).is_file():
+        raise SystemExit('The reviewed CJK source font is not available: it ships with LVGL 9.2+ under ' + FONT +
+                         ', and the Framework no longer carries an LVGL tree (the SDK LVGL is 9.1). '
+                         'Check out dev/lvgl-9.6 to regenerate or verify the font subsets.')
     head = subprocess.check_output(['git', '-C', str(PLATFORM / 'third_party/lvgl'), 'rev-parse', 'HEAD'], text=True).strip()
     assert head == PIN, 'Unreviewed LVGL font source revision'
     metadata = dict(name=config.get('name', 'Meter Demo CJK'), upstream='Source Han Sans SC', source=FONT,

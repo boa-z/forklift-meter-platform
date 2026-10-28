@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
-      - run: git submodule update --init third_party/lvgl third_party/lv_i18n third_party/iso14229 tools/ota
+      - run: git submodule update --init third_party/lv_i18n third_party/iso14229 tools/ota
       - uses: actions/setup-python@v5
         with: { python-version: '3.13' }
       - name: Install host dependencies
@@ -15,9 +15,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libsdl2-dev gcc g++ cpio u-boot-tools
           python -m pip install pytest==8.3.5 -r tools/protocol/requirements.txt -r tools/serial/requirements.txt -r tools/ota/requirements.txt
-      - name: Framework without a Product
+      # The host UI builds against the SDK lvgl-ui package, which a stand-alone checkout does not have;
+      # the UI tests run where this application sits inside the SDK.
+      - name: Framework without a Product (no UI)
         run: |
-          cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_BUILD_UI=OFF
           cmake --build build-framework
           ctest --test-dir build-framework --output-on-failure
       - name: Headless with CAN OTA

@@ -14,6 +14,7 @@ complete=false 的语言缺译文时用源语言占位并在 --report 中列出�
 """
 import argparse
 import json
+import os
 import re
 import struct
 import sys
@@ -21,7 +22,9 @@ import unicodedata
 from pathlib import Path
 
 FRAMEWORK = Path(__file__).resolve().parents[1]
-LVGL_AP = FRAMEWORK / 'third_party/lvgl/src/misc/lv_text_ap.c'
+# 阿拉伯字形变换表取自固件链接的同一份 LVGL（SDK 的 lvgl-ui 包），METER_LVGL_ROOT 可指向别处。
+LVGL_AP = (Path(os.environ['METER_LVGL_ROOT']) if os.environ.get('METER_LVGL_ROOT') else
+           FRAMEWORK.parents[2] / 'packages/artinchip/lvgl-ui/lvgl_v9/lvgl') / 'src/misc/lv_text_ap.c'
 # 复数规则 -> lv_i18n 的 locale_plural_fn 函数体；新增规则时与 CLDR 对齐。
 PLURALS = {'one_other': '    return n == 1 ? LV_I18N_PLURAL_TYPE_ONE : LV_I18N_PLURAL_TYPE_OTHER;',
            'other_only': '    (void)n;\n    return LV_I18N_PLURAL_TYPE_OTHER;'}

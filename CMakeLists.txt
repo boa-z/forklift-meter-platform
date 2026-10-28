@@ -147,12 +147,22 @@ if(METER_PRODUCT_ROOT)
 endif()
 if(METER_BUILD_UI)
     find_package(SDL2 CONFIG REQUIRED)
-    # LVGL 9.1 (the version the SDK ships) takes the configuration through LV_CONF_PATH.
+    # The host simulator and the tests build against the SDK own LVGL package (lvgl-ui), the very
+    # source the firmware links, so the Framework carries no LVGL of its own. The application sits at
+    # <sdk>/application/rt-thread/forklift-meter-platform; any other checkout names the tree explicitly.
+    get_filename_component(sdk_lvgl "${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/artinchip/lvgl-ui/lvgl_v9/lvgl" ABSOLUTE)
+    set(METER_LVGL_ROOT "${sdk_lvgl}" CACHE PATH "LVGL source tree for the host UI (the SDK lvgl-ui v9 package)")
+    if(NOT EXISTS "${METER_LVGL_ROOT}/lvgl.h")
+        message(FATAL_ERROR "LVGL source not found: ${METER_LVGL_ROOT}\n"
+            "The host UI builds against the Luban-Lite SDK package lvgl-ui (lvgl_v9/lvgl). Check this application out "
+            "inside the SDK, pass -DMETER_LVGL_ROOT=<lvgl dir>, or configure with -DMETER_BUILD_UI=OFF.")
+    endif()
+    # LVGL 9.1 (the SDK version) takes the configuration through LV_CONF_PATH.
     set(LV_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sim/lv_conf.h" CACHE FILEPATH "LVGL host configuration")
     foreach(flag LV_CONF_BUILD_DISABLE_DEMOS LV_CONF_BUILD_DISABLE_EXAMPLES LV_CONF_BUILD_DISABLE_THORVG_INTERNAL)
         set(${flag} ON CACHE BOOL "" FORCE)
     endforeach()
-    add_subdirectory(third_party/lvgl EXCLUDE_FROM_ALL)
+    add_subdirectory("${METER_LVGL_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/lvgl" EXCLUDE_FROM_ALL)
     meter_library(meter_ui_common ui_common platform)
     target_link_libraries(meter_ui_common PUBLIC meter_contracts lvgl)
     add_library(meter_platform STATIC platform/host/host_display.c platform/host/host_settings.c)
