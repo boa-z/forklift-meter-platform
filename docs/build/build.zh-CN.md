@@ -5,7 +5,7 @@
 Host 命令从 Framework 根目录运行，需要 Python 3、CMake、Ninja 和 C/C++ 编译器；UI 构建还需 SDL2 开发文件。初始化固定版本依赖并安装 Host 测试工具：
 
 ```text
-git submodule update --init third_party/lv_i18n third_party/iso14229 tools/ota
+git submodule update --init third_party/iso14229 tools/ota
 python -m pip install -r tools/protocol/requirements.txt -r tools/serial/requirements.txt pytest -r tools/ota/requirements.txt
 ```
 

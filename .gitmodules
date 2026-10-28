@@ -4,6 +4,3 @@
 [submodule "tools/ota"]
 	path = tools/ota
 	url = https://github.com/boa-z/meter-ota-host.git
-[submodule "third_party/lv_i18n"]
-	path = third_party/lv_i18n
-	url = https://github.com/boa-z/lv_i18n-runtime.git

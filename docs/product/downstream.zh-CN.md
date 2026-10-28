@@ -89,7 +89,7 @@ meter_core_init(&core, &private_catalog, &storage);
 key  →  language catalog (static arrays, generated)  →  text
 ```
 
-- **目录**：生成静态的 lv_i18n 语言包：每种语言一张 `lv_i18n_lang_t` 表（源语言排第一，作回退语言），每对 `<键>.one` / `<键>.other` 进入复数表。运行时没有 JSON 或文件解析；来源留在 Product 里，生成 C 数组。`python tools/generate_i18n.py --product-root products/my-product` 从 `i18n/languages.json` 与每种语言一份扁平的 `<code>.json` 生成，并检查语言编号、键集合、`{n}` 占位符、缺失译文（语言未声明 `complete: false` 时为错误）、所声明字体文件的字形覆盖（阿拉伯文按 LVGL 字形变换后检查）以及 `meter_i18n_tr("...")` 字面键；`--check` 在已提交的生成文件过期时失败。来源更复杂（客户表、绑定关系）的 Product 可以保留自己的生成器，只要产出同样的翻译包与语言表。 查表运行时是 vendored 的 `third_party/lv_i18n` 子模块；SDK 的 LVGL 9.1 没有 `lv_translation`。
+- **目录**：生成静态的 lv_i18n 语言包：每种语言一张 `lv_i18n_lang_t` 表（源语言排第一，作回退语言），每对 `<键>.one` / `<键>.other` 进入复数表。运行时没有 JSON 或文件解析；来源留在 Product 里，生成 C 数组。`python tools/generate_i18n.py --product-root products/my-product` 从 `i18n/languages.json` 与每种语言一份扁平的 `<code>.json` 生成，并检查语言编号、键集合、`{n}` 占位符、缺失译文（语言未声明 `complete: false` 时为错误）、所声明字体文件的字形覆盖（阿拉伯文按 LVGL 字形变换后检查）以及 `meter_i18n_tr("...")` 字面键；`--check` 在已提交的生成文件过期时失败。来源更复杂（客户表、绑定关系）的 Product 可以保留自己的生成器，只要产出同样的翻译包与语言表。 查表运行时是 vendored 的 `third_party/lv_i18n` 副本；SDK 的 LVGL 9.1 没有 `lv_translation`。
 - **语言表**：编号属于 Product：`meter_i18n_register_languages(table, count)` 接收一张表，第 *i* 项的 id 就是 *i*（持久化的语言字节），带唯一的包列名、可选的标签/数值字体和复数规则。它替换内置默认（`0` en、`1` zh-CN），没有数量上限，必须活得比 LVGL 久。编号只能追加；重排会让每份已存设置换了含义。
 - **注册**：在建任何界面之前，从 UI 工厂的 `create()`（固件与主机运行器都会调用的唯一钩子）和/或 `meter_firmware_composition_t.locale_init` 注册：先语言表，再对每个包调用 `meter_i18n_register_pack()`。注册幂等，`meter_i18n_init()` 之后在一个 LVGL 生命周期内有效。两个运行器都会检查 `meter_catalog_t.language_count` 接受的每个 id 都已注册。
 - **唯一来源**：持久化的 `snapshot.language` 决定语言。主循环在 `present_update()` 与 `present()` 之前调用 `meter_i18n_set_language()`，LVGL 随后向每个对象发送 `LV_EVENT_TRANSLATION_LANGUAGE_CHANGED`。
@@ -102,4 +102,4 @@ key  →  language catalog (static arrays, generated)  →  text
 
 ### Product 字体输入
 
-在 **assets/font-config.json** 中用可选的 **text_sources** 列表声明动态 UI 文本目录。每项都是 Product 内的 UTF-8 源文件相对路径。**translations** 文件仍是主要输入；生成器合并两组输入并生成 14/20 px 字体子集。已声明文件缺失时生成和检查都会失败。运行 **python tools/generate_fonts.py --product-root products/my-product**，再加 **--check** 检查，生成的字体随 Product 一起提交。
+框架不带字体工具，也不带字体文件：字体由 Product 自己管理——OTF/TTF 源文件、许可证文本、生成脚本和生成的 C 都在 Product 里（Hangcha Product 与 Demo 各自带 `assets/fonts/SourceHanSansSC-Normal.otf` 和 `tools/generate_fonts.py`，按 Product 文字里的字符生成 14/20 px 的中文子集，并把来源哈希、转换器版本和生成文件哈希记在 `assets/fonts.json`；`--check` 不需要 Node 即可校验）。字体通过语言表的 `label_font` / `value_font` 交给界面。

@@ -33,7 +33,7 @@ See the [Build and Product guide](docs/build/build.md) for Product manifests, SD
 
 ## Firmware boundary
 
-Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`; the RT-Thread port (one runtime thread plus TX, NVM, update and watchdog workers) is in `platform/rtthread/`, see [production runtime](docs/runtime/runtime-production.md). Firmware runs on the SDK's own LVGL 9 package (`lvgl-ui`, with its GE2D draw backend, MPP decoder, display and touch ports) and starts the Product UI from the SDK LVGL thread; the host simulator and tests build that same SDK LVGL source (`METER_LVGL_ROOT` overrides the path). The lookup runtime for translations is the `third_party/lv_i18n` submodule. The LVGL 9.6 port with its own display, touch and GE2D layer lives on the `dev/lvgl-9.6` branch.
+Platform common code lives in `contracts/`, `core/`, `runtime/`, `protocols/common/`, `ui/common/`; the RT-Thread port (one runtime thread plus TX, NVM, update and watchdog workers) is in `platform/rtthread/`, see [production runtime](docs/runtime/runtime-production.md). Firmware runs on the SDK's own LVGL 9 package (`lvgl-ui`, with its GE2D draw backend, MPP decoder, display and touch ports) and starts the Product UI from the SDK LVGL thread; the host simulator and tests build that same SDK LVGL source (`METER_LVGL_ROOT` overrides the path). The lookup runtime for translations is the vendored `third_party/lv_i18n` copy. The LVGL 9.6 port with its own display, touch and GE2D layer lives on the `dev/lvgl-9.6` branch.
 
 ## Documentation
 

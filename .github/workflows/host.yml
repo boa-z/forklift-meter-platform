@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
-      - run: git submodule update --init third_party/lv_i18n third_party/iso14229 tools/ota
+      - run: git submodule update --init third_party/iso14229 tools/ota
       - uses: actions/setup-python@v5
         with: { python-version: '3.13' }
       - name: Install host dependencies
