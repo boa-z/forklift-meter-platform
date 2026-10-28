@@ -17,7 +17,7 @@
 
 | 模块与源码 | 已复用的成熟接口 | 剩余代码保留理由 |
 |---|---|---|
-| 国际化：`ui/common/i18n/meter_i18n_runtime.c`；`third_party/lv_i18n` | lv_i18n 语言包、当前语言、复数规则 | LVGL 9.1 没有 `lv_translation`。查表由 lv_i18n 提供；标签绑定、语言变化事件、显式语言查询、Product 拥有的持久化语言 ID 与字体角色仍由薄适配层负责。 |
+| 国际化：`ui/common/i18n/meter_i18n_runtime.c`；`ui/common/i18n/lv_i18n` | lv_i18n 语言包、当前语言、复数规则 | LVGL 9.1 没有 `lv_translation`。查表由 lv_i18n 提供；标签绑定、语言变化事件、显式语言查询、Product 拥有的持久化语言 ID 与字体角色仍由薄适配层负责。 |
 | 显示：`platform/rtthread/meter_board_port.c`；SDK `bsp/artinchip/drv/display/` | `mpp_fb_ioctl()`、`lv_aic_init()` | 显示层归属、额外 UI 矩形、alpha 和色键属于应用组合；有摄像头的 Product 可关闭独占。无需重做 framebuffer/渲染驱动。 |
 | 背光：`platform/rtthread/meter_board_settings.c`；SDK `bsp/artinchip/drv/display/panel/panel_com.c` | `rt_pwm_set()`、`rt_pwm_enable()`、`PWM_CMD_GET` | 面板助手只按固定周期和编译期占空比使能，不提供持久化亮度、配置底座、读回与重试。保留现有原生 PWM 适配及板级 Kconfig 参数。 |
 | CAN：`platform/rtthread/meter_board_port.c`、`meter_execution_port.c`；SDK `kernel/rt-thread/components/drivers/can/can.c` | `rt_device_read/write/control()`、RX 通知、CAN 状态 | 驱动 TX 会等待邮箱/完成事件。保留每总线 worker，避免一条总线阻塞 Core、UI 或另一条总线。会话过期和 OTA/普通流量的有界公平性也不是原始驱动队列提供的能力。 |

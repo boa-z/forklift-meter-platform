@@ -1,7 +1,7 @@
 #ifndef METER_I18N_RUNTIME_H
 #define METER_I18N_RUNTIME_H
 #include "contracts/meter_domain.h"
-#include "third_party/lv_i18n/lv_i18n.h"
+#include "ui/common/i18n/lv_i18n/lv_i18n.h"
 #include <stddef.h>
 #include <stdint.h>
 typedef struct _lv_obj_t lv_obj_t;

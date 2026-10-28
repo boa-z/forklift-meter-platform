@@ -16,13 +16,13 @@ RULES = {
     'diagnostics': ('contracts/', 'diagnostics/'),
     'runtime': ('contracts/', 'runtime/', 'protocols/common/', 'diagnostics/', 'core/'),
     'protocols/common': ('contracts/', 'protocols/common/'),
-    'ui': ('contracts/', 'ui/', 'generated/', 'third_party/lv_i18n/'),
+    'ui': ('contracts/', 'ui/', 'generated/'),
 }
 for product in PRODUCTS:
     # Product 内部如何分层由 Product 自己决定；框架只限制它能触及哪些框架目录。
     own = (product + '/',)
     RULES.update({
-        product + '/ui': ('contracts/', 'ui/common/', 'third_party/lv_i18n/') + own,
+        product + '/ui': ('contracts/', 'ui/common/') + own,
         product + '/application': ('contracts/',) + own,
         product + '/protocol': ('contracts/', 'protocols/common/') + own,
     })
