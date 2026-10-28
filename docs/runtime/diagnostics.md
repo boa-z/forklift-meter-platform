@@ -94,6 +94,38 @@ reference block in the same frame. The colour code, index and hint sit outside b
 areas. Compare photographs under normal ambient light with the same camera settings; phone
 auto-exposure still changes the result.
 
+### Let official AiPQ own the display
+
+`bg_color` hides the UI foreground, but the next LVGL pan enables it again. `test_fb -b` writes
+directly into the framebuffer, so application rendering overwrites the gradient and causes
+flicker. The display engine generates Color Bar independently. Enabling the official shell
+commands alone does not resolve display ownership.
+
+The application provides `meter_display` without SDK source changes. The UI owner drains drawing,
+disables invalidation, pauses display refresh and the first pointer input's read timer, then
+selects framebuffer 0, where the official gradient is drawn. Application/UI periodic tasks and
+watchdog supervision keep running. Use this mode on a stationary bench, outside normal operation.
+The SDK asynchronous rotated display path is currently rejected with an explicit error.
+
+1. Turn off Color Bar in AiPQ, disconnect its serial port, and run `meter_display pause` in a terminal.
+2. Wait for `display=paused`, or query `meter_display` and confirm `display=paused pending=0`.
+   `pending=1` only means queued; a failed transition logs `display request failed`.
+3. Close the terminal port, connect AiPQ, and use Pure Color and Gradient. Patterns should remain stable.
+4. If Gradient stays hidden after Pure Color, disconnect AiPQ, run `meter_display fb` in the terminal,
+   wait for `display=paused framebuffer=0`, then run `test_fb -b`. `fb` enables the UI layer and
+   selects buffer 0 while application drawing remains paused. To check pure green first, use
+   `bg_color -m 1 -r 0 -g 255 -b 0`.
+5. When finished, turn off AiPQ Color Bar, disconnect AiPQ, then run `meter_display resume` in the
+   terminal and wait for `display=app`. This restores the UI layer configuration, redraws the
+   whole screen and resumes previously running pointer input. Repeated pause/resume is idempotent.
+
+`pause`, `fb` and `resume` only change RAM state. They do not save, reset or persist the current
+gamma/CCM tuning. Resuming the app does not replace turning off AiPQ Color Bar. Reboot follows
+the existing startup configuration. Board acceptance must cover steady pure colors, stable
+gradients, switching between them, restored UI/touch and no reset during an observation window
+longer than the watchdog timeout. Host regression uses real LVGL to check both buffers remain
+untouched while paused, continued heartbeat, failure recovery and full redraw; it is not panel acceptance.
+
 ## Host capture and evidence
 
 ```sh

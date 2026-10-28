@@ -94,6 +94,7 @@ common = ['main.c', 'platform/rtthread/meter_execution_port.c',
           'platform/rtthread/meter_rtc_port.c', 'platform/rtthread/meter_watchdog_port.c',
           'platform/rtthread/meter_board_settings.c', 'platform/rtthread/meter_eeprom_i2c.c',
           'platform/rtthread/meter_board_color.c', 'platform/rtthread/meter_board_testcard.c',
+          'platform/rtthread/meter_board_display_bench.c',
           'platform/common/meter_display_gamma.c', 'platform/common/meter_display_ccm.c',
           'storage/meter_file.c', 'platform/common/meter_diag_commands.c',
           'platform/rtthread/debug/meter_debug_console.c', 'platform/rtthread/debug/meter_debug_log.c']

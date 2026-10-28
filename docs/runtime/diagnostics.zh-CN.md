@@ -86,6 +86,32 @@ SCons 通过 tools/build_identity.py 自动生成身份。生成的头文件还�
 阴影和透明层；同框保留 100 × 100 的 `#808080` 灰参考块。色值、序号和提示都在两个采样区之外。拍照请在正常环境光
 下用同一台手机、同一曝光档位比较；手机自动曝光仍会改变结果。
 
+### 官方 AiPQ 接管屏幕
+
+`bg_color` 会隐藏 UI 前景，下一次 LVGL 翻帧会重新打开它；`test_fb -b` 直接改写 framebuffer，
+应用继续绘制就会覆盖渐变并引起闪烁。Color Bar 是显示引擎的测试输出，因此能够单独正常显示。
+仅编入官方命令还不足以解决显示所有权冲突。
+
+应用侧提供 `meter_display`，无需修改 SDK 源码。命令经 UI owner 执行：排空已有绘制、禁用 invalidation、
+暂停显示刷新和首个指针设备的读取定时器，将扫描输出切到官方 Gradient 写入的缓冲 0。
+应用/UI 周期任务与看门狗继续运行；本模式用于静止台架，不能用于正常操作。
+目前不支持 SDK 的异步旋转显示路径，进入时会明确报错。
+
+1. 先在 AiPQ 关闭 Color Bar，再断开其串口连接，用终端执行 `meter_display pause`。
+2. 等待日志 `display=paused`，或执行 `meter_display` 确认 `display=paused pending=0`。
+   `pending=1` 只是请求已排队，失败时日志会输出 `display request failed`。
+3. 关闭终端串口，连接 AiPQ，使用 Pure Color 和 Gradient。暂停状态下图案应保持稳定。
+4. 若从 Pure Color 切到 Gradient 仍看不到图案，断开 AiPQ，在终端执行 `meter_display fb`，
+   等待 `display=paused framebuffer=0`，再执行 `test_fb -b`。`fb` 会重新打开 UI 并选中缓冲 0，
+   不会恢复应用绘制。可先用 `bg_color -m 1 -r 0 -g 255 -b 0` 验证纯绿。
+5. 完成后先关闭 AiPQ Color Bar、断开 AiPQ；在终端执行 `meter_display resume`，等待 `display=app`。
+   恢复时还原 UI 图层配置、整屏重绘并恢复原先运行的触摸读取。重复 pause/resume 不叠加暂停状态。
+
+`pause`、`fb`、`resume` 都只操作 RAM；不会保存、重置或固化本次 gamma/CCM 校色值。
+恢复应用不会替代 AiPQ 的 Color Bar 关闭操作。重启仍按原有启动配置运行。
+板端验收需检查纯色保持、渐变稳定、两者切换、恢复 UI/触摸，并在超过看门狗超时时间的观察窗口内确认无复位。
+Host 回归使用真实 LVGL 验证暂停时双缓冲不被写入、心跳继续、失败回退与恢复重绘；不代表实屏验收。
+
 ## Host 采集与证据
 
 ```sh

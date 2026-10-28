@@ -3,6 +3,7 @@
 #include "platform/rtthread/meter_board_port.h"
 #include "platform/rtthread/meter_board_color.h"
 #include "platform/rtthread/meter_board_testcard.h"
+#include "platform/rtthread/meter_board_display_bench.h"
 #include <lvgl.h>
 #include <aic_core.h>
 #include <aic_time.h>
@@ -106,6 +107,7 @@ bool meter_board_display_init(void)
         LOG_W("no pointer input device; UI runs without touch");
     meter_board_color_init();
     meter_board_testcard_init();
+    meter_board_display_bench_init();
     return true;
 }
 void meter_board_display_close(meter_diagnostics_t *diag)
