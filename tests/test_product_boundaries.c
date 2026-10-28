@@ -89,6 +89,30 @@ static void test_timeout_keeps_source_value_and_recovers(void)
     assert(values[0].state == METER_VALUE_ERROR); /* Never a valid zero; no separate last-good history. */
 }
 
+/* 帧在运行时一轮里按读取时刻打戳，比这一轮开头取的 now 更晚几毫秒：这样的值不是过期，更不能因无符号回绕被判成过期。 */
+static void test_timestamp_slightly_ahead_of_tick_is_not_stale(void)
+{
+    const meter_signal_def_t signals[] = {{.id = 1u, .stale_ms = 500u}};
+    const meter_catalog_t catalog = {.signals = signals, .signal_count = 1u};
+    meter_value_t values[1];
+    const meter_core_storage_t storage = {.signals = values, .signal_capacity = 1u};
+    meter_core_t core;
+    assert(meter_core_init(&core, &catalog, &storage));
+    for (uint32_t now = UINT32_MAX - 3u; now != 6u; ++now) /* 含无符号回绕 */
+    {
+        meter_update_t update = {1u, {1.0f, now + 2u, METER_VALUE_VALID, 11u}};
+        assert(meter_core_apply(&core, &update));
+        meter_core_tick(&core, now);
+        assert(values[0].state == METER_VALUE_VALID);
+    }
+    meter_update_t update = {1u, {1.0f, 1000u, METER_VALUE_VALID, 11u}};
+    assert(meter_core_apply(&core, &update));
+    meter_core_tick(&core, 1499u);
+    assert(values[0].state == METER_VALUE_VALID);
+    meter_core_tick(&core, 1500u); /* 期限不变：恰好 stale_ms 之后过期 */
+    assert(values[0].state == METER_VALUE_STALE);
+}
+
 static void test_independent_twenty_and_fifty_ms_periods(void)
 {
     const meter_periodic_frame_t fast = {.frame = {.bus = METER_BUS_CAN0, .id = 0x123u}, .period_ms = 20u};
@@ -152,6 +176,7 @@ int main(void)
     test_overlapping_bus_and_format_identity();
     test_fallback_is_scoped_and_exact_routes_win();
     test_timeout_keeps_source_value_and_recovers();
+    test_timestamp_slightly_ahead_of_tick_is_not_stale();
     test_independent_twenty_and_fifty_ms_periods();
     return 0;
 }

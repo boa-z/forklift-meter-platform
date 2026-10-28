@@ -1,4 +1,5 @@
 #include "core/meter_core.h"
+#include "contracts/meter_time.h"
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
@@ -156,7 +157,9 @@ void meter_core_tick(meter_core_t *core, uint32_t now_ms)
     {
         meter_value_t *v = &core->snapshot.signals[i];
         const uint32_t limit = catalog->signals[i].stale_ms;
-        if (v->state == METER_VALUE_VALID && limit && (uint32_t)(now_ms - v->timestamp_ms) >= limit)
+        /* 期限 = 打戳时刻 + 门限，按 RT-CAN-05 的半周期规则比较。帧是在运行时一轮里读取时才打戳的，可以比这一轮开头
+           取的 now_ms 晚几毫秒；直接做无符号减法会回绕成接近 2^32，把刚更新的值误判成过期，界面闪到“无数据”。 */
+        if (v->state == METER_VALUE_VALID && limit && meter_time_reached(now_ms, v->timestamp_ms + limit))
         {
             v->state = METER_VALUE_STALE;
             diag_stale(core, catalog->signals[i].id, now_ms);

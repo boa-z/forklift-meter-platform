@@ -1,3 +1,4 @@
+#include "contracts/meter_time.h"
 #include "diagnostics/meter_diagnostics.h"
 #include <string.h>
 void meter_diagnostics_init(meter_diagnostics_t *d)
@@ -47,7 +48,10 @@ bool meter_diagnostics_signal(const meter_diagnostics_t *d, const char *key, uin
                                          def->key,
                                          def->unit,
                                          d->domain->signals[i],
-                                         now - d->domain->signals[i].timestamp_ms,
+                                         /* 比 now 还晚的打戳（同一轮里后读的帧）按刚更新处理 */
+                                         meter_time_reached(now, d->domain->signals[i].timestamp_ms)
+                                             ? now - d->domain->signals[i].timestamp_ms
+                                             : 0u,
                                          def->stale_ms};
             return true;
         }
