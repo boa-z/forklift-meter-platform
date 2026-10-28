@@ -30,7 +30,7 @@ The CAN bit rate is a persisted setting (125, 250 or 500 kbit/s) shared by all o
 
 Resolution, rotation and the touch device come from the SDK panel configuration and the SDK LVGL package options (`lvgl-ui`); the Framework does not assume a screen size. The Product UI lays itself out from `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` of the active display. A portrait variant is a different board defconfig (or Product build), not a Framework change.
 
-The SDK sources are never edited. The UI starts inside the SDK LVGL thread through the linker option `-Wl,--wrap=lv_user_gui_init` (`main.c` runs the SDK implementation first, then starts the Product UI), and LVGL options are layered on top of the SDK `lv_conf.h` by the application. GE2D drawing is off by default (`AIC_FORKLIFT_DRAW_GE2D`): the UI renders straight into the scan-out buffers and mixing CPU and GE2D drawing there made icons flash back to an older state on the bench; MPP decoding and the other SDK ports stay on.
+The SDK sources are never edited. The UI starts inside the SDK LVGL thread through the linker option `-Wl,--wrap=lv_user_gui_init` (`main.c` runs the SDK implementation first, then starts the Product UI), and LVGL options are layered on top of the SDK `lv_conf.h` by the application. GE2D drawing is on by default; `AIC_FORKLIFT_DRAW_GE2D` switches it off for CPU-only drawing when a visual glitch needs a comparison (the UI renders straight into the scan-out buffers, so CPU and GE2D drawing share a buffer).
 
 ## Firmware update
 

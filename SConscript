@@ -53,7 +53,7 @@ release_tool.register_packaging(release, images_dir, os_image)
 # LVGL、MPP 解码与显示/触摸移植来自 SDK 的 lvgl-ui 包，SDK 源码不改：Product 用到的字号和原生选项、
 # GE2D 绘制开关都从应用侧叠加。
 Env.Append(CPPDEFINES=selection.lvgl_defines(product))
-# GE2D 绘制单元默认关闭（见 Kconfig AIC_FORKLIFT_DRAW_GE2D）；SDK 的 lv_draw_ge2d.h 只在宏未定义时才默认开启。
+# 关掉 Kconfig AIC_FORKLIFT_DRAW_GE2D 就改用 CPU 绘制（对照排查花屏用）；SDK 的 lv_draw_ge2d.h 只在宏未定义时才默认开启。
 if not GetDepend('AIC_FORKLIFT_DRAW_GE2D'):
     Env.Append(CPPDEFINES=['LV_USE_DRAW_GE2D=0'])
 

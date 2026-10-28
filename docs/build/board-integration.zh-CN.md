@@ -30,7 +30,7 @@ CAN 速率是持久化设置（125、250 或 500 kbit/s），所有已打开的�
 
 分辨率、旋转与触摸设备来自 SDK 屏幕配置和 SDK 的 LVGL 包（`lvgl-ui`）选项；框架不假设屏幕尺寸。Product UI 按当前显示的 `lv_display_get_horizontal_resolution()`/`..._vertical_resolution()` 自行布局。竖屏版本是另一份板级 defconfig（或另一个 Product 构建），不是框架修改。
 
-SDK 源码一律不改。UI 在 SDK 的 LVGL 线程里启动，靠链接器选项 `-Wl,--wrap=lv_user_gui_init`（`main.c` 先运行 SDK 的实现，再启动 Product UI）；LVGL 选项由应用叠加在 SDK 的 `lv_conf.h` 之上。GE2D 绘制默认关闭（`AIC_FORKLIFT_DRAW_GE2D`）：UI 直接渲染到扫描输出缓冲，CPU 与 GE2D 混合绘制时台架上出现过图标闪回旧状态；MPP 解码和 SDK 的其他端口保持开启。
+SDK 源码一律不改。UI 在 SDK 的 LVGL 线程里启动，靠链接器选项 `-Wl,--wrap=lv_user_gui_init`（`main.c` 先运行 SDK 的实现，再启动 Product UI）；LVGL 选项由应用叠加在 SDK 的 `lv_conf.h` 之上。GE2D 绘制默认开启；遇到画面异常需要对照时，用 `AIC_FORKLIFT_DRAW_GE2D` 关掉，改成只用 CPU 绘制（UI 直接渲染到扫描输出缓冲，CPU 与 GE2D 绘制共用一块缓冲）。
 
 ## 固件升级
 

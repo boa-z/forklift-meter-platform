@@ -20,15 +20,13 @@ if AIC_FORKLIFT_METER_PLATFORM_APP
 
 config AIC_FORKLIFT_DRAW_GE2D
     bool "Let LVGL draw widgets with the GE2D engine"
-    default n
+    default y
     help
       The SDK LVGL draws fills, images and layers with GE2D when it is enabled. The UI renders
-      straight into the two scan-out buffers (direct mode), so CPU and GE2D drawing share one buffer.
-      With GE2D drawing on, a CAN replay on the bench made icons and gauges flash back to an older
-      state, which the CPU-only drawing of the previous firmware never did. Suspected cause: the GE2D
-      draw unit invalidates the CPU cache over the area it draws without writing the CPU's pixels
-      back first. Leave it off to draw with the CPU only (the display, MPP image decoding and the
-      other SDK ports are unaffected); turn it on to compare on the board.
+      straight into the two scan-out buffers (direct mode), so CPU and GE2D drawing share one
+      buffer, and the SDK GE2D draw unit invalidates the CPU cache over the area it draws without
+      writing the CPU's pixels back first. That is a risk for artefacts, not a confirmed fault:
+      turn this off to draw with the CPU only when comparing a visual glitch on the board.
 
 menu "Board resources"
 config AIC_FORKLIFT_CAN0_DEVICE
