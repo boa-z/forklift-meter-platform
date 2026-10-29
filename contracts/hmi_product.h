@@ -91,7 +91,7 @@ typedef struct
     const struct hmi_update_policy *update;
     /** @brief 升级准入：App 给出快照与维护请求，Product 决定是否允许下载。 */
     bool (*update_admission)(const hmi_snapshot_t *snapshot, bool maintenance);
-    /** @brief 升级维护期间暂停正常协议业务、非关键周期帧与仪表界面。 */
+    /** @brief 升级维护期间暂停正常协议业务、非关键周期帧与 Product 界面。 */
     bool update_exclusive;
 } hmi_product_t;
 const hmi_product_t *hmi_product_get(void);

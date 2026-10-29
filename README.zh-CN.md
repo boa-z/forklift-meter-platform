@@ -2,7 +2,17 @@
 
 > [English](README.md)
 
-面向匠芯创 Luban-Lite SDK（RT-Thread + LVGL 9）的轻量级 HMI 应用框架。一套 SDK 支持多种板型，一套框架支持多个独立 Product；每个固件镜像只构建一个 Product。框架不含客户协议、界面或板型假设：板子由其 defconfig 描述（[板级接入](docs/build/board-integration.zh-CN.md)），Product 放在各自的仓库里（[Product 接入](docs/product/downstream.zh-CN.md)）。
+面向匠芯创 Luban-Lite SDK（RT-Thread + LVGL 9）的轻量级 HMI 应用框架。工业仪表、触摸控制屏、设备状态终端、CAN 仪表等多个独立 Product 共用同一套应用运行基础设施，不必各自重写。每个固件镜像只构建一个 Product。框架只面向 Luban-Lite，不追求跨厂商、跨 RTOS。
+
+## 职责划分
+
+| 层 | 负责 |
+|---|---|
+| Luban-Lite SDK / BSP | 板级配置、pinmux、驱动（CAN、I2C、PWM、RTC、WDT、显示、触摸）、RT-Thread、带 GE2D/MPP 的 LVGL、OTA 烧写/分区/ENV、mbedTLS |
+| Framework（本仓库） | 每个 Product 都需要的应用运行设施：一个承载 Product 回调的运行时线程与发布给 UI 的快照、在 SDK LVGL 线程里启动、设置持久化（EEPROM 或文件，去抖、掉电安全）、背光与显示色彩、对运行时与 UI 线程的看门狗监督、翻译服务、诊断命令、主机模拟器与构建工具。可选：CAN 路由、每总线发送 worker 与周期帧；CAN/UDS 固件升级 |
+| Product（独立仓库） | 目录、页面与资源、文案、通信协议（CAN、UART、MCU 链路）、业务规则、SDK 未覆盖的外设、发布身份 |
+
+Product 只需要目录和 UI；CAN、升级、持久化都是声明了才启用。板级事实来自 SDK defconfig（[板级接入](docs/build/board-integration.zh-CN.md)）；Product 放在各自的仓库里（[Product 接入](docs/product/downstream.zh-CN.md)）；[SDK 复用](docs/runtime/reuse.zh-CN.md)记录框架从 SDK 取用了什么、其余部分为何保留。
 
 ## 主机仿真（Host）
 

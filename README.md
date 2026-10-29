@@ -2,7 +2,17 @@
 
 > [中文版](README.zh-CN.md)
 
-A lightweight HMI application framework for the ArtInChip Luban-Lite SDK (RT-Thread + LVGL 9). One SDK supports several boards, one Framework supports several independent Products; each firmware image builds exactly one Product. The Framework carries no customer protocol, UI or board assumption: boards are described by their defconfig ([board integration](docs/build/board-integration.md)) and Products live in their own repositories ([Product integration](docs/product/downstream.md)).
+A lightweight HMI application framework for the ArtInChip Luban-Lite SDK (RT-Thread + LVGL 9). Several independent Products — industrial displays, touch control panels, device status terminals, CAN instruments — share one application runtime instead of each rebuilding it. Each firmware image builds exactly one Product. The Framework is made for Luban-Lite only; it is not a cross-vendor or cross-RTOS platform.
+
+## Who owns what
+
+| Layer | Owns |
+|---|---|
+| Luban-Lite SDK / BSP | Board configuration, pinmux, drivers (CAN, I2C, PWM, RTC, WDT, display, touch), RT-Thread, LVGL with GE2D/MPP, OTA burn/partition/ENV, mbedTLS |
+| Framework (this repository) | The application runtime every Product needs: one runtime thread with the Product callbacks and a published snapshot for the UI, start-up in the SDK LVGL thread, settings persistence (EEPROM or file, debounced, power-loss safe), backlight and display colour, watchdog supervision of the runtime and UI threads, translation service, diagnostics shell, host simulator and build tools. Optional: CAN routing, per-bus transmit workers and periodic frames; CAN/UDS firmware update |
+| Product (own repository) | Catalog, pages and assets, wording, communication protocols (CAN, UART, MCU links), business rules, peripherals the SDK does not cover, release identity |
+
+A Product needs only a catalog and a UI; CAN, update and persistence are switched on by declaring them. Board facts come from the SDK defconfig ([board integration](docs/build/board-integration.md)); Products live in their own repositories ([Product integration](docs/product/downstream.md)); [SDK reuse](docs/runtime/reuse.md) records what the Framework takes from the SDK and why the rest stays.
 
 ## Host
 

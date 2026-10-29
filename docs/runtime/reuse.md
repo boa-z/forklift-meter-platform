@@ -26,6 +26,22 @@ SDK paths below are relative to the SDK root; Framework paths are relative to th
 | Watchdog: `runtime/hmi_watchdog.c`, `platform/rtthread/hmi_watchdog_port.c`; SDK `bsp/artinchip/drv/wdt/drv_wdt.c` | RT-Thread timeout/start/keepalive controls | The device can reset the CPU but does not decide whether runtime/UI progress is healthy. Keep owner supervision and the startup gate; an idle-hook feed would mask a stalled UI. |
 | OTA: `update/`, `platform/rtthread/hmi_update_backend_aic.c`; SDK `packages/artinchip/ota/` and `packages/artinchip/env/` | iso14229/ISO-TP, mbedTLS SHA-256, SDK download/burn/ENV interfaces | SDK ENV may return defaults after CRC failure, and activation does not propagate every flush failure. Keep independent ENV/geometry checks, bounded OS-only package parsing, flash readback, NVM durability barrier and Product admission. |
 
+## HMI Framework review (2026-10-28)
+
+The rename to Luban-Lite HMI Framework re-checked each mechanism against the SDK actually used (Luban-Lite 1.3.2 in this tree). Nothing here was rewritten on top of an SDK service; the decisions are:
+
+| Mechanism | SDK candidate | Decision |
+|---|---|---|
+| Runtime thread, action queue, published snapshot (`hmi_execution_port.c`) | RT-Thread message queue, semaphore, mutex | Kept. It *is* built from native IPC; it adds only single ownership of Core and a copy under one mutex, which no SDK service provides. No event bus was added. |
+| UI start-up and present loop | `lv_user_gui_init()` in the SDK LVGL thread, `lv_timer` | Kept as is: the SDK thread runs the UI, the Framework only links into it (`--wrap`) and adds an `lv_timer`. |
+| Per-bus CAN transmit workers, periodic frames | RT-Thread CAN device | Kept for CAN Products; a Product without routes or periodic frames now starts none of them. The driver write blocks on the mailbox, so a stalled bus must not stall Core or the UI. |
+| Asynchronous NVM worker, slots, record format | `packages/third-party/at24cxx`, DFS files | Kept. `at24cxx` allocates from the heap, fixes the chip type at compile time and has no read retry or "uncertain write" result; the Framework driver is heap-free, board-tuned and part of the power-loss-safe slot protocol. The file backend already uses DFS. |
+| UDS/ISO-TP update | `packages/artinchip/uds` (`AIC_UDS_INTERFACE`), `packages/artinchip/ota` | UDS protocol layer unchanged on purpose (iso14229 pinned, existing tool and package format). Burn, partitions and ENV keep using the SDK OTA package. |
+| Backlight, display colour, RTC, watchdog, SHA-256 | PWM, DE ioctl, RTC device, WDT device, mbedTLS | Already thin adapters over the SDK drivers (see below). |
+| Structured trace and diagnostics shell | ulog, MSH | Kept: ulog prints, the trace keeps a bounded binary history the shell can dump after the fact; commands are native MSH. |
+
+Removed in this review: the Demo-only catalog parts (`hmi_monitor_def_t`, `HMI_SOURCE_DEMO`) and two functions without callers (`hmi_core_snapshot`, `hmi_board_update_started`). Not added: signal validity or timeout states, a generic HAL, plugins or a runtime Product registry.
+
 ## Current SDK reuse boundaries and acceptance
 
 These decisions follow the current SDK source:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host 捕获使用 python-can 后端及原生日志 Writer；不发送车辆命令。"""
+"""Host 捕获使用 python-can 后端及原生日志 Writer；不发送设备命令。"""
 import argparse
 import time
 import can

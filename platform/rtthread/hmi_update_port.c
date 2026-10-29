@@ -471,10 +471,6 @@ bool hmi_board_update_maintenance(void)
     rt_mutex_release(&lock);
     return value;
 }
-bool hmi_board_update_started(void)
-{
-    return shared.started;
-}
 static int hmi_update(int argc, char **argv)
 {
     if (!shared.started)

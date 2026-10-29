@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""使用 pyserial 保存 UART 原始字节并发送原生 MSH 命令；不解释车辆协议。"""
+"""使用 pyserial 保存 UART 原始字节并发送原生 MSH 命令；不解释设备协议。"""
 import argparse
 import sys
 import time

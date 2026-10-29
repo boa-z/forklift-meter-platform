@@ -245,7 +245,3 @@ bool hmi_core_action(hmi_core_t *core, const hmi_action_t *action)
         return false;
     }
 }
-const hmi_snapshot_t *hmi_core_snapshot(const hmi_core_t *core)
-{
-    return core ? &core->snapshot : NULL;
-}

@@ -41,8 +41,6 @@ bool hmi_core_action(hmi_core_t *core, const hmi_action_t *action);
 bool hmi_core_parameter_valid(const hmi_core_t *core, uint16_t id, float value);
 /** @brief 校验通过后写入参数；失败时不改变现值。 */
 bool hmi_core_parameter(hmi_core_t *core, uint16_t id, float value);
-/** @brief 返回只读快照，其生命周期与 core 相同。 */
-const hmi_snapshot_t *hmi_core_snapshot(const hmi_core_t *core);
 /** @brief 绑定诊断及公共 Domain 视图；目录/存储/诊断实例须覆盖绑定期，owner 线程调用。 */
 void hmi_core_bind_diagnostics(hmi_core_t *core, hmi_diagnostics_t *diag);
 #endif

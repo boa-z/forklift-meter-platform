@@ -12,8 +12,6 @@ bool hmi_board_update_maintenance(void);
 bool hmi_board_update_frame(const hmi_can_frame_t *frame);
 /** @brief 驱动 UDS/ISO-TP 超时，不执行 Flash。 */
 void hmi_board_update_protocol(void);
-/** @brief 查询 CAN 接收所有者是否已移交给 Protocol worker。 */
-bool hmi_board_update_started(void);
 /** @brief 查询 Product 独占维护模式；该模式暂停正常业务。 */
 bool hmi_board_update_exclusive(void);
 /** @brief 在锁内复制只读展示值，由 App 交给 UI；不暴露 worker 内存。 */

@@ -1,5 +1,5 @@
 /**
- * 叉车仪表 CAN OTA 的 EcuBus-Pro 脚本。
+ * Luban-Lite HMI CAN OTA 的 EcuBus-Pro 脚本。
  *
  * 序列本身只能表达定长请求，而 FD10 Manifest 的 size 与 SHA256 必须跟着镜像走。
  * 所以这里只做序列做不到的部分：读 ota.manifest.json、核对镜像、生成 148 字节

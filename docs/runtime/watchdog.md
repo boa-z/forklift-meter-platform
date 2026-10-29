@@ -10,7 +10,7 @@ watchdog may be fed. It opens no device, creates no thread and holds no lock, so
 drive every branch. `platform/rtthread/hmi_watchdog_port.c` owns the board half: the `"wdt"`
 device, one lowest-priority thread, the keepalive call and the `hmi_watchdog` shell command.
 
-The watch list is the two resident threads that must keep running for the instrument to stay
+The watch list is the two resident threads that must keep running for the application to stay
 truthful: the runtime thread (`app`) and the UI. Counters come from `hmi_execution_liveness()`,
 which reads their loop counters. The watchdog never inspects another owner's internals.
 
@@ -78,7 +78,7 @@ is the intended margin between the 3-4 s stall limits and the 8 s hardware timeo
 
 The stall limits are engineering budgets, not measured worst cases. Target evidence for the slowest
 observed owner period, for the longest legitimate blocking section and for a deliberate fault
-injection is still required before a vehicle claim. Register write protection
+injection is still required before a safety claim. Register write protection
 (`RT_DEVICE_CTRL_WDT_EN_REG`) is deliberately left off, because this framework has no hardware
 evidence yet that keepalive still works with it enabled.
 

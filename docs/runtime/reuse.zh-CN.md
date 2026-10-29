@@ -26,6 +26,22 @@
 | 看门狗：`runtime/hmi_watchdog.c`、`platform/rtthread/hmi_watchdog_port.c`；SDK `bsp/artinchip/drv/wdt/drv_wdt.c` | RT-Thread timeout/start/keepalive 控制 | 设备负责复位 CPU，不判断 runtime/UI 是否健康推进。保留 owner 监督与启动门禁；改为空闲钩子喂狗会掩盖 UI 停滞。 |
 | OTA：`update/`、`platform/rtthread/hmi_update_backend_aic.c`；SDK `packages/artinchip/ota/` 与 `packages/artinchip/env/` | iso14229/ISO-TP、mbedTLS SHA-256、SDK 下载/烧写/ENV 接口 | SDK ENV 在 CRC 失败后可能返回默认值，激活接口也不完整传递 flush 失败。保留独立 ENV/几何校验、有界 OS-only 包解析、Flash 读回、NVM 持久化屏障和 Product 准入。 |
 
+## HMI 框架复核（2026-10-28）
+
+更名为 Luban-Lite HMI Framework 时，按本树实际使用的 SDK（Luban-Lite 1.3.2）逐项复核了各机制。没有任何一项被改写到 SDK 服务之上，结论如下：
+
+| 机制 | SDK 中的候选 | 结论 |
+|---|---|---|
+| 运行时线程、动作队列、发布快照（`hmi_execution_port.c`） | RT-Thread 消息队列、信号量、互斥量 | 保留。它本身就由原生 IPC 搭成，只额外提供 Core 的单一归属与一次加锁复制，SDK 没有对应服务。没有新增事件总线。 |
+| UI 启动与呈现循环 | SDK LVGL 线程里的 `lv_user_gui_init()`、`lv_timer` | 原样保留：UI 由 SDK 线程运行，框架只经 `--wrap` 接入并加一个 `lv_timer`。 |
+| 每总线 CAN 发送 worker、周期帧 | RT-Thread CAN 设备 | CAN Product 保留；没有路由也没有周期帧的 Product 现在一个都不启动。驱动写会在邮箱上阻塞，总线卡住时不能拖住 Core 与 UI。 |
+| 异步 NVM worker、槽位、记录格式 | `packages/third-party/at24cxx`、DFS 文件 | 保留。`at24cxx` 从堆上分配、在编译期固定芯片型号、没有读重试也没有“写入结果不确定”的区分；框架驱动不用堆、按板子调过时序，并且是掉电安全槽位协议的一部分。文件后端本来就用 DFS。 |
+| UDS/ISO-TP 升级 | `packages/artinchip/uds`（`AIC_UDS_INTERFACE`）、`packages/artinchip/ota` | 有意不改 UDS 协议层（iso14229 固定版本、现有工具与包格式）。烧写、分区与 ENV 继续使用 SDK OTA 包。 |
+| 背光、显示色彩、RTC、看门狗、SHA-256 | PWM、DE ioctl、RTC 设备、WDT 设备、mbedTLS | 本来就是 SDK 驱动之上的薄适配（见下文）。 |
+| 结构化 Trace 与诊断命令 | ulog、MSH | 保留：ulog 负责打印，Trace 保存有界的二进制历史供事后在命令行导出；命令本身是原生 MSH。 |
+
+本次删除：只属于 Demo 的目录内容（`hmi_monitor_def_t`、`HMI_SOURCE_DEMO`）以及两个没有调用者的函数（`hmi_core_snapshot`、`hmi_board_update_started`）。没有新增：信号有效期或超时状态、通用 HAL、插件、运行期 Product 注册表。
+
 ## 当前 SDK 的复用边界与验收
 
 以下取舍以当前 SDK 的实际源码为依据：
