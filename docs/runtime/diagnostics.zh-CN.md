@@ -88,7 +88,7 @@ Windows 将 /dev/ttyUSB0 替换为明确的 COM 口。安装依赖与运行工�
 
 ## 验证与限制
 
-HOST_PASS 要求纯框架构建、架构、diagnostics、trace、查询格式、生产 MSH 函数体、串口工具与构建身份测试通过。MSH Host 测试只替换原生 RT API/注册，并断言输出发生在 owner 锁外，还验证原生 ULog 等级、告警限频和正常流量 流量静默；串口测试包含 pyserial loopback，两者均不能证明物理 UART 正常。Linux 为默认 CI。
+HOST_PASS 要求纯框架构建与架构门禁通过。诊断查询格式、MSH 前端、串口工具与构建身份没有专门的 Host 测试，在实板检查。Linux 为默认 CI。
 
 IMAGE_READY 要求当前 SDK 固件构建与产物哈希；BOARD_PASS 还须与该镜像绑定的物理 boot/MSH/fixture 证据。没有可用板端串口时报告 BOARD_NOT_RUN。不提供持久化 trace、coredump、网络日志、自研 UART parser 或无关 Demo 页面。
 

@@ -65,7 +65,7 @@ hmi storage
 
 Storage reports backend, state, dirty, RAM/in-flight/durable revisions, queue depth, raw backend error, service result, degraded recovery and actual language/brightness/units. Queries render published copies and never access media. Poll DURABLE and dirty=0 before an intentional reboot; after reboot verify settings and sequence.
 
-Host covers every byte cut while reusing an inactive slot, identity/schema/CRC/seal corruption, conflicting sequences, queued supersession, stale completion, time wrap, finite debounce, revision exhaustion, cancellation, reconciliation, EEPROM page splitting/WP/NACK/timeout/sync failure and real file restart. Demo SDL restart tests persist English/Chinese and units, and reject damaged slots without rewriting them. Run CMake/CTest; Linux remains the CI target.
+Host tests keep only the record format golden bytes and single-byte corruption check (test_hmi_record.c). Slot rotation, debounce, cancellation, EEPROM I2C behavior and restart recovery are verified on the board and through Product tests. Run CMake/CTest; Linux remains the CI target.
 
 Current acceptance on 2026-09-28: BOARD_INIT, SETTINGS_SAVE, NOOP_SAVE, VALID_INIT_REJECT, SOFT_REBOOT_RESTORE and NORMAL_CAN_SAVE are PASS on the application-only bounded-read recovery image. Platform commit is 4fca8762243f9bb40cb753abd553f0808865cce0 with the recorded dirty-source snapshot; image SHA256 is bf5ef8efa339376ffe83bd526201f0e62f7b30ff69c85a5608bf534a39ce3635. SDK commit 9b78386dcaa54326487c8b208b2b7104d4b56c9b has the same tracked tree as baseline 7608a666. Local image manifests retain exact build identity, source snapshots and raw UART/CAN evidence.
 

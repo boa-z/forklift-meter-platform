@@ -65,7 +65,7 @@ hmi storage
 
 Storage 输出 backend、state、dirty、RAM/inflight/durable revision、队列深度、底层错误、服务结果、降级状态与实际语言/亮度/单位。查询只渲染发布副本，不访问介质。主动重启前确认 DURABLE 且 dirty=0，重启后核对设置和序号。保存目标版本与异步命令结果分开。
 
-Host 覆盖复用非活动槽时每一字节中断、身份/schema/CRC/seal 损坏、同代次冲突、pending 合并、迟到完成、时间回绕、最大防抖、序号耗尽、取消、协调，以及 EEPROM 跨页/WP/NACK/超时/sync 失败和真实文件重启。Demo SDL 重启验证中英文与单位恢复，损坏槽拒绝且不重写。执行 CMake/CTest；Linux 仍为默认 CI 平台。
+Host 测试只保留记录格式黄金字节与逐字节损坏检查（test_hmi_record.c）；槽轮换、防抖、取消、EEPROM I2C 行为与重启恢复由实板及 Product 测试验证。执行 CMake/CTest；Linux 仍为默认 CI 平台。
 
 2026-09-28 当前验收：仅应用层有界读恢复镜像的 BOARD_INIT、SETTINGS_SAVE、NOOP_SAVE、VALID_INIT_REJECT、SOFT_REBOOT_RESTORE 和 NORMAL_CAN_SAVE 均为 PASS。Platform 提交为 4fca8762243f9bb40cb753abd553f0808865cce0，并绑定已记录的脏源码快照；image SHA256 为 bf5ef8efa339376ffe83bd526201f0e62f7b30ff69c85a5608bf534a39ce3635。SDK 提交 9b78386dcaa54326487c8b208b2b7104d4b56c9b 的受跟踪目录树与基线 7608a666 相同。本地镜像清单保留完整构建身份、源码快照和原始 UART/CAN 证据。
 
