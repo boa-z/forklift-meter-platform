@@ -30,28 +30,28 @@ flowchart LR
 
 **执行位置：通过 `win_cmd.bat` 打开的 SDK CMD 窗口，当前目录为 SDK 根目录。**
 
-**捷径：** defconfig 里有 `CONFIG_AIC_FORKLIFT_CAN_UPDATE=y`，且 Product 声明了版本脚本时，只需 `lunch` 和 `m`。版本号会自动生成，构建结束后 `output/<工程>/ota/<版本>/` 里就有现成的升级包。可以跳过下面的手工变量和 1.3 节，直接进入 1.4 节或[第 2 步](#2-通过-can-刷入激活并确认)。见[用默认值代替变量](../build/build.zh-CN.md#用默认值代替变量)。Product 没有声明版本脚本时，下面的手工方式仍然有效。
+**捷径：** defconfig 里有 `CONFIG_AIC_HMI_CAN_UPDATE=y`，且 Product 声明了版本脚本时，只需 `lunch` 和 `m`。版本号会自动生成，构建结束后 `output/<工程>/ota/<版本>/` 里就有现成的升级包。可以跳过下面的手工变量和 1.3 节，直接进入 1.4 节或[第 2 步](#2-通过-can-刷入激活并确认)。见[用默认值代替变量](../build/build.zh-CN.md#用默认值代替变量)。Product 没有声明版本脚本时，下面的手工方式仍然有效。
 
 应用依赖初始化见[构建指南](../build/build.zh-CN.md)。先用 `list` 确认 Framework 配置编号。示例为 `12`，以你的 SDK 实际列表为准。
 
 以公开 Demo 的候选版本为例：
 
 ```bat
-rem The Product comes from CONFIG_AIC_FORKLIFT_PRODUCT_ROOT in the defconfig. Uncomment to override it for this build:
-rem set "METER_PRODUCT_ROOT=%CD%/application/rt-thread/forklift-meter-platform/products/demo"
-set "METER_CAN_UPDATE=1"
-set "METER_UPDATE_VERSION=ota-demo-b"
-rem 必须与 Product 的 meter_update_policy_t.hardware 相同 / Must match Product hardware; otherwise the build fails.
-set "METER_BOARD_ID=reference-board"
+rem The Product comes from CONFIG_AIC_HMI_PRODUCT_ROOT in the defconfig. Uncomment to override it for this build:
+rem set "HMI_PRODUCT_ROOT=%CD%/application/rt-thread/luban-lite-hmi/products/demo"
+set "HMI_CAN_UPDATE=1"
+set "HMI_UPDATE_VERSION=ota-demo-b"
+rem 必须与 Product 的 hmi_update_policy_t.hardware 相同 / Must match Product hardware; otherwise the build fails.
+set "HMI_BOARD_ID=reference-board"
 lunch 12
 m
 ```
 
-**通过判据：** SDK 报告构建成功，所选目标的 `output/.../images/` 包含 `d13x_os.itb` 和整板 `.img`。编译开始前，SCons 会打印解析后的 Product 根目录、Product 身份和板卡别名，请确认这三项就是受测 Product；复用的 CMD 窗口往往还带着上一次的 `METER_PRODUCT_ROOT`。先把候选 OS 另存到独立目录，避免被下一次构建覆盖。
+**通过判据：** SDK 报告构建成功，所选目标的 `output/.../images/` 包含 `d13x_os.itb` 和整板 `.img`。编译开始前，SCons 会打印解析后的 Product 根目录、Product 身份和板卡别名，请确认这三项就是受测 Product；复用的 CMD 窗口往往还带着上一次的 `HMI_PRODUCT_ROOT`。先把候选 OS 另存到独立目录，避免被下一次构建覆盖。
 
-SDK 把 OTA 包版本限制在 31 个字符。更长的面向用户的版本（最多 47 个字符，例如带产品名、物料号和构建日期的版本）可以用 `set "METER_DISPLAY_VERSION=..."`（或 Framework 封装器的 `--display-version`）单独设置。仪表的软件版本页和 `meter info`（`display_version`）显示它；CAN 升级身份、升级包和激活校验仍使用 `METER_UPDATE_VERSION`（`firmware_version`）。显示版本不依赖 CAN OTA：没有设置 `METER_CAN_UPDATE` 的构建同样显示它。未设置时，带 CAN OTA 的构建显示 OTA 版本，其他构建显示 `--`。
+SDK 把 OTA 包版本限制在 31 个字符。更长的面向用户的版本（最多 47 个字符，例如带产品名、物料号和构建日期的版本）可以用 `set "HMI_DISPLAY_VERSION=..."`（或 Framework 封装器的 `--display-version`）单独设置。仪表的软件版本页和 `hmi info`（`display_version`）显示它；CAN 升级身份、升级包和激活校验仍使用 `HMI_UPDATE_VERSION`（`firmware_version`）。显示版本不依赖 CAN OTA：没有设置 `HMI_CAN_UPDATE` 的构建同样显示它。未设置时，带 CAN OTA 的构建显示 OTA 版本，其他构建显示 `--`。
 
-候选固件也应启用 OTA，才能继续通过 CAN 升级。内嵌的 `METER_UPDATE_VERSION` 必须与打包版本相同：修改清单不会改变固件身份。版本可用字母、数字、`_`、`.`、`+`、`-`，长度为 1–31 个字符。
+候选固件也应启用 OTA，才能继续通过 CAN 升级。内嵌的 `HMI_UPDATE_VERSION` 必须与打包版本相同：修改清单不会改变固件身份。版本可用字母、数字、`_`、`.`、`+`、`-`，长度为 1–31 个字符。
 
 其他 Product 应使用各自的 Product 目录和硬件别名。
 
@@ -66,10 +66,10 @@ SDK 把 OTA 包版本限制在 31 个字符。更长的面向用户的版本（�
 ```bat
 set "SDK_ROOT=C:\sdk\luban-lite"
 set "CANDIDATE_OS=C:\firmware\ota-demo-b\d13x_os.itb"
-cd /d "%SDK_ROOT%\application\rt-thread\forklift-meter-platform"
+cd /d "%SDK_ROOT%\application\rt-thread\luban-lite-hmi"
 python --version
 python -m pip install -r tools/ota/requirements.txt
-cmake -S . -B build-package -G Ninja -DMETER_BUILD_UI=OFF
+cmake -S . -B build-package -G Ninja -DHMI_BUILD_UI=OFF
 cmake --build build-package --target meter-ota-inspect
 set "METER_OTA_INSPECTOR=%CD%\build-package\meter-ota-inspect.exe"
 ```
@@ -80,13 +80,13 @@ set "METER_OTA_INSPECTOR=%CD%\build-package\meter-ota-inspect.exe"
 
 ### 1.3 设置参数并生成更新包
 
-**执行位置：Host CMD 窗口。** 参数应与串口 `meter_update info` 或[设备查询](#read-device)的返回值核对。下面是 Demo 示例，不是其他板卡可直接套用的默认值。
+**执行位置：Host CMD 窗口。** 参数应与串口 `hmi_update info` 或[设备查询](#read-device)的返回值核对。下面是 Demo 示例，不是其他板卡可直接套用的默认值。
 
 | 变量 | 含义 | 来源或核对方法 |
 |---|---|---|
 | `PRODUCT_ID` | 产品身份 | 设备返回的 `product` |
 | `HARDWARE_ID` | 硬件别名 | 设备返回的 `hardware` |
-| `OTA_VERSION` | 新固件版本 | 候选构建时的 `METER_UPDATE_VERSION` |
+| `OTA_VERSION` | 新固件版本 | 候选构建时的 `HMI_UPDATE_VERSION` |
 | `OS_FILE` | 包内 OS 文件名 | 设备返回的 `os_file` |
 | `CAPACITY_BYTES` | 非活动 OS 分区容量，单位为字节 | 设备返回的 `candidate_capacity` |
 
@@ -156,15 +156,15 @@ flowchart TD
 **执行位置：板端 UART 串口，115200 波特率、8N1。** 将 PCAN 接到 CAN0 H/L 和参考地，检查终端电阻。板端应运行应用，而不是停留在 USB 下载模式。
 
 ```text
-meter info
-meter can 0
-meter storage
-meter_update info
+hmi info
+hmi can 0
+hmi storage
+hmi_update info
 ```
 
 **通过判据：** 应用可响应，记下当前版本和 CAN0 实际速率；升级诊断返回 `backend_supported=true`。Demo 还要求设置存储就绪，其他 Product 按自身存储和准入策略核对。
 
-没有 `meter_update` 命令时，先做首次 USB 安装。后端不支持时，先根据 `backend_reason` 排查。电脑能发现 PCAN 适配器，不代表已与板端正常通信。
+没有 `hmi_update` 命令时，先做首次 USB 安装。后端不支持时，先根据 `backend_reason` 排查。电脑能发现 PCAN 适配器，不代表已与板端正常通信。
 
 <a id="read-device"></a>
 
@@ -192,8 +192,8 @@ python -m tools.ota --channel %CAN_CHANNEL% --bitrate %BITRATE% ^
 **先在板端 UART 串口执行：**
 
 ```text
-meter_update maintenance on
-meter_update info
+hmi_update maintenance on
+hmi_update info
 ```
 
 **通过判据：** `maintenance=1`、`backend_supported=true`，并满足 Product 准入和存储条件。仅打印 `maintenance requested` 只代表请求已提交。
@@ -238,15 +238,15 @@ python -m tools.ota --channel %CAN_CHANNEL% --bitrate %BITRATE% ^
 **执行位置：重启后的板端 UART 串口。** 保存启动日志，包含原生启动槽位选择信息。
 
 ```text
-meter info
-meter can 0
-meter storage
-meter_update info
-meter_update maintenance off
-meter_update info
+hmi info
+hmi can 0
+hmi storage
+hmi_update info
+hmi_update maintenance off
+hmi_update info
 ```
 
-如果新的 `meter can 0` 返回值不同，先更新 Host 中的 `BITRATE`，再从 Host CMD 查询：
+如果新的 `hmi can 0` 返回值不同，先更新 Host 中的 `BITRATE`，再从 Host CMD 查询：
 
 ```bat
 python -m tools.ota --channel %CAN_CHANNEL% --bitrate %BITRATE% ^
@@ -274,7 +274,7 @@ python -m tools.ota --channel %CAN_CHANNEL% --bitrate %BITRATE% ^
   update "ota-output\%OTA_VERSION%"
 ```
 
-改动设备之前会先询问确认，脚本里加 `--yes`。命令通过打开 UDS 编程会话（服务 `0x10`，子功能 `0x02`，ECU 刷写的通行做法）经 CAN 请求维护模式，不需要串口。是否允许升级仍由 Product 的 `update_admission` 钩子决定（现有 Product 只要提出维护请求就允许；以后要加“车辆静止”之类更严格的规则，只改这个钩子，不动主机和协议）。请求随会话存在：退出会话、S3 超时或激活后重启都会撤销。若设备几秒内没有进入维护模式（旧固件，或 Product 拒绝），命令会提示串口命令 `meter_update maintenance on` 作为回退，并最多再等待 `--wait-maintenance` 秒（默认 120）。产品或硬件不匹配、设备已经运行该版本（要重刷用 `--force`）、或设备上已有别的升级会话时，命令会在改动设备之前停下。中断之后重新运行即可：已校验的候选包不会重写，已激活的只重启。
+改动设备之前会先询问确认，脚本里加 `--yes`。命令通过打开 UDS 编程会话（服务 `0x10`，子功能 `0x02`，ECU 刷写的通行做法）经 CAN 请求维护模式，不需要串口。是否允许升级仍由 Product 的 `update_admission` 钩子决定（现有 Product 只要提出维护请求就允许；以后要加“车辆静止”之类更严格的规则，只改这个钩子，不动主机和协议）。请求随会话存在：退出会话、S3 超时或激活后重启都会撤销。若设备几秒内没有进入维护模式（旧固件，或 Product 拒绝），命令会提示串口命令 `hmi_update maintenance on` 作为回退，并最多再等待 `--wait-maintenance` 秒（默认 120）。产品或硬件不匹配、设备已经运行该版本（要重刷用 `--force`）、或设备上已有别的升级会话时，命令会在改动设备之前停下。中断之后重新运行即可：已校验的候选包不会重写，已激活的只重启。
 
 **通过判据：** 退出码 `0` 且输出 `升级完成`。检查项包括运行版本、产品与硬件、升级后端和错误码；维护模式仍然开启时给出警告。命令看不到屏幕、触摸和正常 CAN 通信，这些仍需按步骤 2.5 在设备上确认。
 
@@ -296,7 +296,7 @@ python -m tools.ota.gui
 
 板上还没有启用 OTA 的正常运行应用时，需要先安装一次基线：
 
-1. 按步骤 1.1 设置 `METER_CAN_UPDATE=1`，构建基线版本 `ota-demo-a`。
+1. 按步骤 1.1 设置 `HMI_CAN_UPDATE=1`，构建基线版本 `ota-demo-a`。
 2. 保存整板 `.img` 和构建身份。
 3. 进入板卡 USB 下载模式，按板卡镜像和分区规范，用配套 USB 工具写入 `.img`。
 4. 退出下载模式并正常启动，通过步骤 2.1 的串口和后端检查。
@@ -316,7 +316,7 @@ USB 安装整板镜像，CAN OTA 只更新非活动 OS 分区。停留在 USB �
 | Probe 超时或 bus-off | 检查应用状态、CAN0 接线、终端电阻和实际速率 |
 | 后端不支持 | 根据 `backend_reason` 解决后端就绪问题 |
 | 身份或分区不匹配 | 对照设备核对候选选择和打包参数 |
-| 要求维护模式或拒绝准入 | 检查 `meter_update info`、Product 条件和存储就绪状态 |
+| 要求维护模式或拒绝准入 | 检查 `hmi_update info`、Product 条件和存储就绪状态 |
 | 传输中断或只有进度 | 检查设备状态，此时尚未证明候选验证通过 |
 | 激活失败或 `WAIT_DURABLE` | 检查存储和落盘版本，不绕过持久化条件 |
 | 重启后仍是旧版本 | 检查 UART 槽位选择和 `version`，不能判为验收通过 |

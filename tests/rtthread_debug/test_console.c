@@ -1,4 +1,4 @@
-#include "platform/rtthread/debug/meter_debug_console.h"
+#include "platform/rtthread/debug/hmi_debug_console.h"
 #include <assert.h>
 #include <rtthread.h>
 #include <stdarg.h>
@@ -20,7 +20,7 @@ int rt_mutex_init(struct rt_mutex *m, const char *name, int flags)
     (void)flags;
     m->name = name;
     m->depth = 0;
-    if (!strcmp(name, "meter.state"))
+    if (!strcmp(name, "hmi.state"))
         owner = m;
     return 0;
 }
@@ -57,24 +57,24 @@ int rt_kprintf(const char *format, ...)
     used += (size_t)n;
     return n;
 }
-extern int test_msh_meter(int argc, char **argv);
+extern int test_msh_hmi(int argc, char **argv);
 static int query(const char *name, const char *arg)
 {
-    char *argv[] = {"meter", (char *)name, (char *)arg};
+    char *argv[] = {"hmi", (char *)name, (char *)arg};
     used = 0;
     output[0] = 0;
-    return test_msh_meter(arg ? 3 : 2, argv);
+    return test_msh_hmi(arg ? 3 : 2, argv);
 }
 int main(void)
 {
-    static meter_diagnostics_t diag;
-    const meter_build_info_t info = {.product = "test", .platform_revision = "abcdef"};
+    static hmi_diagnostics_t diag;
+    const hmi_build_info_t info = {.product = "test", .platform_revision = "abcdef"};
     assert(query("info", NULL) != 0);
-    meter_diagnostics_init(&diag);
-    assert(meter_debug_init(&diag, &info));
-    meter_debug_lock();
-    meter_trace_append(&diag.trace, 120, METER_TRACE_CAN, CAN_RX_DROP, 1, 0);
-    meter_debug_unlock();
+    hmi_diagnostics_init(&diag);
+    assert(hmi_debug_init(&diag, &info));
+    hmi_debug_lock();
+    hmi_trace_append(&diag.trace, 120, HMI_TRACE_CAN, CAN_RX_DROP, 1, 0);
+    hmi_debug_unlock();
     assert(query("info", NULL) == 0 && strstr(output, "platform : abcdef"));
     assert(query("trace", "dump") == 0 && strstr(output, "CAN RX_DROP"));
     assert(diag.trace.count == 1);
@@ -85,22 +85,22 @@ int main(void)
     for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++)
         assert(query(names[i], NULL) == 0);
     /* 正常流量保持静默；WARN 限频，终态错误必须是 ERROR。 */
-    meter_debug_lock();
-    meter_trace_append(&diag.trace, 0, METER_TRACE_DOMAIN, DOMAIN_STALE, 0, 0);
-    meter_trace_append(&diag.trace, 0, METER_TRACE_CAN, CAN_RX_DROP, 0, 0);
-    meter_trace_append(&diag.trace, 10, METER_TRACE_CAN, CAN_RX_DROP, 0, 0);
-    meter_trace_append(&diag.trace, 1000, METER_TRACE_CAN, CAN_RX_DROP, 0, 0);
-    meter_trace_append(&diag.trace, 1100, METER_TRACE_RUNTIME, RUNTIME_CONNECT, 0, 0);
-    meter_trace_append(&diag.trace, 1200, METER_TRACE_PRODUCT, PRODUCT_FAILED, 17, 0x05040000);
-    meter_trace_append(&diag.trace, 1201, METER_TRACE_PRODUCT, PRODUCT_READY, 0, 0);
-    meter_debug_unlock();
-    meter_debug_log_drain();
+    hmi_debug_lock();
+    hmi_trace_append(&diag.trace, 0, HMI_TRACE_DOMAIN, DOMAIN_STALE, 0, 0);
+    hmi_trace_append(&diag.trace, 0, HMI_TRACE_CAN, CAN_RX_DROP, 0, 0);
+    hmi_trace_append(&diag.trace, 10, HMI_TRACE_CAN, CAN_RX_DROP, 0, 0);
+    hmi_trace_append(&diag.trace, 1000, HMI_TRACE_CAN, CAN_RX_DROP, 0, 0);
+    hmi_trace_append(&diag.trace, 1100, HMI_TRACE_RUNTIME, RUNTIME_CONNECT, 0, 0);
+    hmi_trace_append(&diag.trace, 1200, HMI_TRACE_PRODUCT, PRODUCT_FAILED, 17, 0x05040000);
+    hmi_trace_append(&diag.trace, 1201, HMI_TRACE_PRODUCT, PRODUCT_READY, 0, 0);
+    hmi_debug_unlock();
+    hmi_debug_log_drain();
     assert(levels[0] == 0 && levels[1] == 2 && levels[2] == 2 && levels[3] == 1);
-    meter_debug_log_drain();
+    hmi_debug_log_drain();
     assert(levels[2] == 2 && levels[3] == 1);
     assert(owner->depth == 0);
     puts("production MSH frontend: query copies, unlock-before-output, explicit trace clear PASS");
     return 0;
 }
 
-uint32_t meter_board_now_ms(void) { return rt_tick_get_millisecond(); }
+uint32_t hmi_board_now_ms(void) { return rt_tick_get_millisecond(); }

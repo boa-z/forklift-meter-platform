@@ -22,5 +22,5 @@ def main():
         target.write_text(source.read_text(encoding='utf-8').replace('@PRODUCT_ID@',a.id),encoding='utf-8',newline='\n')
     subprocess.run([sys.executable,str(ROOT/'tools/protocol/generate_can.py'),'--product-root',str(a.output.resolve())],check=True)
     subprocess.run([sys.executable,str(ROOT/'tools/generate_i18n.py'),'--product-root',str(a.output.resolve())],check=True)
-    print(f'Created {a.output}; select with -DMETER_PRODUCT_ROOT={a.output.resolve()}')
+    print(f'Created {a.output}; select with -DHMI_PRODUCT_ROOT={a.output.resolve()}')
 if __name__=='__main__': main()

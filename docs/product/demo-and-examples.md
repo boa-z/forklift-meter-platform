@@ -6,7 +6,7 @@
 
 | Package | Ownership | Purpose | Build selection |
 |---|---|---|---|
-| `products/demo` | Independent public Product repository, cloned into `products/demo` | Complete synthetic instrument, bilingual LVGL UI, protocol, settings and Product docs | `-DMETER_PRODUCT_ROOT=products/demo` (host) or `METER_PRODUCT_ROOT=products/demo` (firmware) |
+| `products/demo` | Independent public Product repository, cloned into `products/demo` | Complete synthetic instrument, bilingual LVGL UI, protocol, settings and Product docs | `-DHMI_PRODUCT_ROOT=products/demo` (host) or `HMI_PRODUCT_ROOT=products/demo` (firmware) |
 
 Use the [Demo Product handbook](../../products/demo/README.md) and its [actual SDL2 gallery](../../products/demo/docs/ui/screenshots.md) as the full development reference. Each firmware links exactly one Product.
 
@@ -14,7 +14,7 @@ Use the [Demo Product handbook](../../products/demo/README.md) and its [actual S
 
 Framework documentation describes reusable contracts, build tools and integration. Demo requirements, protocol, UI, assets, screenshots and validation belong in the Demo repository. Customer equivalents belong in their private Product. Do not duplicate those documents under Framework `docs/`.
 
-The Framework carries no example Products. A second Product for a regression or replaceability check belongs in its own repository and is selected with `METER_PRODUCT_ROOT`; Framework tests that need one generate it from `tools/product_template`.
+The Framework carries no example Products. A second Product for a regression or replaceability check belongs in its own repository and is selected with `HMI_PRODUCT_ROOT`; Framework tests that need one generate it from `tools/product_template`.
 
 ## Develop and update a Product
 
@@ -29,12 +29,12 @@ The Framework carries no example Products. A second Product for a regression or 
 git submodule update --init third_party/iso14229 tools/ota
 git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 git -C products/demo switch -c codex/demo-change
-cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=products/demo
+cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHMI_PRODUCT_ROOT=products/demo
 cmake --build build-demo --parallel
 ctest --test-dir build-demo --output-on-failure
 ```
 
-Use a separate build directory per Product. `METER_PRODUCT_ROOT` selects a source manifest, not a runtime Product menu. See the [Product integration guide](downstream.md) for repository layout and the Product contract.
+Use a separate build directory per Product. `HMI_PRODUCT_ROOT` selects a source manifest, not a runtime Product menu. See the [Product integration guide](downstream.md) for repository layout and the Product contract.
 
 ## Product documentation acceptance
 

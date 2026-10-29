@@ -1,4 +1,4 @@
-#include "platform/rtthread/meter_eeprom_i2c.h"
+#include "platform/rtthread/hmi_eeprom_i2c.h"
 #include <rtdevice.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,43 +103,43 @@ static void reset(void)
 }
 int main(void)
 {
-    meter_eeprom_port_t port;
+    hmi_eeprom_port_t port;
     uint8_t data[128], readback[128];
     for (size_t i = 0u; i < sizeof(data); ++i)
         data[i] = (uint8_t)i;
-    CHECK(!meter_eeprom_i2c_bind(NULL, &bus));
-    CHECK(!meter_eeprom_i2c_bind(&port, NULL));
-    CHECK(meter_eeprom_i2c_bind(&port, &bus));
+    CHECK(!hmi_eeprom_i2c_bind(NULL, &bus));
+    CHECK(!hmi_eeprom_i2c_bind(&port, NULL));
+    CHECK(hmi_eeprom_i2c_bind(&port, &bus));
     CHECK(calls == 0u);
     reset();
-    CHECK(port.write_page(port.context, 0x1200u, data, sizeof(data)) == METER_IO_OK);
+    CHECK(port.write_page(port.context, 0x1200u, data, sizeof(data)) == HMI_IO_OK);
     CHECK(writes == 128u && calls == 384u && delay_ms == 1664u);
     CHECK(media[0x11FF] == 0xFFu && media[0x1280] == 0xFFu);
-    CHECK(port.read(port.context, 0x1200u, readback, sizeof(readback)) == METER_IO_OK);
+    CHECK(port.read(port.context, 0x1200u, readback, sizeof(readback)) == HMI_IO_OK);
     CHECK(memcmp(data, readback, sizeof(data)) == 0 && bus.lock.depth == 0u);
-    CHECK(port.ready(port.context) == METER_IO_OK && writes == 128u);
+    CHECK(port.ready(port.context) == HMI_IO_OK && writes == 128u);
     port.wait_ms(port.context, 1u);
     CHECK(delay_ms == 1923u);
     reset();
-    CHECK(port.write_page(port.context, 65535u, data, 1u) == METER_IO_OK);
+    CHECK(port.write_page(port.context, 65535u, data, 1u) == HMI_IO_OK);
     CHECK(media[65535] == data[0]);
     reset();
-    CHECK(port.write_page(port.context, 127u, data, 2u) == METER_IO_RANGE);
-    CHECK(port.write_page(port.context, 65535u, data, 2u) == METER_IO_RANGE);
-    CHECK(port.read(port.context, SIZE_MAX, readback, 1u) == METER_IO_RANGE);
-    CHECK(port.read(port.context, 65535u, readback, 2u) == METER_IO_RANGE);
-    CHECK(port.read(port.context, 0u, NULL, 1u) == METER_IO_RANGE);
-    CHECK(port.write_page(port.context, 0u, NULL, 1u) == METER_IO_RANGE);
-    CHECK(port.read(NULL, 0u, readback, 1u) == METER_IO_ERROR);
-    CHECK(port.write_page(NULL, 0u, data, 1u) == METER_IO_ERROR);
-    CHECK(port.read(port.context, 65536u, NULL, 0u) == METER_IO_OK);
-    CHECK(port.write_page(port.context, 65536u, NULL, 0u) == METER_IO_OK);
+    CHECK(port.write_page(port.context, 127u, data, 2u) == HMI_IO_RANGE);
+    CHECK(port.write_page(port.context, 65535u, data, 2u) == HMI_IO_RANGE);
+    CHECK(port.read(port.context, SIZE_MAX, readback, 1u) == HMI_IO_RANGE);
+    CHECK(port.read(port.context, 65535u, readback, 2u) == HMI_IO_RANGE);
+    CHECK(port.read(port.context, 0u, NULL, 1u) == HMI_IO_RANGE);
+    CHECK(port.write_page(port.context, 0u, NULL, 1u) == HMI_IO_RANGE);
+    CHECK(port.read(NULL, 0u, readback, 1u) == HMI_IO_ERROR);
+    CHECK(port.write_page(NULL, 0u, data, 1u) == HMI_IO_ERROR);
+    CHECK(port.read(port.context, 65536u, NULL, 0u) == HMI_IO_OK);
+    CHECK(port.write_page(port.context, 65536u, NULL, 0u) == HMI_IO_OK);
     CHECK(calls == 0u);
     for (unsigned failure = 1u; failure <= 6u; ++failure)
     {
         reset();
         fail_from = failure;
-        CHECK(port.write_page(port.context, 128u, data, 3u) == METER_IO_ERROR);
+        CHECK(port.write_page(port.context, 128u, data, 3u) == HMI_IO_ERROR);
         CHECK(calls == failure + ((failure == 1u || failure == 4u) ? 0u : 2u));
         CHECK(bus.lock.depth == 0u && warnings > 0u);
         CHECK(media[130] == 0xFFu);
@@ -148,7 +148,7 @@ int main(void)
     {
         reset();
         fail_from = failure;
-        CHECK(port.read(port.context, 0u, readback, 3u) == METER_IO_ERROR);
+        CHECK(port.read(port.context, 0u, readback, 3u) == HMI_IO_ERROR);
         CHECK(calls == failure + 2u && bus.lock.depth == 0u && warnings == 3u);
     }
     for (unsigned failure = 1u; failure <= 4u; ++failure)
@@ -157,45 +157,45 @@ int main(void)
         fail_call = failure;
         media[0] = 0x12u;
         media[1] = 0x34u;
-        CHECK(port.read(port.context, 0u, readback, 2u) == METER_IO_OK);
+        CHECK(port.read(port.context, 0u, readback, 2u) == HMI_IO_OK);
         CHECK(readback[0] == 0x12u && readback[1] == 0x34u);
         CHECK(warnings == 1u && writes == 0u && bus.lock.depth == 0u);
     }
     reset();
     fail_call = 3u;
-    CHECK(port.write_page(port.context, 0u, data, 1u) == METER_IO_OK);
+    CHECK(port.write_page(port.context, 0u, data, 1u) == HMI_IO_OK);
     CHECK(writes == 1u && calls == 5u && warnings == 1u);
     reset();
     fail_call = 1u;
-    CHECK(port.write_page(port.context, 0u, data, 1u) == METER_IO_ERROR);
+    CHECK(port.write_page(port.context, 0u, data, 1u) == HMI_IO_ERROR);
     CHECK(calls == 1u && delay_ms == 11u);
     reset();
     fail_from = 2u;
     readback[0] = 0xA5u;
-    CHECK(port.read(port.context, 0u, readback, 1u) == METER_IO_ERROR);
+    CHECK(port.read(port.context, 0u, readback, 1u) == HMI_IO_ERROR);
     CHECK(readback[0] == 0xA5u && calls == 4u);
     reset();
     protect = true;
-    CHECK(port.write_page(port.context, 0u, data, 2u) == METER_IO_ERROR);
+    CHECK(port.write_page(port.context, 0u, data, 2u) == HMI_IO_ERROR);
     CHECK(writes == 1u && media[0] == 0xFFu && calls == 3u);
     reset();
     corrupt_read = true;
-    CHECK(port.write_page(port.context, 0u, data, 2u) == METER_IO_ERROR);
+    CHECK(port.write_page(port.context, 0u, data, 2u) == HMI_IO_ERROR);
     CHECK(writes == 1u && calls == 3u);
     reset();
     fail_lock = true;
-    CHECK(port.read(port.context, 0u, readback, 1u) == METER_IO_ERROR);
+    CHECK(port.read(port.context, 0u, readback, 1u) == HMI_IO_ERROR);
     CHECK(calls == 0u && bus.lock.depth == 0u);
     reset();
     fail_unlock = true;
-    CHECK(port.read(port.context, 0u, readback, 1u) == METER_IO_ERROR);
+    CHECK(port.read(port.context, 0u, readback, 1u) == HMI_IO_ERROR);
     CHECK(calls == 2u && bus.lock.depth == 0u);
     reset();
-    meter_eeprom_t eeprom;
-    CHECK(meter_eeprom_init(&eeprom, &port, 65536u, 0u, 1024u, 128u, 10u));
-    CHECK(eeprom.io.write(eeprom.io.context, 120u, data, sizeof(data)) == METER_IO_OK);
+    hmi_eeprom_t eeprom;
+    CHECK(hmi_eeprom_init(&eeprom, &port, 65536u, 0u, 1024u, 128u, 10u));
+    CHECK(eeprom.io.write(eeprom.io.context, 120u, data, sizeof(data)) == HMI_IO_OK);
     CHECK(memcmp(media + 120u, data, sizeof(data)) == 0);
-    CHECK(eeprom.io.write(eeprom.io.context, 1024u, data, 1u) == METER_IO_RANGE);
+    CHECK(eeprom.io.write(eeprom.io.context, 1024u, data, 1u) == HMI_IO_RANGE);
     CHECK(media[1024] == 0xFFu && bus.lock.depth == 0u);
     puts("EEPROM byte transport: PASS");
     return 0;

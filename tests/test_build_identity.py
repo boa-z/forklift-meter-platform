@@ -57,7 +57,7 @@ class IdentityTests(unittest.TestCase):
             product = root / 'products/private'
             (product / 'product').mkdir(parents=True)
             (product / 'product/product.c').write_text(
-                'static const meter_product_t meter_product_private = {\n    .id = "acme-forklift-x1",\n'
+                'static const hmi_product_t hmi_product_private = {\n    .id = "acme-forklift-x1",\n'
                 '    .frame = { .id = 0x18ff0a00 },\n};\n', encoding='utf-8')
             self.assertEqual(identity.product_identity(str(product)), 'acme-forklift-x1')
             (product / 'product/sources.json').write_text(
@@ -68,12 +68,12 @@ class IdentityTests(unittest.TestCase):
             values = identity.generate(str(root), None, '"host"', str(header), str(product))
             self.assertEqual(values['PRODUCT'], 'declared-id')
             names = [line.split()[1] for line in header.read_text(encoding='utf-8').splitlines()
-                     if line.startswith('#define METER_BUILD_') and line.endswith('"')]
-            self.assertEqual(names, ['METER_BUILD_PLATFORM', 'METER_BUILD_SDK',
-                                     'METER_BUILD_BOARD', 'METER_BUILD_PRODUCT', 'METER_BUILD_PRODUCT_REVISION'])
+                     if line.startswith('#define HMI_BUILD_') and line.endswith('"')]
+            self.assertEqual(names, ['HMI_BUILD_PLATFORM', 'HMI_BUILD_SDK',
+                                     'HMI_BUILD_BOARD', 'HMI_BUILD_PRODUCT', 'HMI_BUILD_PRODUCT_REVISION'])
             without = identity.generate(str(root), None, '"host"', str(root / 'build/plain.h'))
             self.assertNotIn('PRODUCT', without)
-            self.assertNotIn('METER_BUILD_PRODUCT', (root / 'build/plain.h').read_text(encoding='utf-8'))
+            self.assertNotIn('HMI_BUILD_PRODUCT', (root / 'build/plain.h').read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

@@ -9,4 +9,4 @@ git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/dem
 git clone PRIVATE_PRODUCT_REPOSITORY products/my-product
 ```
 
-Host CMake has no default Product; select one with `-DMETER_PRODUCT_ROOT=products/<id>`. A firmware build names its Product with `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` in the defconfig. See the [build guide](../docs/build/build.md) and the [downstream guide](../docs/product/downstream.md).
+Host CMake has no default Product; select one with `-DHMI_PRODUCT_ROOT=products/<id>`. A firmware build names its Product with `CONFIG_AIC_HMI_PRODUCT_ROOT` in the defconfig. See the [build guide](../docs/build/build.md) and the [downstream guide](../docs/product/downstream.md).

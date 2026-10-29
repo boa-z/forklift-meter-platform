@@ -30,9 +30,9 @@ def make_product(tmp_path, tool=TOOL, declared="tools/version.py", hardware="boa
         manifest["version"] = {"tool": declared}
     (product / "product" / "sources.json").write_text(json.dumps(manifest), encoding="utf-8")
     (product / "tools" / "version.py").write_text(tool, encoding="utf-8")
-    policy = ('static const meter_update_policy_t update_policy = {"p-1", "%s", 4096u, 1000u};\n'
-              'static const meter_product_t product = {.id = "p-1", .update = &update_policy};\n' % hardware
-              ) if hardware else 'static const meter_product_t product = {.id = "p-1"};\n'
+    policy = ('static const hmi_update_policy_t update_policy = {"p-1", "%s", 4096u, 1000u};\n'
+              'static const hmi_product_t product = {.id = "p-1", .update = &update_policy};\n' % hardware
+              ) if hardware else 'static const hmi_product_t product = {.id = "p-1"};\n'
     (product / "product" / "product.c").write_text(policy, encoding="utf-8")
     return str(product)
 
@@ -85,16 +85,16 @@ def test_sequence_setting_accepts_only_zero_to_ninety_nine():
 
 def test_environment_overrides_each_value_independently(tmp_path):
     product = make_product(tmp_path)
-    both = resolve(product, tmp_path, {"METER_UPDATE_VERSION": "x1", "METER_DISPLAY_VERSION": "y1"})
+    both = resolve(product, tmp_path, {"HMI_UPDATE_VERSION": "x1", "HMI_DISPLAY_VERSION": "y1"})
     assert (both["ota"], both["display"], both["source"], both["sequence"]) == ("x1", "y1", "environment", None)
-    one = resolve(product, tmp_path, {"METER_UPDATE_VERSION": "x1"})
+    one = resolve(product, tmp_path, {"HMI_UPDATE_VERSION": "x1"})
     assert (one["ota"], one["display"], one["source"]) == ("x1", "P-M-261009V1", "product+environment")
 
 
 def test_without_a_product_tool_the_old_defaults_remain(tmp_path):
     product = make_product(tmp_path, declared=None)
     assert resolve(product, tmp_path)["ota"] == "ota-development"
-    assert resolve(product, tmp_path, {"METER_UPDATE_VERSION": "abc"})["display"] == "abc"
+    assert resolve(product, tmp_path, {"HMI_UPDATE_VERSION": "abc"})["display"] == "abc"
 
 
 def test_invalid_tool_output_stops_the_build(tmp_path):
@@ -136,7 +136,7 @@ def test_hardware_identity_reads_the_manifest_then_product_source(tmp_path):
 
 def release_for(product, tmp_path, can_update=True, environment=None):
     # 平台/SDK 根只影响修订号与指纹：用空目录代替真实检出，避免每个用例都去扫一遍大仓库。
-    environment = dict(environment or {}, METER_PYTHON=sys.executable)
+    environment = dict(environment or {}, HMI_PYTHON=sys.executable)
     return version.prepare(str(tmp_path / "platform"), str(tmp_path / "sdk"), product,
                            str(tmp_path / "out"), can_update, environment)
 
@@ -148,28 +148,28 @@ def prepare(tmp_path, can_update=True, environment=None, hardware="board-9"):
 def test_prepare_writes_generated_headers_to_the_output_directory(tmp_path):
     release = prepare(tmp_path)
     out = tmp_path / "out"
-    assert '"M-' in (out / "meter_update_build.h").read_text(encoding="utf-8")
-    assert '"P-M-' in (out / "meter_display_version.h").read_text(encoding="utf-8")
-    assert (out / "meter_build_identity.h").is_file()
+    assert '"M-' in (out / "hmi_update_build.h").read_text(encoding="utf-8")
+    assert '"P-M-' in (out / "hmi_display_version.h").read_text(encoding="utf-8")
+    assert (out / "hmi_build_identity.h").is_file()
     assert release["version"]["sequence"] == 1 and release["can_update"]
 
 
 def test_the_product_update_policy_is_the_only_hardware_identity(tmp_path):
     release = prepare(tmp_path)
-    header = (tmp_path / "out" / "meter_build_identity.h").read_text(encoding="utf-8")
+    header = (tmp_path / "out" / "hmi_build_identity.h").read_text(encoding="utf-8")
     assert release["board"] == "board-9"
-    assert '#define METER_BUILD_BOARD "board-9"' in header, "UART 构建信息必须与设备身份同源"
+    assert '#define HMI_BUILD_BOARD "board-9"' in header, "UART 构建信息必须与设备身份同源"
 
 
 def test_board_id_override_must_match_the_product_identity(tmp_path):
     with pytest.raises(ValueError, match="does not match the Product update identity"):
-        prepare(tmp_path / "rejected", environment={"METER_BOARD_ID": "other-board"})
-    accepted = prepare(tmp_path / "accepted", environment={"METER_BOARD_ID": "board-9"})
+        prepare(tmp_path / "rejected", environment={"HMI_BOARD_ID": "other-board"})
+    accepted = prepare(tmp_path / "accepted", environment={"HMI_BOARD_ID": "board-9"})
     assert accepted["board"] == "board-9"
 
 
 def test_an_ota_build_requires_a_declared_hardware_identity(tmp_path):
-    with pytest.raises(ValueError, match="declares no meter_update_policy_t.hardware"):
+    with pytest.raises(ValueError, match="declares no hmi_update_policy_t.hardware"):
         prepare(tmp_path, hardware=None)
 
 
@@ -183,12 +183,12 @@ def test_conflicting_hardware_declarations_are_rejected(tmp_path):
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["identity"] = {"hardware": "other-board"}
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    with pytest.raises(ValueError, match="does not match meter_update_policy_t.hardware"):
+    with pytest.raises(ValueError, match="does not match hmi_update_policy_t.hardware"):
         release_for(product, tmp_path)
 
 
 def test_finish_commits_the_sequence_only_for_a_new_image(tmp_path, monkeypatch):
-    monkeypatch.setenv("METER_OTA_PACKAGE", "0")
+    monkeypatch.setenv("HMI_OTA_PACKAGE", "0")
     release = prepare(tmp_path)
     images = tmp_path / "images"
     images.mkdir()
@@ -201,13 +201,13 @@ def test_finish_commits_the_sequence_only_for_a_new_image(tmp_path, monkeypatch)
 
 def packaged(tmp_path, monkeypatch, header=None):
     """准备一次"新镜像 + 自动打包"的现场，并拦截真正的打包脚本调用。"""
-    monkeypatch.delenv("METER_OTA_PACKAGE", raising=False)
+    monkeypatch.delenv("HMI_OTA_PACKAGE", raising=False)
     release = prepare(tmp_path)
     images = tmp_path / "images"
     images.mkdir()
     (images / "d13x_os.itb").write_bytes(b"itb")
     if header is not None:
-        (tmp_path / "out" / "meter_update_build.h").write_text(header, encoding="utf-8")
+        (tmp_path / "out" / "hmi_update_build.h").write_text(header, encoding="utf-8")
     calls = []
     monkeypatch.setattr(version.subprocess, "call", lambda args: calls.append(args) or 0)
     return release, str(images), calls
@@ -223,15 +223,15 @@ def test_finish_packages_exactly_the_version_the_firmware_reports(tmp_path, monk
 
 def test_packaging_refuses_a_version_the_firmware_does_not_declare(tmp_path, monkeypatch):
     release, images, calls = packaged(tmp_path, monkeypatch,
-                                      header='#define METER_UPDATE_FIRMWARE_VERSION "other"\n')
+                                      header='#define HMI_UPDATE_FIRMWARE_VERSION "other"\n')
     with pytest.raises(ValueError, match="does not match the built firmware"):
         version.finish(release, images, "d13x_os.itb")
     assert calls == [], "包版本与 F195 不一致时不得产出 OTA 包"
 
 
 def test_a_missing_version_header_stops_packaging(tmp_path, monkeypatch):
-    release, images, calls = packaged(tmp_path, monkeypatch, header="#define METER_DISPLAY_ONLY 1\n")
-    with pytest.raises(ValueError, match="does not declare METER_UPDATE_FIRMWARE_VERSION"):
+    release, images, calls = packaged(tmp_path, monkeypatch, header="#define HMI_DISPLAY_ONLY 1\n")
+    with pytest.raises(ValueError, match="does not declare HMI_UPDATE_FIRMWARE_VERSION"):
         version.finish(release, images, "d13x_os.itb")
     assert calls == []
 

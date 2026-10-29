@@ -1,5 +1,5 @@
-#include "core/meter_core.h"
-#include "runtime/meter_runtime.h"
+#include "core/hmi_core.h"
+#include "runtime/hmi_runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,23 +15,23 @@ static void quoted(const char *s)
 }
 int main(int argc, char **argv)
 {
-    const meter_product_t *p = meter_product_get();
+    const hmi_product_t *p = hmi_product_get();
     if (p->prepare && !p->prepare()) return 3;
-    const meter_catalog_t *cat = p->catalog;
-    meter_core_storage_t storage = {
-        calloc(cat->signal_count, sizeof(meter_value_t)), cat->signal_count,
+    const hmi_catalog_t *cat = p->catalog;
+    hmi_core_storage_t storage = {
+        calloc(cat->signal_count, sizeof(hmi_value_t)), cat->signal_count,
         calloc(cat->parameter_count ? cat->parameter_count : 1, sizeof(float)), cat->parameter_count,
-        calloc(cat->fault_count ? cat->fault_count : 1, sizeof(meter_fault_state_t)), cat->fault_count};
-    meter_core_t core;
-    meter_runtime_t runtime;
+        calloc(cat->fault_count ? cat->fault_count : 1, sizeof(hmi_fault_state_t)), cat->fault_count};
+    hmi_core_t core;
+    hmi_runtime_t runtime;
     if (!storage.signals || !storage.parameters || !storage.faults ||
-        !meter_core_init_with_settings(&core, cat, &storage, p->initial_settings) ||
-        !meter_runtime_init(&runtime, p, meter_core_apply, &core)) return 3;
+        !hmi_core_init_with_settings(&core, cat, &storage, p->initial_settings) ||
+        !hmi_runtime_init(&runtime, p, hmi_core_apply, &core)) return 3;
     bool catalog_only = argc == 2 && !strcmp(argv[1], "--catalog");
     if (argc > 1 && !catalog_only) return 2;
     if (!catalog_only && p->start && !p->start()) return 3;
-    meter_runtime_connection(&runtime, true);
-    meter_core_connection(&core, true, runtime.generation);
+    hmi_runtime_connection(&runtime, true);
+    hmi_core_connection(&core, true, runtime.generation);
     char line[256], hex[32];
     unsigned now = 0, bus, id, extended, size, source, state;
     float value;
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
             if (sscanf(line, "F %u %u %x %u %u %31s %n", &now, &bus, &id, &extended, &size, hex, &used) != 6 ||
                 line[used] || bus > 1 || extended > 1 || size > 8 ||
                 (size ? strlen(hex) != size * 2 : strcmp(hex, "-"))) return 2;
-            meter_can_frame_t f = {.bus=(meter_bus_role_t)bus, .id=id, .timestamp_ms=now, .extended=extended, .size=(uint8_t)size};
+            hmi_can_frame_t f = {.bus=(hmi_bus_role_t)bus, .id=id, .timestamp_ms=now, .extended=extended, .size=(uint8_t)size};
             for (unsigned i = 0; i < size; ++i)
             {
                 char pair[] = {hex[2*i], hex[2*i+1], 0}, *end;
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
                 if (*end || b > 255) return 2;
                 f.data[i] = (uint8_t)b;
             }
-            (void)meter_runtime_receive(&runtime, &f);
+            (void)hmi_runtime_receive(&runtime, &f);
         }
         else if (line[0] == 'T')
         {
@@ -60,13 +60,13 @@ int main(int argc, char **argv)
         else if (line[0] == 'U')
         {
             if (sscanf(line, "U %u %f %u %u %u %n", &id, &value, &state, &now, &source, &used) != 5 ||
-                line[used] || id > 65535 || source > 65535 || state > METER_VALUE_ERROR) return 2;
-            meter_update_t u = {(uint16_t)id, {value, now, (meter_value_state_t)state, (uint16_t)source}};
-            if (!meter_core_apply(&core, &u)) return 2;
+                line[used] || id > 65535 || source > 65535 || state > HMI_VALUE_ERROR) return 2;
+            hmi_update_t u = {(uint16_t)id, {value, now, (hmi_value_state_t)state, (uint16_t)source}};
+            if (!hmi_core_apply(&core, &u)) return 2;
         }
         else return 2;
-        if (!meter_runtime_process(&runtime, now)) return 4;
-        meter_core_tick(&core, now);
+        if (!hmi_runtime_process(&runtime, now)) return 4;
+        hmi_core_tick(&core, now);
     }
     if (ferror(stdin)) return 2;
     if (p->app_tick) p->app_tick(&core.snapshot, now);
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
            (unsigned)runtime.diagnostics.unrouted, (unsigned)runtime.diagnostics.decode_failed);
     for (size_t i = 0; i < cat->signal_count; ++i)
     {
-        const meter_value_t v = core.snapshot.signals[i];
+        const hmi_value_t v = core.snapshot.signals[i];
         const char *states[] = {"unknown", "valid", "stale", "error"};
         if (i) putchar(',');
         quoted(cat->signals[i].key);

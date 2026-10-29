@@ -8,7 +8,7 @@ Reference-Demo explicitly declares namespace 0x444D, record type 1, schema 3, 50
 
 ## Encoding and commit
 
-FMP2 is little endian. The MSP3 payload uses stable 32-bit encoded parameter IDs (restricted to the Domain uint16 range) and IEEE binary32 values, not catalog positions. Missing, repeated, unknown or out-of-range values reject the whole payload. The inner FNV checksum detects buffer corruption; it is not authentication. The outer CRC uses the pinned CANopenNode CRC-16/XMODEM implementation (polynomial 0x1021, initial 0, standard check 0x31C3). Header and payload are chained, not XORed independent CRCs. Golden bytes and single-byte corruption checks are in test_meter_record.c.
+FMP2 is little endian. The MSP3 payload uses stable 32-bit encoded parameter IDs (restricted to the Domain uint16 range) and IEEE binary32 values, not catalog positions. Missing, repeated, unknown or out-of-range values reject the whole payload. The inner FNV checksum detects buffer corruption; it is not authentication. The outer CRC uses the pinned CANopenNode CRC-16/XMODEM implementation (polynomial 0x1021, initial 0, standard check 0x31C3). Header and payload are chained, not XORed independent CRCs. Golden bytes and single-byte corruption checks are in test_hmi_record.c.
 
 | Offset | Size | Field |
 |---|---|---|
@@ -31,14 +31,14 @@ Each slot also has a separate commit page holding a copy of the bound 16-byte se
 
 | Backend | Integration | Guarantee and boundary |
 |---|---|---|
-| I2C EEPROM | Two-byte addressed; bus, address, size, page and region offset from `AIC_FORKLIFT_NVM_EEPROM_*` (defaults i2c0, 0x50, 64 KiB, 128-byte pages, offset 0) | 1 KiB region: A at offset+0x000, B at offset+0x200; seal pages at the end of each slot. Verified on one d13x board with BL24C512A: initialization, save and soft/cold reboot; power cuts during a write unverified. |
+| I2C EEPROM | Two-byte addressed; bus, address, size, page and region offset from `AIC_HMI_NVM_EEPROM_*` (defaults i2c0, 0x50, 64 KiB, 128-byte pages, offset 0) | 1 KiB region: A at offset+0x000, B at offset+0x200; seal pages at the end of each slot. Verified on one d13x board with BL24C512A: initialization, save and soft/cold reboot; power cuts during a write unverified. |
 | Host file | Prefix.0 and Prefix.1 | Complete writes, fsync/_commit and close checked. Readback required. Filesystem metadata crash atomicity not claimed. |
 | NOR/LittleFS file | Existing mounted SDK filesystem | Same selectable file adapter; no raw NOR driver or format operation. Device sync/XIP and physical recovery require Board validation. |
 | NAND/FATFS file | Existing SDK NFTL/ECC and mounted filesystem | Weaker filesystem guarantee; dual files do not prove independent metadata redundancy. Critical power-safe capability requests are rejected. |
 
 The application-only EEPROM transport uses existing RT-Thread I2C APIs without changing the SDK or HAL. The SDK `at24cxx` package is not used: it fixes the device type at compile time, writes pages without per-byte verification and has no read retry, which were needed with the controller on the validated d13x board. The transport sends a two-byte address and receives one byte in separate single-message transactions. The recursive RT-Thread bus mutex protects each address/read pair. The worker waits 1 ms before each transaction pair and before each byte write. It also waits 1 ms between the address and read while retaining that mutex. A short address/read transfer retries the complete read pair at most three times, logging each failure; failed attempts never publish their output byte. Mutex errors do not retry. Writes are never automatically replayed. Page callbacks split into three-byte single-byte writes, wait 10 ms outside the bus lock after every attempted write, and read back each byte before continuing. A short write, exhausted read retries or mismatched readback stops the operation; a driver success alone is not durability. Generic page bounds, read-only readiness checks and full record/seal readback remain mandatory. No destructive SDK AT24 probe is used. This conservative mode sacrifices throughput: 1 KiB initialization needs at least 10.24 seconds of write-cycle waits, plus driver/readback time; allow 60 seconds in board validation. Driver behavior remains governed by the unchanged SDK; the validated hardware scope is recorded below. A commit seal shares no body page or active-slot page.
 
-AIC_FORKLIFT_NVM_FILE_BACKEND explicitly selects the mounted file path; AIC_FORKLIFT_NVM_FILE_PREFIX and AIC_FORKLIFT_NVM_FILE_KIND identify it. The default is the EEPROM. A mount failure never formats the medium or switches to another backend. The first EEPROM image must only run after the new 1 KiB allocation and WP are confirmed; existing nonblank unknown content is preserved and reported.
+AIC_HMI_NVM_FILE_BACKEND explicitly selects the mounted file path; AIC_HMI_NVM_FILE_PREFIX and AIC_HMI_NVM_FILE_KIND identify it. The default is the EEPROM. A mount failure never formats the medium or switches to another backend. The first EEPROM image must only run after the new 1 KiB allocation and WP are confirmed; existing nonblank unknown content is preserved and reported.
 
 ## Results and lifecycle
 
@@ -46,21 +46,21 @@ LOADING is an asynchronous startup operation. App accepts the matching generatio
 
 IN_PROGRESS owns the immutable in-flight revision until a matching result arrives. Completing R11 while R12 is pending advances durable to R11 and leaves R12 dirty. An I/O-stage failure is UNCERTAIN, preserves dirty, and requires explicit rescan/reconciliation before retry. Reconciliation never replaces newer RAM with media data. A barrier waits for a particular target revision; a higher complete replacement may satisfy it, but an intermediate value is not claimed to have been written exactly. A loaded valid record satisfies its target. Cancellation is only supported before worker dispatch. No blocking worker is killed or freed on timeout.
 
-Host shutdown requests immediate save and waits a bounded interval. Failure produces a failing process exit and preserves dirty semantics. On the board the runtime thread uses meter_board_nvm_flush and meter_board_nvm_barrier; update activation waits for this barrier.
+Host shutdown requests immediate save and waits a bounded interval. Failure produces a failing process exit and preserves dirty semantics. On the board the runtime thread uses hmi_board_nvm_flush and hmi_board_nvm_barrier; update activation waits for this barrier.
 
 ## Diagnostics and validation
 
-Use the following native MSH commands. Setting changes go through the same action queue as the UI; save, retry and initialize only set a request for the runtime thread. QUEUED does not mean DURABLE: poll `meter storage`.
+Use the following native MSH commands. Setting changes go through the same action queue as the UI; save, retry and initialize only set a request for the runtime thread. QUEUED does not mean DURABLE: poll `hmi storage`.
 
 ~~~text
-meter storage
-meter_settings language zh
-meter_settings units imperial
-meter_settings brightness 65
-meter_settings save
-meter storage
-meter_settings retry
-meter storage
+hmi storage
+hmi_settings language zh
+hmi_settings units imperial
+hmi_settings brightness 65
+hmi_settings save
+hmi storage
+hmi_settings retry
+hmi storage
 ~~~
 
 Storage reports backend, state, dirty, RAM/in-flight/durable revisions, queue depth, raw backend error, service result, degraded recovery and actual language/brightness/units. Queries render published copies and never access media. Poll DURABLE and dirty=0 before an intentional reboot; after reboot verify settings and sequence.
@@ -79,16 +79,16 @@ Cold power-cycle recovery is PASS after the user removed and restored power: fir
 
 Historical failures remain recorded: the earlier byte-transport image (SHA256 0cf247370a4c9ba344435919a8df0b1f144d5eb70042b1f70a23ba96c2ef887e) failed initialization readback at 0x003C and rescan at 0x0089. The experimental SDK I2C repair was fully reverted and its image withdrawn. The current application-only settling and read retry path passes the scoped board tests above; it is not a claim that the SDK controller implementation was repaired.
 
-For commissioning an old layout, export a backup and obtain layout authorization before meter_settings initialize CONFIRM. It only acts in CORRUPT or INCOMPATIBLE state. Writes, sync and readback run in the NVM worker; a valid slot cannot be erased. Verify DURABLE with meter storage; queue acceptance is not completion.
+For commissioning an old layout, export a backup and obtain layout authorization before hmi_settings initialize CONFIRM. It only acts in CORRUPT or INCOMPATIBLE state. Writes, sync and readback run in the NVM worker; a valid slot cannot be erased. Verify DURABLE with hmi storage; queue acceptance is not completion.
 
 
 ## Board settings and format boundary
 
 MSP3 bytes 0..3 hold magic, 4/5/6 hold units/brightness/language, 7 holds the CAN rate selector (0=125k, 1=250k, 2=500k), 8..11 hold parameter count, ID/value entries start at 12, and the last four bytes hold FNV. Only MSP3 is supported. Demo declares FMP2 schema 3; no legacy reader or migration is provided, as requested by the maintainer. Old/corrupt records are rejected atomically and remain write-blocked until explicit initialization. Initializing the development-board allocation was authorized; automatic erase on boot is not introduced.
 
-Startup waits for the initial NVM read before latching the common rate for every opened CAN bus. Runtime changes save only and do not reconfigure controllers. Corrupt records retain the default 500k and write-block policy. configured_can_rate in meter storage is the next-boot configuration; bitrate in meter can is the opened controller rate. Before restarting confirm dirty=0 and ram_revision=durable_revision.
+Startup waits for the initial NVM read before latching the common rate for every opened CAN bus. Runtime changes save only and do not reconfigure controllers. Corrupt records retain the default 500k and write-block policy. configured_can_rate in hmi storage is the next-boot configuration; bitrate in hmi can is the opened controller rate. Before restarting confirm dirty=0 and ram_revision=durable_revision.
 
-The runtime thread applies brightness through the SDK backlight PWM channel (when `AIC_FORKLIFT_BACKLIGHT` is on) and saves it through the same NVM service. Register-readback failure logs an error and retries; RAM acceptance proves neither successful backlight control nor storage durability. meter_settings product id value queues an intent for the Product's local_action; the generic port does not interpret Product-private IDs.
+The runtime thread applies brightness through the SDK backlight PWM channel (when `AIC_HMI_BACKLIGHT` is on) and saves it through the same NVM service. Register-readback failure logs an error and retries; RAM acceptance proves neither successful backlight control nor storage durability. hmi_settings product id value queues an intent for the Product's local_action; the generic port does not interpret Product-private IDs.
 
 
 ## Product counters and additive catalogs
@@ -97,4 +97,4 @@ The runtime thread applies brightness through the SDK backlight PWM channel (whe
 
 Default decoding still requires every parameter. A Product may explicitly set `allow_parameter_extension=true` for an additive catalog update within the same namespace, type and schema. Existing IDs, meaning, units and accepted ranges must remain compatible. Entries are validated atomically and missing new parameters use catalog `initial`. Duplicate or unknown IDs, invalid counts/values, checksum failures and unknown schemas still fail. The next ordinary commit writes a complete replacement. This does not migrate older payload formats, rename IDs, shrink catalogs or authorize physical slot geometry changes.
 
-Host integrations use `meter_host_nvm_open_profile` with the Product storage profile and explicit extension policy. The legacy open API retains strict decoding and its original timings. Callers wait for loading before the first counter tick, observe settings changes and wait for the target durable revision before intentional shutdown. Host tests do not prove physical power-cut recovery or endurance.
+Host integrations use `hmi_host_nvm_open_profile` with the Product storage profile and explicit extension policy. The legacy open API retains strict decoding and its original timings. Callers wait for loading before the first counter tick, observe settings changes and wait for the target durable revision before intentional shutdown. Host tests do not prove physical power-cut recovery or endurance.

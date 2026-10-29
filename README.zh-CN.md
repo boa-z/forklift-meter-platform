@@ -1,14 +1,14 @@
-# Forklift Meter Platform
+# Luban-Lite HMI Framework
 
 > [English](README.md)
 
-基于 Luban-Lite（RT-Thread + LVGL 9）、面向匠芯创 SoC 的公开叉车仪表平台。一套 SDK 支持多种板型，一套框架支持多个独立 Product；每个固件镜像只构建一个 Product。框架不含客户协议、界面或板型假设：板子由其 defconfig 描述（[板级接入](docs/build/board-integration.zh-CN.md)），Product 放在各自的仓库里（[Product 接入](docs/product/downstream.zh-CN.md)）。
+面向匠芯创 Luban-Lite SDK（RT-Thread + LVGL 9）的轻量级 HMI 应用框架。一套 SDK 支持多种板型，一套框架支持多个独立 Product；每个固件镜像只构建一个 Product。框架不含客户协议、界面或板型假设：板子由其 defconfig 描述（[板级接入](docs/build/board-integration.zh-CN.md)），Product 放在各自的仓库里（[Product 接入](docs/product/downstream.zh-CN.md)）。
 
 ## 主机仿真（Host）
 
 ```sh
 python -m pip install -r tools/protocol/requirements.txt
-cmake -S . -B build -G Ninja -DMETER_BUILD_UI=ON
+cmake -S . -B build -G Ninja -DHMI_BUILD_UI=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
@@ -20,7 +20,7 @@ Linux CI 使用 `ubuntu-latest`。SDL 运行时可设置 `SDL_VIDEODRIVER=dummy`
 参考 Demo 是独立仓库 `boa-z/forklift-meter-platform-demo`，克隆到 `products/demo`。Framework 不跟踪任何 Product：公开或私有 Product 都是独立仓库，克隆到 `products/<id>`（Framework 忽略该目录，见 [products/README.zh-CN.md](products/README.zh-CN.md)），或用绝对路径选择。配置其他 Product：
 
 ```sh
-cmake -S . -B build-private -DMETER_PRODUCT_ROOT=/path/to/product
+cmake -S . -B build-private -DHMI_PRODUCT_ROOT=/path/to/product
 ```
 
 创建空白产品模板：
@@ -33,13 +33,13 @@ Product manifest、SDK OneStep 构建和可选 CAN OTA 组合方式见[构建与
 
 ## 固件边界（Firmware boundary）
 
-Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。固件运行在 SDK 自带的 LVGL 9 包（`lvgl-ui`，含 GE2D 绘制后端、MPP 解码、显示与触摸移植）上，Product UI 由 SDK 的 LVGL 线程启动；主机仿真与测试直接构建同一份 SDK 里的 LVGL 源码（`METER_LVGL_ROOT` 可改路径）。翻译查表运行时是 vendored 的 `ui/common/i18n/lv_i18n` 副本。自带显示、触摸与 GE2D 层的 LVGL 9.6 移植在 `dev/lvgl-9.6` 分支。
+Platform 公共代码位于 `contracts/`、`core/`、`runtime/`、`protocols/common/`、`ui/common/`；RT-Thread 端口（一个运行时线程加发送、NVM、升级与看门狗 worker）在 `platform/rtthread/`，见[生产运行时](docs/runtime/runtime-production.zh-CN.md)。固件运行在 SDK 自带的 LVGL 9 包（`lvgl-ui`，含 GE2D 绘制后端、MPP 解码、显示与触摸移植）上，Product UI 由 SDK 的 LVGL 线程启动；主机仿真与测试直接构建同一份 SDK 里的 LVGL 源码（`HMI_LVGL_ROOT` 可改路径）。翻译查表运行时是 vendored 的 `ui/common/i18n/lv_i18n` 副本。自带显示、触摸与 GE2D 层的 LVGL 9.6 移植在 `dev/lvgl-9.6` 分支。
 
 ## 文档（Documentation）
 
 项目文档为中英双语：每个第一方文档同时提供 `X.md`（英文正本）与 `X.zh-CN.md`（简体中文译文），更新时必须同步修改两边。
 
-CAN OTA 上位机是挂在 `tools/ota` 的 [meter-ota-host](https://github.com/boa-z/meter-ota-host) submodule。配置时传 `-DMETER_PRODUCT_ROOT=`（空值）可在没有任何 Product 的情况下构建和测试框架。
+CAN OTA 上位机是挂在 `tools/ota` 的 [meter-ota-host](https://github.com/boa-z/meter-ota-host) submodule。配置时传 `-DHMI_PRODUCT_ROOT=`（空值）可在没有任何 Product 的情况下构建和测试框架。
 
 ## 诊断
 

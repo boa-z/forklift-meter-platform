@@ -1,46 +1,46 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SDK 的 LVGL 线程独占 LVGL 与 UI；运行时线程独占 Domain 与协议，设置介质与升级 Flash 各有独立 worker。 */
-#define LOG_TAG "meter.boot"
+#define LOG_TAG "hmi.boot"
 #define LOG_LVL LOG_LVL_INFO
-#include "meter_build_identity.h"
-#include "platform/rtthread/debug/meter_debug_console.h"
-#include "platform/rtthread/meter_board_port.h"
-#include "platform/rtthread/meter_execution_port.h"
-#include "contracts/meter_firmware.h"
-#include "contracts/meter_product.h"
-#include "ui/common/i18n/meter_i18n_runtime.h"
+#include "hmi_build_identity.h"
+#include "platform/rtthread/debug/hmi_debug_console.h"
+#include "platform/rtthread/hmi_board_port.h"
+#include "platform/rtthread/hmi_execution_port.h"
+#include "contracts/hmi_firmware.h"
+#include "contracts/hmi_product.h"
+#include "ui/common/i18n/hmi_i18n_runtime.h"
 #include <lvgl.h>
 #include <rtthread.h>
 #include <ulog.h>
-#include "meter_display_version.h"
-#ifdef METER_ENABLE_CAN_UPDATE
-#include "meter_update_build.h"
+#include "hmi_display_version.h"
+#ifdef HMI_ENABLE_CAN_UPDATE
+#include "hmi_update_build.h"
 #endif
-#define METER_STRING_IMPL(x) #x
-#define METER_STRING(x) METER_STRING_IMPL(x)
+#define HMI_STRING_IMPL(x) #x
+#define HMI_STRING(x) HMI_STRING_IMPL(x)
 
-static meter_core_t core;
-static meter_diagnostics_t diagnostics, ui_diagnostics;
-static meter_build_info_t identity;
+static hmi_core_t core;
+static hmi_diagnostics_t diagnostics, ui_diagnostics;
+static hmi_build_info_t identity;
 /* UI 周期任务的上下文：只在 LVGL 线程里读写。 */
 static struct
 {
-    const meter_product_t *product;
-    meter_firmware_composition_t composition;
-    meter_snapshot_t snapshot;
+    const hmi_product_t *product;
+    hmi_firmware_composition_t composition;
+    hmi_snapshot_t snapshot;
     void *ui;
     uint32_t ui_start;
 } app;
 
 static void present_tick(lv_timer_t *timer)
 {
-    const uint32_t now = meter_board_now_ms();
+    const uint32_t now = hmi_board_now_ms();
     bool normal = false;
-    meter_update_view_t update;
-    if (meter_execution_present(&app.snapshot, &app.composition.ui, &update, &normal))
+    hmi_update_view_t update;
+    if (hmi_execution_present(&app.snapshot, &app.composition.ui, &update, &normal))
     {
         /* 语言只有一个来源：持久化的快照。UI 与升级页都在这之后才取词，已绑定的标签随之刷新。 */
-        (void)meter_i18n_set_language(app.snapshot.language);
+        (void)hmi_i18n_set_language(app.snapshot.language);
         if (app.product->ui->present_update)
             app.product->ui->present_update(app.ui, &update, app.snapshot.language);
         if (normal)
@@ -48,65 +48,65 @@ static void present_tick(lv_timer_t *timer)
             /* present() 要的是累计运行毫秒（开机停留、闪烁相位都在 UI 里按它计时），
                不是帧间隔：传 16/50 这类增量会让开机页永远停在原地。 */
             app.product->ui->present(app.ui, &app.snapshot, now - app.ui_start);
-            meter_diag_increment(&ui_diagnostics.data.ui.present_count);
+            hmi_diag_increment(&ui_diagnostics.data.ui.present_count);
         }
     }
-    meter_board_diagnostics(&ui_diagnostics);
-    meter_execution_ui_diagnostics(&ui_diagnostics);
-    meter_debug_log_drain();
+    hmi_board_diagnostics(&ui_diagnostics);
+    hmi_execution_ui_diagnostics(&ui_diagnostics);
+    hmi_debug_log_drain();
     lv_timer_set_period(timer, normal ? 16 : 50);
 }
 
 /* 整个 UI 启动与周期呈现都留在 SDK 的 LVGL 线程里，由它的主循环运行 lv_timer_handler()。 */
-static void meter_gui_start(void)
+static void hmi_gui_start(void)
 {
-    app.product = meter_product_get();
-    const meter_product_t *product = app.product;
-    if (!meter_firmware_compose(&app.composition) || !app.composition.locale_init ||
+    app.product = hmi_product_get();
+    const hmi_product_t *product = app.product;
+    if (!hmi_firmware_compose(&app.composition) || !app.composition.locale_init ||
         (product->prepare && !product->prepare()))
     {
         LOG_E("Product composition failed");
         return;
     }
-    meter_diagnostics_init(&diagnostics);
-    meter_diagnostics_init(&ui_diagnostics);
-    identity = (meter_build_info_t){.product = product->id, .platform_revision = METER_BUILD_PLATFORM,
-        .sdk_revision = METER_BUILD_SDK,
-        .lvgl_version = METER_STRING(LVGL_VERSION_MAJOR) "." METER_STRING(LVGL_VERSION_MINOR) "." METER_STRING(LVGL_VERSION_PATCH),
-        .board = METER_BUILD_BOARD, .build_date = __DATE__, .build_time = __TIME__};
-#ifdef METER_ENABLE_CAN_UPDATE
-    identity.firmware_version = METER_UPDATE_FIRMWARE_VERSION;
+    hmi_diagnostics_init(&diagnostics);
+    hmi_diagnostics_init(&ui_diagnostics);
+    identity = (hmi_build_info_t){.product = product->id, .platform_revision = HMI_BUILD_PLATFORM,
+        .sdk_revision = HMI_BUILD_SDK,
+        .lvgl_version = HMI_STRING(LVGL_VERSION_MAJOR) "." HMI_STRING(LVGL_VERSION_MINOR) "." HMI_STRING(LVGL_VERSION_PATCH),
+        .board = HMI_BUILD_BOARD, .build_date = __DATE__, .build_time = __TIME__};
+#ifdef HMI_ENABLE_CAN_UPDATE
+    identity.firmware_version = HMI_UPDATE_FIRMWARE_VERSION;
 #endif
-    if (METER_FIRMWARE_DISPLAY_VERSION[0])
-        identity.display_version = METER_FIRMWARE_DISPLAY_VERSION;
-    if (!meter_debug_init(&diagnostics, &identity))
+    if (HMI_FIRMWARE_DISPLAY_VERSION[0])
+        identity.display_version = HMI_FIRMWARE_DISPLAY_VERSION;
+    if (!hmi_debug_init(&diagnostics, &identity))
         return;
-    meter_debug_lvgl_log_init();
-    if (!meter_i18n_init() || !app.composition.locale_init() ||
-        !meter_core_init_with_settings(&core, product->catalog, &app.composition.domain, product->initial_settings) ||
-        !meter_board_display_init() || (product->start && !product->start()))
+    hmi_debug_lvgl_log_init();
+    if (!hmi_i18n_init() || !app.composition.locale_init() ||
+        !hmi_core_init_with_settings(&core, product->catalog, &app.composition.domain, product->initial_settings) ||
+        !hmi_board_display_init() || (product->start && !product->start()))
     {
         LOG_E("UI/core startup failed");
         return;
     }
-    static const meter_ui_actions_t actions = {.send = meter_execution_action};
+    static const hmi_ui_actions_t actions = {.send = hmi_execution_action};
     app.ui = product->ui->create(lv_screen_active(), &actions);
-    const meter_execution_config_t config = {.product = product, .core = &core,
+    const hmi_execution_config_t config = {.product = product, .core = &core,
         .published_storage = app.composition.presentation, .public_diagnostics = &diagnostics};
-    if (!app.ui || !meter_execution_start(&config))
+    if (!app.ui || !hmi_execution_start(&config))
     {
         LOG_E("runtime startup failed");
         if (app.ui)
             product->ui->destroy(app.ui);
         app.ui = NULL;
-        meter_board_display_close(&ui_diagnostics);
+        hmi_board_display_close(&ui_diagnostics);
         return;
     }
-    if (meter_i18n_language_count() < meter_catalog_language_count(product->catalog))
-        LOG_E("catalog accepts %u languages, Product registered %u", meter_catalog_language_count(product->catalog),
-              (unsigned)meter_i18n_language_count());
+    if (hmi_i18n_language_count() < hmi_catalog_language_count(product->catalog))
+        LOG_E("catalog accepts %u languages, Product registered %u", hmi_catalog_language_count(product->catalog),
+              (unsigned)hmi_i18n_language_count());
     LOG_I("product=%s; UI running in the LVGL thread", product->id);
-    app.ui_start = meter_board_now_ms();
+    app.ui_start = hmi_board_now_ms();
     ui_diagnostics.data.ui.available = true;
     if (!lv_timer_create(present_tick, 16, NULL))
         LOG_E("UI present timer unavailable");
@@ -119,7 +119,7 @@ extern void __real_lv_user_gui_init(void);
 void __wrap_lv_user_gui_init(void)
 {
     __real_lv_user_gui_init();
-    meter_gui_start();
+    hmi_gui_start();
 }
 
 /* 启动全部在 LVGL 线程里完成；RT-Thread 的主线程不需要做事。 */

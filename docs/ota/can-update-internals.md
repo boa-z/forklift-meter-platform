@@ -28,9 +28,9 @@ Audit baseline: SDK 9b78386dcaa54326487c8b208b2b7104d4b56c9b, tracked tree equal
 | packages/artinchip/env/absystem_os.c | aic_upgrade_end and aic_ota_status_update do not propagate fw_env_flush return | Return code alone is insufficient proof of durable activation/confirmation |
 | packages/artinchip/env/absystem_os.c | Mount path calls aic_ota_status_update before application health/NVM validation | Cannot advertise application-controlled trial confirmation on this baseline |
 | packages/artinchip/uds | Existing example download handlers use synchronous file I/O | Do not route those callbacks into the production Flash worker contract unchanged |
-| Current composition | SDK OTA downloader disabled; optional application composition links unchanged ota.c/burn.c | New endpoint exists only with METER_CAN_UPDATE=1 |
+| Current composition | SDK OTA downloader disabled; optional application composition links unchanged ota.c/burn.c | New endpoint exists only with HMI_CAN_UPDATE=1 |
 
-METER_CAN_UPDATE=1 selects meter_update_backend_aic.c: it validates physical redundant ENV CRC before opening the native ENV API, rejects pending/inconsistent slots and overlapping partitions, and reads and validates page size, pages per block, block count and capacity from MTD. Both A/B partitions must have matching geometry. The always-unsupported backend and the test that alone linked it have been removed; Host service tests do not validate the native installer.
+HMI_CAN_UPDATE=1 selects hmi_update_backend_aic.c: it validates physical redundant ENV CRC before opening the native ENV API, rejects pending/inconsistent slots and overlapping partitions, and reads and validates page size, pages per block, block count and capacity from MTD. Both A/B partitions must have matching geometry. The always-unsupported backend and the test that alone linked it have been removed; Host service tests do not validate the native installer.
 
 Only an inactive partition without bad blocks is accepted. Native Flash erase/write/read and A/B selection remain vendor-owned. The current SDK already provides aic_ota_part_read in burn.h/burn.c; the backend reuses it directly to read the candidate OS for SHA256 verification, without another read adapter.
 
@@ -48,7 +48,7 @@ The firmware protocol reuses iso14229 release 0.11.0 (commit 8a7eb23d6ab9d52f66c
 
 Host dependencies are pinned in tools/ota/requirements.txt: python-can 4.6.1 (LGPL-3.0), can-isotp 2.0.7 (MIT), udsoncan 1.25.1 (MIT). These are host dependencies, not firmware libraries.
 
-UDS receive/send buffers are 1024 bytes each; each copied update block is at most 512 bytes. The wire contract for every identifier is defined once, in protocols/uds/meter_uds_did.h, and is documented in [UDS DID reference](#uds-did-reference).
+UDS receive/send buffers are 1024 bytes each; each copied update block is at most 512 bytes. The wire contract for every identifier is defined once, in protocols/uds/hmi_uds_did.h, and is documented in [UDS DID reference](#uds-did-reference).
 
 Host preflight reads at most 64 KiB at a time; transfer blocks are at most 512 bytes. The same open file is rehashed during transfer and changed content aborts before verification.
 
@@ -60,7 +60,7 @@ Normal/Burst HIL thresholds outside maintenance remain unchanged.
 
 ## UDS DID reference
 
-protocols/uds/meter_uds_did.h is the only definition of this contract; the tables below must match it. 0xF180 (bootSoftwareIdentification) is removed and must not be reintroduced. 0xFD00-0xFEFF is the range ISO 14229-1 reserves for system suppliers, so the update identifiers live there; F186/F192/F195 are the standard supplier identifiers.
+protocols/uds/hmi_uds_did.h is the only definition of this contract; the tables below must match it. 0xF180 (bootSoftwareIdentification) is removed and must not be reintroduced. 0xFD00-0xFEFF is the range ISO 14229-1 reserves for system suppliers, so the update identifiers live there; F186/F192/F195 are the standard supplier identifiers.
 
 | DID | Name | Length | Services | Restriction |
 |---|---|---|---|---|
@@ -71,7 +71,7 @@ protocols/uds/meter_uds_did.h is the only definition of this contract; the table
 | 0xF192 | hardware number | 32 | 0x22 read | none |
 | 0xF195 | software version | 48 | 0x22 read | none |
 
-One 0x22 may carry several identifiers; the response concatenates them in request order. Every identifier is fixed length, and a Host that expects another length is a protocol error rather than a longer or shorter value. CAN never carries JSON: the UART `meter_update info` command still emits JSON, but it is built from the same device snapshot the identifiers encode.
+One 0x22 may carry several identifiers; the response concatenates them in request order. Every identifier is fixed length, and a Host that expects another length is a protocol error rather than a longer or shorter value. CAN never carries JSON: the UART `hmi_update info` command still emits JSON, but it is built from the same device snapshot the identifiers encode.
 
 ### FD10 update manifest (148 bytes)
 
@@ -117,7 +117,7 @@ Text uses the same encoding as FD10. The OS member name and the rejection reason
 
 ### F186, F192, F195
 
-F186 returns the one-byte session type. F192 returns the 32-byte hardware identity and F195 the 48-byte OTA firmware version taken from METER_UPDATE_FIRMWARE_VERSION. The display version METER_FIRMWARE_DISPLAY_VERSION is UI text only and is never exposed through F195.
+F186 returns the one-byte session type. F192 returns the 32-byte hardware identity and F195 the 48-byte OTA firmware version taken from HMI_UPDATE_FIRMWARE_VERSION. The display version HMI_FIRMWARE_DISPLAY_VERSION is UI text only and is never exposed through F195.
 
 ### Services, permissions and NRC
 
@@ -150,7 +150,7 @@ Normal sequence:
 
 ## OS-only package policy
 
-The shared C validator in update/meter_package.c accepts aic-os-only-crc-cpio-v1. Host inspection and the board worker use the same implementation.
+The shared C validator in update/hmi_package.c accepts aic-os-only-crc-cpio-v1. Host inspection and the board worker use the same implementation.
 
 Its context remains below 1 KiB, with no heap and arbitrary input boundaries. The adapter separately maintains streaming package/image SHA256; it never caches a complete firmware image.
 
@@ -176,7 +176,7 @@ Linux CI installs cpio and u-boot-tools (mkenvimage); Windows can pass the SDK t
 
 ## Validation and remaining work
 
-Before connecting, read `meter can 0` over UART and pass its reported bitrate explicitly with `--bitrate`. The CLI default is not the Product default; a mismatch can cause bus-off even with correct wiring.
+Before connecting, read `hmi can 0` over UART and pass its reported bitrate explicitly with `--bitrate`. The CLI default is not the Product default; a mismatch can cause bus-off even with correct wiring.
 
 A discovered PCAN channel does not prove which board CAN connector is attached.
 
@@ -196,9 +196,9 @@ Host failure tests do not establish physical power-loss or rollback behavior.
 
 ## Board test build
 
-Build through SDK OneStep with `METER_CAN_UPDATE=1` and `METER_UPDATE_VERSION`, as described in the [build guide](../build/build.md). The build writes the OTA package to `output/<project>/ota/<version>/` after it succeeds.
+Build through SDK OneStep with `HMI_CAN_UPDATE=1` and `HMI_UPDATE_VERSION`, as described in the [build guide](../build/build.md). The build writes the OTA package to `output/<project>/ota/<version>/` after it succeeds.
 
-OTA is enabled only through application build settings. Vendor OTA objects go into `output/<project>/meter/sdk-ota`.
+OTA is enabled only through application build settings. Vendor OTA objects go into `output/<project>/hmi/sdk-ota`.
 
 SDK source/configuration/gitlinks are not edited. Build baseline ota-board-a and candidate ota-board-b from the same committed source; flash only the baseline image initially.
 
@@ -220,7 +220,7 @@ Diagnostics, ISO-TP/UDS, Update and the NVM barrier keep running. App alone cont
 
 External cyclic senders may stop for a dedicated speed run; coexistence and normal HIL retain their original thresholds.
 
-After flashing, first verify UI, touch, meter info, NVM READY and backend_supported=true without enabling maintenance. Then enable maintenance for controlled testing.
+After flashing, first verify UI, touch, hmi info, NVM READY and backend_supported=true without enabling maintenance. Then enable maintenance for controlled testing.
 
 Preserve UART startup including native slot selection, PCAN ASC, package hash, before/after firmware version and update diagnostics. Wrong Product, damaged package, interruption, explicit Abort, maintenance entry/exit, UART responsiveness and post-update normal CAN recovery require separate evidence.
 

@@ -2,13 +2,13 @@
 
 ## Domain revision
 
-Core revision compares complete `meter_value_t` values (timestamp, state, source and value); parameter, fault, connection, settings and profile changes also advance it. The UI copies the published snapshot only when the revision changed. A signal `stale_ms` of zero disables the automatic timeout. Source arbitration receives the complete current and incoming values.
+Core revision compares complete `hmi_value_t` values (timestamp, state, source and value); parameter, fault, connection, settings and profile changes also advance it. The UI copies the published snapshot only when the revision changed. A signal `stale_ms` of zero disables the automatic timeout. Source arbitration receives the complete current and incoming values.
 
 ## Protocol service boundary
 
-Receive routing maps (bus, identifier, format) to one owner. An owner is either a stateless `meter_decode_fn_t` (generated from a DBC) or a stateful `meter_protocol_adapter_t` with `on_frame`, `process`, `command` and `reset`. `meter_protocol_services_t` carries the Domain update sink, the CAN TX port and optional diagnostics; it is valid only during the callback. Decoders write straight into Core on the runtime thread.
+Receive routing maps (bus, identifier, format) to one owner. An owner is either a stateless `hmi_decode_fn_t` (generated from a DBC) or a stateful `hmi_protocol_adapter_t` with `on_frame`, `process`, `command` and `reset`. `hmi_protocol_services_t` carries the Domain update sink, the CAN TX port and optional diagnostics; it is valid only during the callback. Decoders write straight into Core on the runtime thread.
 
-Signals are continuous state; commands are business requests from the App. `meter_command_port_t.send()` hands a command to the adapter chosen by the Product's `command_route` and returns whether the adapter accepted it. Request/response transactions, their timeouts and retries are adapter state; results reach the UI as signals. Runtime has no singleton transaction, no request ids and no transport timeout of its own.
+Signals are continuous state; commands are business requests from the App. `hmi_command_port_t.send()` hands a command to the adapter chosen by the Product's `command_route` and returns whether the adapter accepted it. Request/response transactions, their timeouts and retries are adapter state; results reach the UI as signals. Runtime has no singleton transaction, no request ids and no transport timeout of its own.
 
 Core knows no CAN; UI knows no CAN; Runtime has no Product branches.
 

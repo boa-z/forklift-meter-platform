@@ -2,7 +2,7 @@
 
 > [中文版](simulator.zh-CN.md)
 
-`meter-demo` owns the LVGL loop and emits one JSON object on stdout after a finite run. It exits zero only when the object count remains stable, selected scenario completed and optional capture succeeded.
+`hmi-sim` owns the LVGL loop and emits one JSON object on stdout after a finite run. It exits zero only when the object count remains stable, selected scenario completed and optional capture succeeded.
 
 | Option | Meaning |
 |---|---|

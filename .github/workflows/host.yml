@@ -19,12 +19,12 @@ jobs:
       # the UI tests run where this application sits inside the SDK.
       - name: Framework without a Product (no UI)
         run: |
-          cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_BUILD_UI=OFF
+          cmake -S . -B build-framework -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHMI_BUILD_UI=OFF
           cmake --build build-framework
           ctest --test-dir build-framework --output-on-failure
       - name: Headless with CAN OTA
         run: |
-          cmake -S . -B build-update -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_BUILD_UI=OFF -DMETER_ENABLE_UPDATE=ON
+          cmake -S . -B build-update -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHMI_BUILD_UI=OFF -DHMI_ENABLE_UPDATE=ON
           cmake --build build-update
           ctest --test-dir build-update --output-on-failure
       - name: Host Python tools

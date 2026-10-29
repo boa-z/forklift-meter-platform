@@ -40,7 +40,7 @@ def main(argv=None):
         inspector_path()
     except ValueError:
         print("[OTA 打包] 已跳过：找不到 meter-ota-inspect。首次需要在 Framework 目录执行一次：")
-        print("    cmake -S . -B build-package -G Ninja -DMETER_BUILD_UI=OFF")
+        print("    cmake -S . -B build-package -G Ninja -DHMI_BUILD_UI=OFF")
         print("    cmake --build build-package --target meter-ota-inspect")
         return 0
     scripts = args.sdk_root / "tools" / "scripts"

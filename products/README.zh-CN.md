@@ -9,4 +9,4 @@ git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/dem
 git clone PRIVATE_PRODUCT_REPOSITORY products/my-product
 ```
 
-Host CMake 没有默认 Product，用 `-DMETER_PRODUCT_ROOT=products/<id>` 选择。固件构建在 defconfig 中用 `CONFIG_AIC_FORKLIFT_PRODUCT_ROOT` 指定 Product。参见[构建指南](../docs/build/build.zh-CN.md)与[下游指南](../docs/product/downstream.zh-CN.md)。
+Host CMake 没有默认 Product，用 `-DHMI_PRODUCT_ROOT=products/<id>` 选择。固件构建在 defconfig 中用 `CONFIG_AIC_HMI_PRODUCT_ROOT` 指定 Product。参见[构建指南](../docs/build/build.zh-CN.md)与[下游指南](../docs/product/downstream.zh-CN.md)。

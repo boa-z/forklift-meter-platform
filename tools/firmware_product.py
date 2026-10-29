@@ -109,7 +109,7 @@ def lvgl_config(product_root):
     return None
 
 
-CONFIG_SYMBOL = 'CONFIG_AIC_FORKLIFT_PRODUCT_ROOT'
+CONFIG_SYMBOL = 'CONFIG_AIC_HMI_PRODUCT_ROOT'
 
 
 def configured_product(config_text):
@@ -142,8 +142,8 @@ def firmware_selection(environment, configured):
 def select_firmware(app_root, selection, configured=None):
     """固件只接受显式选择的 Product。
 
-    选择来源：METER_PRODUCT_ROOT 环境变量（覆盖）> defconfig 中的
-    CONFIG_AIC_FORKLIFT_PRODUCT_ROOT。没有默认 Product：静默回落会产出错误产品的镜像，
+    选择来源：HMI_PRODUCT_ROOT 环境变量（覆盖）> defconfig 中的
+    CONFIG_AIC_HMI_PRODUCT_ROOT。没有默认 Product：静默回落会产出错误产品的镜像，
     所以两处都缺失即中止，并列出候选与可直接粘贴的设置方式。
     """
     selection, _ = firmware_selection(selection, configured)
@@ -153,9 +153,9 @@ def select_firmware(app_root, selection, configured=None):
         raise ValueError('No Product is selected for this firmware build. '
                          'Candidates: ' + (', '.join(candidates) if candidates else 'none found') + '. '
                          'Preferred: store the choice in the defconfig with '
-                         + CONFIG_SYMBOL + '="' + example + '" (menuconfig: Forklift meter platform -> '
+                         + CONFIG_SYMBOL + '="' + example + '" (menuconfig: Luban-Lite HMI Framework -> '
                          'Product root), then run scons --apply-def again. '
-                         'Or override per shell: set METER_PRODUCT_ROOT='
+                         'Or override per shell: set HMI_PRODUCT_ROOT='
                          + os.path.join(os.path.abspath(app_root), example).replace(os.sep, '/') + '.')
     return select(app_root, selection)
 
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('--product-root')
     args = parser.parse_args()
     app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    selection = args.product_root or os.environ.get('METER_PRODUCT_ROOT')
+    selection = args.product_root or os.environ.get('HMI_PRODUCT_ROOT')
     selected_by = 'cli' if args.product_root else 'env'
     try:
         product, sources = select_firmware(app_root, selection)

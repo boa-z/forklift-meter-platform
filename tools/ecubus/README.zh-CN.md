@@ -8,7 +8,7 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `forklift-ota.ecb` | 设备、测试仪、服务定义与两条序列 |
+| `hmi-ota.ecb` | 设备、测试仪、服务定义与两条序列 |
 | `ota.ts` | 生成 148 字节 Manifest 并写进 0x2E 请求 |
 | `manifest.ts` | Manifest 编解码，与固件和 Python 上位机同一线协议 |
 | `ota.config.json` | 镜像与 Manifest 的位置 |
@@ -27,7 +27,7 @@ output/<工程>/images/d13x_os.itb            ->  firmware/d13x_os.itb
 `ota.manifest.json` 是 product、hardware、version、size、SHA256 的唯一来源。`ota.ts` 会重新
 计算镜像的 SHA256，两者不一致就直接报错，所以拷错旧包不会被悄悄刷进去。
 
-3. 打开 `forklift-ota.ecb`，选好 PEAK 通道。默认是 `PEAK_0`，即 PCAN-USB 第 1 路
+3. 打开 `hmi-ota.ecb`，选好 PEAK 通道。默认是 `PEAK_0`，即 PCAN-USB 第 1 路
    （`handle` 81），125 kbit/s，经典 CAN（80 MHz 时钟、40 分频、16 tq、采样点 87.5%）。
    换通道只改 `handle`。
 

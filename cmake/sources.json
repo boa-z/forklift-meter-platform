@@ -1,31 +1,31 @@
 {
   "core": [
-    "core/meter_core.c",
-    "core/meter_settings.c",
-    "core/meter_snapshot.c"
+    "core/hmi_core.c",
+    "core/hmi_settings.c",
+    "core/hmi_snapshot.c"
   ],
   "runtime": [
-    "runtime/meter_periodic.c",
-    "runtime/meter_runtime.c",
-    "runtime/meter_wall_clock.c",
-    "runtime/meter_watchdog.c"
+    "runtime/hmi_periodic.c",
+    "runtime/hmi_runtime.c",
+    "runtime/hmi_wall_clock.c",
+    "runtime/hmi_watchdog.c"
   ],
   "protocol_common": [
-    "protocols/common/meter_frame_router.c"
+    "protocols/common/hmi_frame_router.c"
   ],
   "ui_common": [
     "ui/common/i18n/lv_i18n/lv_i18n.c",
-    "ui/common/i18n/meter_i18n_runtime.c",
-    "ui/common/testcard/meter_testcard.c"
+    "ui/common/i18n/hmi_i18n_runtime.c",
+    "ui/common/testcard/hmi_testcard.c"
   ],
   "diagnostics": [
-    "diagnostics/meter_diagnostics.c",
-    "diagnostics/meter_trace.c"
+    "diagnostics/hmi_diagnostics.c",
+    "diagnostics/hmi_trace.c"
   ],
   "storage": [
-    "storage/meter_record.c",
-    "storage/meter_slots.c",
-    "storage/meter_nvm.c",
-    "storage/meter_eeprom.c"
+    "storage/hmi_record.c",
+    "storage/hmi_slots.c",
+    "storage/hmi_nvm.c",
+    "storage/hmi_eeprom.c"
   ]
 }

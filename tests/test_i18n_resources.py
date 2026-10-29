@@ -55,7 +55,7 @@ def test_generated_pack_is_an_lv_i18n_table(tmp_path):
     pack = source[source.index('product_i18n_pack['):]
     assert pack.index('&en_lang') < pack.index('&zh_cn_lang')
     assert 'extern const lv_i18n_language_pack_t product_i18n_pack[PRODUCT_I18N_LANGUAGE_COUNT + 1u];' in header
-    assert '{(meter_language_t)0, "zh-CN", NULL, NULL}' in source
+    assert '{(hmi_language_t)0, "zh-CN", NULL, NULL}' in source
     # <键>.one / <键>.other 成对的消息进入复数表，其余留在单数表；.one/.other 不再是单数键。
     assert '{"ui.count", "{0} item"}' in source and '{"ui.count", "{0} items"}' in source
     assert '{"ui.count.one"' not in source and '{"ui.title", "Title"}' in source

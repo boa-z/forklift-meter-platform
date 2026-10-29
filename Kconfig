@@ -1,24 +1,24 @@
-menu "Forklift meter platform"
-config AIC_FORKLIFT_METER_PLATFORM_APP
-    bool "Enable product-aware forklift meter application"
+menu "Luban-Lite HMI Framework"
+config AIC_HMI_APP
+    bool "Enable the Luban-Lite HMI application"
     default n
     depends on LPKG_USING_LVGL && LVGL_V_9 && LPKG_MPP
     help
       Build the selected Product package on the SDK's own LVGL 9 package (lvgl-ui), with its
       GE2D draw backend, MPP image decoder, display and touch ports. The Product UI runs in the
       SDK's LVGL thread; set that thread's stack with LPKG_LVGL_THREAD_STACK_SIZE.
-config AIC_FORKLIFT_PRODUCT_ROOT
+config AIC_HMI_PRODUCT_ROOT
     string "Product root for the firmware build"
     default ""
-    depends on AIC_FORKLIFT_METER_PLATFORM_APP
+    depends on AIC_HMI_APP
     help
       Product directory relative to this application (for example products/<id>), or an
       absolute path. A firmware image contains exactly one Product, so an empty value stops
-      the build. The METER_PRODUCT_ROOT environment variable overrides this setting.
+      the build. The HMI_PRODUCT_ROOT environment variable overrides this setting.
 
-if AIC_FORKLIFT_METER_PLATFORM_APP
+if AIC_HMI_APP
 
-config AIC_FORKLIFT_DRAW_GE2D
+config AIC_HMI_DRAW_GE2D
     bool "Let LVGL draw widgets with the GE2D engine"
     default y
     help
@@ -29,24 +29,24 @@ config AIC_FORKLIFT_DRAW_GE2D
       turn this off to draw with the CPU only when comparing a visual glitch on the board.
 
 menu "Board resources"
-config AIC_FORKLIFT_CAN0_DEVICE
+config AIC_HMI_CAN0_DEVICE
     string "CAN device behind logical bus CAN0"
     default "can0"
     help
-      Products address buses by role (METER_BUS_CAN0/CAN1); the board decides which CAN
+      Products address buses by role (HMI_BUS_CAN0/CAN1); the board decides which CAN
       controller carries each role. A bus is only opened when the Product routes, sends
       periodic frames or runs the CAN update endpoint on it.
-config AIC_FORKLIFT_CAN1_DEVICE
+config AIC_HMI_CAN1_DEVICE
     string "CAN device behind logical bus CAN1"
     default "can1"
-config AIC_FORKLIFT_DISPLAY_EXCLUSIVE
+config AIC_HMI_DISPLAY_EXCLUSIVE
     bool "UI layer owns the display (video layer and extra UI rectangles off)"
     default y
     help
       Turns off the video layer and the extra UI rectangles, forces global alpha 255 and
       disables the colour key before LVGL starts. Say n when the Product shows camera or video
       on the video layer and manages layer alpha itself.
-config AIC_FORKLIFT_BACKLIGHT
+config AIC_HMI_BACKLIGHT
     bool "Drive the panel backlight from the brightness setting"
     default y
     depends on AIC_PWM_BACKLIGHT
@@ -54,80 +54,80 @@ config AIC_FORKLIFT_BACKLIGHT
       Uses the SDK panel backlight channel (AIC_PWM_BACKLIGHT_CHANNEL) and re-applies the
       brightness setting (10..100) whenever it changes, verifying the PWM register readback.
       Say n when the Product controls the backlight itself (for example from a light sensor).
-config AIC_FORKLIFT_BACKLIGHT_PERIOD_NS
+config AIC_HMI_BACKLIGHT_PERIOD_NS
     int "Backlight PWM period in ns"
     default 20000
-    depends on AIC_FORKLIFT_BACKLIGHT
-config AIC_FORKLIFT_BACKLIGHT_FLOOR_PERCENT
+    depends on AIC_HMI_BACKLIGHT
+config AIC_HMI_BACKLIGHT_FLOOR_PERCENT
     int "Backlight duty at brightness 0, in percent"
     default 10
     range 0 100
-    depends on AIC_FORKLIFT_BACKLIGHT
+    depends on AIC_HMI_BACKLIGHT
     help
       Duty = floor + brightness * (100 - floor) / 100. A floor keeps panels from going dark
       at the lowest settings.
-config AIC_FORKLIFT_NVM_FILE_BACKEND
+config AIC_HMI_NVM_FILE_BACKEND
     bool "Store settings in files instead of an I2C EEPROM"
     default n
     help
       Explicit weaker durability backend for boards without an EEPROM. No fallback and no
       formatting: the filesystem must already be mounted.
-config AIC_FORKLIFT_NVM_FILE_PREFIX
+config AIC_HMI_NVM_FILE_PREFIX
     string "Settings file prefix on mounted storage"
     default "/data/meter-settings"
-    depends on AIC_FORKLIFT_NVM_FILE_BACKEND
-config AIC_FORKLIFT_NVM_FILE_KIND
+    depends on AIC_HMI_NVM_FILE_BACKEND
+config AIC_HMI_NVM_FILE_KIND
     string "Filesystem backend diagnostic name"
     default "nand-fatfs"
-    depends on AIC_FORKLIFT_NVM_FILE_BACKEND
-config AIC_FORKLIFT_NVM_EEPROM_BUS
+    depends on AIC_HMI_NVM_FILE_BACKEND
+config AIC_HMI_NVM_EEPROM_BUS
     string "I2C bus of the settings EEPROM"
     default "i2c0"
-    depends on !AIC_FORKLIFT_NVM_FILE_BACKEND
-config AIC_FORKLIFT_NVM_EEPROM_ADDRESS
+    depends on !AIC_HMI_NVM_FILE_BACKEND
+config AIC_HMI_NVM_EEPROM_ADDRESS
     hex "7-bit I2C address of the settings EEPROM"
     default 0x50
-    depends on !AIC_FORKLIFT_NVM_FILE_BACKEND
-config AIC_FORKLIFT_NVM_EEPROM_SIZE
+    depends on !AIC_HMI_NVM_FILE_BACKEND
+config AIC_HMI_NVM_EEPROM_SIZE
     int "EEPROM capacity in bytes (two-byte addressing)"
     default 65536
-    depends on !AIC_FORKLIFT_NVM_FILE_BACKEND
-config AIC_FORKLIFT_NVM_EEPROM_PAGE
+    depends on !AIC_HMI_NVM_FILE_BACKEND
+config AIC_HMI_NVM_EEPROM_PAGE
     int "EEPROM write page size in bytes"
     default 128
-    depends on !AIC_FORKLIFT_NVM_FILE_BACKEND
-config AIC_FORKLIFT_NVM_EEPROM_OFFSET
+    depends on !AIC_HMI_NVM_FILE_BACKEND
+config AIC_HMI_NVM_EEPROM_OFFSET
     int "Offset of the 1 KiB settings region in the EEPROM"
     default 0
-    depends on !AIC_FORKLIFT_NVM_FILE_BACKEND
+    depends on !AIC_HMI_NVM_FILE_BACKEND
 endmenu
 
-config AIC_FORKLIFT_CAN_UPDATE
+config AIC_HMI_CAN_UPDATE
     bool "Link the CAN update endpoint and package the firmware after each build"
     default n
     help
       Links the UDS update endpoint and, after a successful build, writes the OTA package
       to output/<project>/ota/<version>/. The version comes from the Product when it
-      declares one, otherwise from METER_UPDATE_VERSION. METER_CAN_UPDATE=0 or 1 in the
+      declares one, otherwise from HMI_UPDATE_VERSION. HMI_CAN_UPDATE=0 or 1 in the
       environment overrides this setting for a single build.
-config AIC_FORKLIFT_VERSION_SEQUENCE
+config AIC_HMI_VERSION_SEQUENCE
     int "Fixed daily build number V<n> (0 = automatic)"
     default 0
     range 0 99
-    depends on AIC_FORKLIFT_CAN_UPDATE
+    depends on AIC_HMI_CAN_UPDATE
     help
       Automatic numbering keeps the number while the sources and configuration are unchanged
       and adds one when they change. A value from 1 to 99 fixes the number instead. The
-      METER_VERSION_SEQUENCE environment variable overrides this setting for one build.
-config AIC_FORKLIFT_WATCHDOG
+      HMI_VERSION_SEQUENCE environment variable overrides this setting for one build.
+config AIC_HMI_WATCHDOG
     bool "Supervise the runtime and UI threads with the hardware watchdog"
     default y
     help
       Arm the on-chip watchdog and feed it only while the runtime and UI threads keep
       advancing. A stalled thread withholds the feed and the hardware resets the system.
       Boards without a "wdt" device and the startup phase are never reset. Thresholds are
-      board budgets in platform/rtthread/meter_watchdog_budget.h.
-config AIC_FORKLIFT_DISPLAY_GAMMA
+      board budgets in platform/rtthread/hmi_watchdog_budget.h.
+config AIC_HMI_DISPLAY_GAMMA
     int "Display gamma in percent (100 = display engine default, no correction)"
     default 100
     range 50 300
@@ -136,20 +136,20 @@ config AIC_FORKLIFT_DISPLAY_GAMMA
       compensate panels that look washed out next to the simulator. Values above 100 darken the
       mid-tones and make mixed colours more saturated; black, white and the pure primaries stay
       put. The SDK colour adjustment (brightness/contrast/saturation) only affects the video
-      layer, so it cannot change the LVGL picture. Try values live with the meter_color shell
+      layer, so it cannot change the LVGL picture. Try values live with the hmi_color shell
       command (not kept across reboot), then set the result here.
-config AIC_FORKLIFT_DISPLAY_CCM
+config AIC_HMI_DISPLAY_CCM
     string "Display CCM table, 12 taps (empty = display engine default)"
     default ""
     help
       Loads a 3x4 colour-correction matrix into the display engine once the display has started:
       three Q8 gains and one 9-bit offset per output row (red, green, blue). The spelling matches
-      what the meter_color shell command prints, so a bench-tuned table can be pasted here
+      what the hmi_color shell command prints, so a bench-tuned table can be pasted here
       directly, for example the identity matrix:
         "0x0100 0x0000 0x0000 0x0000 0x0000 0x0100 0x0000 0x0000 0x0000 0x0000 0x0100 0x0000"
-      An empty value keeps the display engine default (identity, no correction). meter_color
-      still tunes the live table (RAM only, lost on reboot); meter_color ccm reset restores this
-      build default and meter_color ccm identity clears all correction.
+      An empty value keeps the display engine default (identity, no correction). hmi_color
+      still tunes the live table (RAM only, lost on reboot); hmi_color ccm reset restores this
+      build default and hmi_color ccm identity clears all correction.
 
 endif
 endmenu

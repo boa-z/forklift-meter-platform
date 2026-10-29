@@ -1,5 +1,5 @@
 /* 真实 LVGL 绘制回归：外部 framebuffer 在暂停时不被覆盖，恢复后强制整屏刷新；注入设备失败。 */
-#include "platform/rtthread/meter_board_display_bench.h"
+#include "platform/rtthread/hmi_board_display_bench.h"
 #include <lvgl.h>
 #include <mpp_fb.h>
 #include <rtthread.h>
@@ -74,7 +74,7 @@ static void run(void)
 }
 static int command(const char *verb)
 {
-    char *args[] = {"meter_display", (char *)verb};
+    char *args[] = {"hmi_display", (char *)verb};
     return bench_command(verb ? 2 : 1, args);
 }
 static void state(const char *expected)
@@ -95,8 +95,8 @@ int main(void)
     lv_indev_set_type(input, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(input, read_input);
     lv_timer_create(heartbeat, 10, NULL);
-    meter_board_display_bench_init();
-    meter_board_display_bench_init();
+    hmi_board_display_bench_init();
+    hmi_board_display_bench_init();
     run();
     assert(flushes && heartbeats && reads);
     state("display=app");

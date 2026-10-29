@@ -4,13 +4,13 @@
 
 ## 归属
 
-`runtime/meter_watchdog.c` 只拥有判据，别的都不做：它接收每个 owner 的心跳计数，加上"此刻应当
+`runtime/hmi_watchdog.c` 只拥有判据，别的都不做：它接收每个 owner 的心跳计数，加上"此刻应当
 推进"的通道集合，回答是否可以喂硬件看门狗。它不打开设备、不创建线程、不持有锁，因此主机测试
-可以覆盖每个分支。`platform/rtthread/meter_watchdog_port.c` 拥有板级那一半：`"wdt"` 设备、
-一个最低优先级的线程、keepalive 调用和 `meter_watchdog` 串口命令。
+可以覆盖每个分支。`platform/rtthread/hmi_watchdog_port.c` 拥有板级那一半：`"wdt"` 设备、
+一个最低优先级的线程、keepalive 调用和 `hmi_watchdog` 串口命令。
 
-监督名单就是仪表要如实工作就必须持续运行的两个常驻线程：运行时线程（`app`）与 UI。计数来自
-`meter_execution_liveness()`，它读取两者的循环计数。看门狗从不检查其它 owner 的内部。
+监督名单就是应用要如实工作就必须持续运行的两个常驻线程：运行时线程（`app`）与 UI。计数来自
+`hmi_execution_liveness()`，它读取两者的循环计数。看门狗从不检查其它 owner 的内部。
 
 ## 何时进入监督
 
@@ -24,7 +24,7 @@
 （例如较长的 EEPROM 初始化）不可能被复位。运行时没有停止流程，因此一旦启动就一直保持到复位。
 
 因此启动阶段本身不在监督窗口内。runtime 启动之前的隐藏致命故障不会被这套机制转成复位，
-而是由启动路径和 `meter` 诊断报告。覆盖启动阶段需要一个由入口点喂的启动进度通道，
+而是由启动路径和 `hmi` 诊断报告。覆盖启动阶段需要一个由入口点喂的启动进度通道，
 这部分刻意不属于本契约。
 
 ## 阈值
@@ -34,14 +34,14 @@
 
 | 预算 | 默认值 | 含义 |
 |---|---|---|
-| `METER_WATCHDOG_TIMEOUT_S` | 8 | 硬件超时，单位秒 |
-| `METER_WATCHDOG_POLL_MS` | 200 | 监督采样周期 |
-| `METER_WATCHDOG_APP_STALL_MS` | 4000 | 运行时线程心跳上限 |
-| `METER_WATCHDOG_UI_STALL_MS` | 3000 | UI 心跳上限 |
-| `METER_WATCHDOG_THREAD_PRIO` | 26 | 监督线程优先级，低于所有被监督 owner |
+| `HMI_WATCHDOG_TIMEOUT_S` | 8 | 硬件超时，单位秒 |
+| `HMI_WATCHDOG_POLL_MS` | 200 | 监督采样周期 |
+| `HMI_WATCHDOG_APP_STALL_MS` | 4000 | 运行时线程心跳上限 |
+| `HMI_WATCHDOG_UI_STALL_MS` | 3000 | UI 心跳上限 |
+| `HMI_WATCHDOG_THREAD_PRIO` | 26 | 监督线程优先级，低于所有被监督 owner |
 
-它们全部位于 `platform/rtthread/meter_watchdog_budget.h` 且可被 `#ifndef` 覆盖，因此换板时
-只需重设预算而不碰判据。启用开关是 Kconfig 选项 `AIC_FORKLIFT_WATCHDOG`，默认打开；
+它们全部位于 `platform/rtthread/hmi_watchdog_budget.h` 且可被 `#ifndef` 覆盖，因此换板时
+只需重设预算而不碰判据。启用开关是 Kconfig 选项 `AIC_HMI_WATCHDOG`，默认打开；
 关掉后端口只剩一个记录用的空实现。没有 `"wdt"` 设备的板子只记录一次并保持不监督，
 而不是启动失败。
 
@@ -54,7 +54,7 @@
 设备 I/O 与日志均在临界区外。报告接口供线程调用，包括 MSH。
 
 ```
-meter_watchdog
+hmi_watchdog
 watchdog armed=1 supervising=1 timeout_s=8
 watchdog feeds=812 withheld=0 stalls=0 transitions=1 stalled=2
 watchdog channel=app stall_ms=4000

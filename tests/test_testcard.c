@@ -1,6 +1,6 @@
 /* 显示诊断色卡的几何与取色契约：网格分页、色值/标签不重叠、单色测量区尺寸与纯色、灰参考块。 */
 #include "platform/host/host_platform.h"
-#include "ui/common/testcard/meter_testcard.h"
+#include "ui/common/testcard/hmi_testcard.h"
 #include <lvgl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +46,7 @@ static bool capture(const char *dir, const char *name)
     }
     char path[512];
     snprintf(path, sizeof(path), "%s/%s.bmp", dir, name);
-    return meter_host_capture(path);
+    return hmi_host_capture(path);
 }
 
 static lv_obj_t *find_label(lv_obj_t *parent, const char *text)
@@ -183,63 +183,63 @@ int main(int argc, char **argv)
 {
     const char *dir = argc > 1 ? argv[1] : NULL;
     lv_init();
-    CHECK(meter_host_open(true));
+    CHECK(hmi_host_open(true));
     CHECK(lv_display_get_horizontal_resolution(NULL) == 800);
     CHECK(lv_display_get_vertical_resolution(NULL) == 480);
 
-    CHECK(meter_testcard_set_extra(brand, (unsigned)(sizeof(brand) / sizeof(brand[0]))) == 6);
-    CHECK(meter_testcard_preset_count() == 19);
-    CHECK(meter_testcard_show_index(19) == false);
+    CHECK(hmi_testcard_set_extra(brand, (unsigned)(sizeof(brand) / sizeof(brand[0]))) == 6);
+    CHECK(hmi_testcard_preset_count() == 19);
+    CHECK(hmi_testcard_show_index(19) == false);
 
     /* 网格：12 块一页，19 色分两页；文字在色块下方。 */
-    meter_testcard_show_grid();
+    hmi_testcard_show_grid();
     lv_obj_update_layout(lv_layer_top());
-    CHECK(meter_testcard_mode() == METER_TESTCARD_MODE_GRID);
-    CHECK(meter_testcard_page_count() == 2);
-    CHECK(meter_testcard_page() == 0);
+    CHECK(hmi_testcard_mode() == HMI_TESTCARD_MODE_GRID);
+    CHECK(hmi_testcard_page_count() == 2);
+    CHECK(hmi_testcard_page() == 0);
     CHECK(check_page(0, 12) == 0);
     CHECK(capture(dir, "testcard-grid-1"));
-    meter_testcard_next();
+    hmi_testcard_next();
     lv_obj_update_layout(lv_layer_top());
-    CHECK(meter_testcard_page() == 1);
+    CHECK(hmi_testcard_page() == 1);
     CHECK(check_page(12, 7) == 0);
     CHECK(capture(dir, "testcard-grid-2"));
-    meter_testcard_next();
-    CHECK(meter_testcard_page() == 0);
-    meter_testcard_prev();
-    CHECK(meter_testcard_page() == 1);
+    hmi_testcard_next();
+    CHECK(hmi_testcard_page() == 0);
+    hmi_testcard_prev();
+    CHECK(hmi_testcard_page() == 1);
 
     /* 单色：任意 RGB；主色块 520×300，四周 #202020，同框 #808080 参考块。 */
-    meter_testcard_show_patch(0x0DD462u);
+    hmi_testcard_show_patch(0x0DD462u);
     lv_obj_update_layout(lv_layer_top());
-    CHECK(meter_testcard_mode() == METER_TESTCARD_MODE_PATCH);
-    CHECK(meter_testcard_rgb() == 0x0DD462u);
-    CHECK(meter_testcard_index() == METER_TESTCARD_NO_INDEX);
+    CHECK(hmi_testcard_mode() == HMI_TESTCARD_MODE_PATCH);
+    CHECK(hmi_testcard_rgb() == 0x0DD462u);
+    CHECK(hmi_testcard_index() == HMI_TESTCARD_NO_INDEX);
     CHECK(check_patch(0x0DD462u) == 0);
     CHECK(capture(dir, "testcard-patch-free"));
-    meter_testcard_show_patch(0xFFFFFFu);
+    hmi_testcard_show_patch(0xFFFFFFu);
     lv_obj_update_layout(lv_layer_top());
     CHECK(check_patch(0xFFFFFFu) == 0);
     CHECK(capture(dir, "testcard-patch-white"));
 
     /* 预置序号：0x0DD462 排在 13 号，next/prev 环绕。 */
-    CHECK(meter_testcard_show_index(13));
-    CHECK(meter_testcard_rgb() == 0x0DD462u);
-    CHECK(meter_testcard_index() == 13);
+    CHECK(hmi_testcard_show_index(13));
+    CHECK(hmi_testcard_rgb() == 0x0DD462u);
+    CHECK(hmi_testcard_index() == 13);
     CHECK(capture(dir, "testcard-patch-index"));
-    meter_testcard_show_index(18);
-    meter_testcard_next();
-    CHECK(meter_testcard_index() == 0);
-    meter_testcard_prev();
-    CHECK(meter_testcard_index() == 18);
+    hmi_testcard_show_index(18);
+    hmi_testcard_next();
+    CHECK(hmi_testcard_index() == 0);
+    hmi_testcard_prev();
+    CHECK(hmi_testcard_index() == 18);
 
     /* 关闭后回到 Product 界面，层上不留对象。 */
-    meter_testcard_off();
-    CHECK(!meter_testcard_active());
-    CHECK(meter_testcard_mode() == METER_TESTCARD_MODE_OFF);
+    hmi_testcard_off();
+    CHECK(!hmi_testcard_active());
+    CHECK(hmi_testcard_mode() == HMI_TESTCARD_MODE_OFF);
     CHECK(lv_obj_get_child_count(lv_layer_top()) == 0);
 
-    meter_host_close();
+    hmi_host_close();
     lv_deinit();
     printf("testcard PASS\n");
     return 0;

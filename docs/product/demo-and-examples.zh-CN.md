@@ -6,7 +6,7 @@
 
 | 包 | 归属 | 用途 | 构建选择 |
 |---|---|---|---|
-| `products/demo` | 独立公开 Product 仓库，克隆到 `products/demo` | 完整合成仪表、双语 LVGL UI、协议、设置和 Product 文档 | `-DMETER_PRODUCT_ROOT=products/demo`（主机）或 `METER_PRODUCT_ROOT=products/demo`（固件） |
+| `products/demo` | 独立公开 Product 仓库，克隆到 `products/demo` | 完整合成仪表、双语 LVGL UI、协议、设置和 Product 文档 | `-DHMI_PRODUCT_ROOT=products/demo`（主机）或 `HMI_PRODUCT_ROOT=products/demo`（固件） |
 
 完整开发规范参考 [Demo Product 手册](../../products/demo/README.zh-CN.md)及其 [SDL2 实际截图](../../products/demo/docs/ui/screenshots.zh-CN.md)。每个固件只链接一个 Product。
 
@@ -14,7 +14,7 @@
 
 Framework 文档描述可复用契约、构建工具与集成。Demo 的需求、协议、UI、资源、截图和验证属于 Demo 仓库；客户对应资料属于私有 Product。不要在 Framework `docs/` 中复制这些文档。
 
-Framework 不携带示例 Product。用于回归或可替换性检查的第二个 Product 放在独立仓库，通过 `METER_PRODUCT_ROOT` 选择；需要它的 Framework 测试从 `tools/product_template` 临时生成。
+Framework 不携带示例 Product。用于回归或可替换性检查的第二个 Product 放在独立仓库，通过 `HMI_PRODUCT_ROOT` 选择；需要它的 Framework 测试从 `tools/product_template` 临时生成。
 
 ## 开发与更新 Product
 
@@ -29,12 +29,12 @@ Framework 不携带示例 Product。用于回归或可替换性检查的第二�
 git submodule update --init third_party/iso14229 tools/ota
 git clone https://github.com/boa-z/forklift-meter-platform-demo.git products/demo
 git -C products/demo switch -c codex/demo-change
-cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMETER_PRODUCT_ROOT=products/demo
+cmake -S . -B build-demo -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHMI_PRODUCT_ROOT=products/demo
 cmake --build build-demo --parallel
 ctest --test-dir build-demo --output-on-failure
 ```
 
-每个 Product 使用独立构建目录。`METER_PRODUCT_ROOT` 选择源码清单，不是运行时 Product 菜单。仓库结构与 Product 契约见[Product 接入指南](downstream.zh-CN.md)。
+每个 Product 使用独立构建目录。`HMI_PRODUCT_ROOT` 选择源码清单，不是运行时 Product 菜单。仓库结构与 Product 契约见[Product 接入指南](downstream.zh-CN.md)。
 
 ## Product 文档验收
 

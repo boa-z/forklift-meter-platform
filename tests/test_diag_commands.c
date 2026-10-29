@@ -1,4 +1,4 @@
-#include "platform/common/meter_diag_commands.h"
+#include "platform/common/hmi_diag_commands.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,28 +10,28 @@ static void emit(void *ctx, const char *text)
     strcat(output, text);
     strcat(output, "\n");
 }
-static void run(const char *name, const char *arg, const meter_diag_view_t *v)
+static void run(const char *name, const char *arg, const hmi_diag_view_t *v)
 {
-    const char *argv[] = {"meter", name, arg};
-    meter_diag_query_t q;
-    assert(meter_diag_query(arg ? 3 : 2, argv, &q));
+    const char *argv[] = {"hmi", name, arg};
+    hmi_diag_query_t q;
+    assert(hmi_diag_query(arg ? 3 : 2, argv, &q));
     output[0] = 0;
-    meter_diag_render(&q, v, emit, NULL);
+    hmi_diag_render(&q, v, emit, NULL);
     assert(*output);
 }
 int main(void)
 {
-    meter_diag_snapshot_t snapshot = {.uptime_ms = 12};
-    meter_build_info_t info = {"demo", "abc", "sdk", "9.1.0", "board", "date", "time", "fw-1", "Product-1.0-V1"};
-    meter_diag_signal_t signal = {.id = 3,
+    hmi_diag_snapshot_t snapshot = {.uptime_ms = 12};
+    hmi_build_info_t info = {"demo", "abc", "sdk", "9.1.0", "board", "date", "time", "fw-1", "Product-1.0-V1"};
+    hmi_diag_signal_t signal = {.id = 3,
                                   .key = "vehicle.speed",
                                   .unit = "m/s",
-                                  .value = {1.25f, 10, METER_VALUE_VALID, 7},
+                                  .value = {1.25f, 10, HMI_VALUE_VALID, 7},
                                   .age_ms = 2,
                                   .stale_ms = 50};
-    meter_trace_entry_t entries[] = {{UINT32_MAX, METER_TRACE_CAN, CAN_RX_DROP, 17, 0},
-                                     {2, METER_TRACE_CAN, CAN_ERROR, 17, 1}};
-    meter_diag_view_t view = {.snapshot = &snapshot,
+    hmi_trace_entry_t entries[] = {{UINT32_MAX, HMI_TRACE_CAN, CAN_RX_DROP, 17, 0},
+                                     {2, HMI_TRACE_CAN, CAN_ERROR, 17, 1}};
+    hmi_diag_view_t view = {.snapshot = &snapshot,
                               .build = &info,
                               .signal = &signal,
                               .entries = entries,
@@ -49,13 +49,13 @@ int main(void)
     assert(strstr(output, "4294967295 CAN RX_DROP") < strstr(output, "2 CAN ERROR"));
     run("trace", "clear", &view);
     assert(strstr(output, "cleared=2 result=OK"));
-    snapshot.can[1] = (meter_diag_can_t){.available = true, .rx_seen = true, .last_rx_ms = UINT32_MAX - 2};
+    snapshot.can[1] = (hmi_diag_can_t){.available = true, .rx_seen = true, .last_rx_ms = UINT32_MAX - 2};
     run("can", "1", &view);
     assert(strstr(output, "last_rx_age_ms=15") && strstr(output, "bitrate=unavailable") &&
            !strstr(output, "can0"));
-    const char *retired[] = {"meter", "pdo"};
-    meter_diag_query_t retired_query;
-    assert(!meter_diag_query(2, retired, &retired_query));
+    const char *retired[] = {"hmi", "pdo"};
+    hmi_diag_query_t retired_query;
+    assert(!hmi_diag_query(2, retired, &retired_query));
     snapshot.storage.available = true;
     snapshot.storage.backend = "eeprom";
     snapshot.storage.state = 5;
@@ -63,20 +63,20 @@ int main(void)
     snapshot.storage.durable_revision = UINT64_C(4294967297);
     run("storage", NULL, &view);
     assert(strstr(output, "state=DURABLE") && strstr(output, "durable_revision=4294967297"));
-    meter_diag_snapshot_t before = snapshot;
+    hmi_diag_snapshot_t before = snapshot;
     run("diag", NULL, &view);
     assert(memcmp(&before, &snapshot, sizeof(snapshot)) == 0);
-    const char *invalid[] = {"meter", "can", "2"};
-    meter_diag_query_t q;
-    assert(!meter_diag_query(3, invalid, &q));
+    const char *invalid[] = {"hmi", "can", "2"};
+    hmi_diag_query_t q;
+    assert(!hmi_diag_query(3, invalid, &q));
     invalid[1] = "signal";
-    assert(!meter_diag_query(2, invalid, &q));
+    assert(!hmi_diag_query(2, invalid, &q));
     invalid[1] = "storage";
     invalid[2] = "write";
-    assert(!meter_diag_query(3, invalid, &q));
+    assert(!hmi_diag_query(3, invalid, &q));
     invalid[1] = "trace";
     invalid[2] = "erase";
-    assert(!meter_diag_query(3, invalid, &q));
+    assert(!hmi_diag_query(3, invalid, &q));
     view.signal = NULL;
     run("signal", "missing", &view);
     assert(strstr(output, "signal not found"));

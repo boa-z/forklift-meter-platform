@@ -8,7 +8,7 @@ computed from the image at run time and an `.ecb` cannot carry a script.
 
 | File | Role |
 | --- | --- |
-| `forklift-ota.ecb` | device, tester, services and the two sequences |
+| `hmi-ota.ecb` | device, tester, services and the two sequences |
 | `ota.ts` | builds the 148-byte manifest and writes it into the 0x2E request |
 | `manifest.ts` | manifest encoder, identical to the firmware and the Python host |
 | `ota.config.json` | where the image and its manifest are |
@@ -28,7 +28,7 @@ output/<project>/images/d13x_os.itb               ->  firmware/d13x_os.itb
 SHA256. `ota.ts` re-hashes the image and refuses to start when the two disagree, so a stale
 copy cannot be flashed silently.
 
-3. Open `forklift-ota.ecb` and select the PEAK channel. The default is `PEAK_0` on
+3. Open `hmi-ota.ecb` and select the PEAK channel. The default is `PEAK_0` on
    PCAN-USB channel 1 (`handle` 81) at 125 kbit/s, classic CAN (80 MHz / 40 prescaler,
    16 tq, 87.5 % sample point). Change `handle` to use another channel.
 

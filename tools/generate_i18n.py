@@ -3,14 +3,14 @@
 
 输入是 Product 的语言清单（默认 <product>/i18n/languages.json）与每种语言一份扁平译文
 （<code>.json：键 -> 文字）。源语言的译文决定键集合；语言编号就是持久化的语言字节，清单显式
-写出，生成器只校验、不重排。输出一对 C 文件：meter_i18n_language_t 语言表、
+写出，生成器只校验、不重排。输出一对 C 文件：hmi_i18n_language_t 语言表、
 lv_i18n 版式的语言包（每种语言一张 lv_i18n_lang_t，源语言排第一作回退；形如 <键>.one / <键>.other
 且 <键>.other 存在的消息进入复数表）、各语言自称的键，以及（声明了 fonts 时）各语言的字体文件。
 
 检查：编号连续且唯一、键集合一致、占位符 {0}..{9} 与源语言一致、文字非空且不含控制字符、
 complete=false 的语言缺译文时用源语言占位并在 --report 中列出、声明了字体文件时逐字检查字形覆盖
 （语言字体缺的字由默认字体补，与运行时的回退链一致；阿拉伯文按 LVGL 字形变换后的呈现形检查）、
-可选地检查源码里 meter_i18n_tr("...") 的字面键存在。
+可选地检查源码里 hmi_i18n_tr("...") 的字面键存在。
 """
 import argparse
 import json
@@ -22,8 +22,8 @@ import unicodedata
 from pathlib import Path
 
 FRAMEWORK = Path(__file__).resolve().parents[1]
-# 阿拉伯字形变换表取自固件链接的同一份 LVGL（SDK 的 lvgl-ui 包），METER_LVGL_ROOT 可指向别处。
-LVGL_AP = (Path(os.environ['METER_LVGL_ROOT']) if os.environ.get('METER_LVGL_ROOT') else
+# 阿拉伯字形变换表取自固件链接的同一份 LVGL（SDK 的 lvgl-ui 包），HMI_LVGL_ROOT 可指向别处。
+LVGL_AP = (Path(os.environ['HMI_LVGL_ROOT']) if os.environ.get('HMI_LVGL_ROOT') else
            FRAMEWORK.parents[2] / 'packages/artinchip/lvgl-ui/lvgl_v9/lvgl') / 'src/misc/lv_text_ap.c'
 # LVGL 9.1（SDK 自带的版本）的阿拉伯字形表里，teh marbuta（U+0629）的词首形指向 U+FE95（teh 的孤立形），后续 LVGL 才改为孤立形：
 # 它跟在不连写的字母后面时会画成 teh。这是 SDK 里的缺陷，字体补不了，所以只提示不报错。
@@ -35,7 +35,7 @@ PLURAL_FORMS = {'zero': 'ZERO', 'one': 'ONE', 'two': 'TWO', 'few': 'FEW', 'many'
 KEY = re.compile(r'^[A-Za-z0-9_]+(?:(?:\.|::)[A-Za-z0-9_]+)*$')
 SYMBOL = re.compile(r'^[a-z][a-z0-9_]*$')
 PLACEHOLDER = re.compile(r'(?<!\{)\{(\d)\}')
-LITERAL_USE = re.compile(r'\bmeter_i18n_(?:tr|find)\(\s*"([^"\\]+)"\s*\)')
+LITERAL_USE = re.compile(r'\bhmi_i18n_(?:tr|find)\(\s*"([^"\\]+)"\s*\)')
 LANGUAGE_FIELDS = {'id', 'code', 'name_key', 'plural', 'complete', 'enabled', 'fonts', 'comment'}
 MANIFEST_FIELDS = {'comment', 'symbol', 'source', 'default', 'translations', 'output', 'font_dir', 'fonts',
                    'symbol_roles', 'languages', 'sources'}
@@ -213,7 +213,7 @@ def read_cmap(path):
 
 def arabic_forms():
     """LVGL 的阿拉伯字形变换（LV_USE_ARABIC_PERSIAN_CHARS）：字母 -> 可能画出的呈现形。
-    孤立形缺字时框架用原字母的字形补上（meter_i18n_font_isolated_forms），所以原字母也算数。"""
+    孤立形缺字时框架用原字母的字形补上（hmi_i18n_font_isolated_forms），所以原字母也算数。"""
     if not LVGL_AP.is_file():
         return {}
     rows = re.findall(r'\{(\d+),\s*0x([0-9A-Fa-f]+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),', LVGL_AP.read_text(encoding='utf-8'))
@@ -312,11 +312,11 @@ def render(manifest_path, manifest, enabled, keys, columns):
     origin = manifest_path.name
     banner = f'/* 从 {origin} 与各语言译文生成：python tools/generate_i18n.py；请勿手改。 */\n'
     header = [banner, f'#ifndef {upper}_H\n#define {upper}_H\n',
-              '#include "ui/common/i18n/meter_i18n_runtime.h"\n',
+              '#include "ui/common/i18n/hmi_i18n_runtime.h"\n',
               f'/* 启用的语言数；语言编号 0..{count - 1} 即持久化的语言字节。 */\n',
               f'#define {upper}_LANGUAGE_COUNT {count}u\n',
               f'/* 首次开机（没有已存设置）使用的语言。 */\n#define {upper}_DEFAULT_LANGUAGE {default_id}u\n',
-              f'extern const meter_i18n_language_t {symbol}_languages[{upper}_LANGUAGE_COUNT];\n',
+              f'extern const hmi_i18n_language_t {symbol}_languages[{upper}_LANGUAGE_COUNT];\n',
               f'/* lv_i18n 语言包，以 NULL 结尾；第一项是源语言，译文缺失时回退到它。 */\n',
               f'extern const lv_i18n_language_pack_t {symbol}_pack[{upper}_LANGUAGE_COUNT + 1u];\n',
               f'/* 各语言名称的消息键（语言选择页），按语言编号。 */\n',
@@ -349,8 +349,8 @@ def render(manifest_path, manifest, enabled, keys, columns):
     source.append(f'\nconst lv_i18n_language_pack_t {symbol}_pack[{upper}_LANGUAGE_COUNT + 1u] = {{\n')
     source += [f'    &{idents[i]}_lang,\n' for i in order]
     source.append('    NULL};\n')
-    source.append(f'const meter_i18n_language_t {symbol}_languages[{upper}_LANGUAGE_COUNT] = {{\n')
-    source += [f'    {{(meter_language_t){item["id"]}, {c_string(item["code"])}, NULL, NULL}},\n' for item in enabled]
+    source.append(f'const hmi_i18n_language_t {symbol}_languages[{upper}_LANGUAGE_COUNT] = {{\n')
+    source += [f'    {{(hmi_language_t){item["id"]}, {c_string(item["code"])}, NULL, NULL}},\n' for item in enabled]
     source.append('};\n')
     source.append(f'const char *const {symbol}_name_keys[{upper}_LANGUAGE_COUNT] = {{\n')
     source += [f'    {c_string(item["name_key"]) if "name_key" in item else "NULL"},\n' for item in enabled]

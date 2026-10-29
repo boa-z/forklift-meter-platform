@@ -36,10 +36,10 @@ def generate(product):
     def clean(text):
         return BANNER + '\n'.join(line.rstrip() for line in re.sub(r'/\*.*?\*/', '', text, flags=re.S).lstrip().splitlines()).rstrip() + '\n'
     outputs = {f'{name}.h': clean(header), f'{name}.c': clean(source), 'LICENSE.cantools.txt': license_text}
-    lines = [BANNER.rstrip(), '#include "contracts/meter_product.h"', '#include "protocols/common/meter_frame_router.h"',
+    lines = [BANNER.rstrip(), '#include "contracts/hmi_product.h"', '#include "protocols/common/hmi_frame_router.h"',
              f'#include "{config["catalog_header"]}"', f'#include "{name}.h"',
-             f'bool {config["decode"]}(const meter_can_frame_t *f, meter_update_sink_t sink, void *ctx)', '{',
-             f'    if (!meter_frame_valid(f) || !sink || f->bus != {config["bus"]}) return false;',
+             f'bool {config["decode"]}(const hmi_can_frame_t *f, hmi_update_sink_t sink, void *ctx)', '{',
+             f'    if (!hmi_frame_valid(f) || !sink || f->bus != {config["bus"]}) return false;',
              '    bool ok = true;', '    switch (f->id)', '    {']
     route_lines = [BANNER.rstrip()]
     for m in db.messages:
@@ -51,7 +51,7 @@ def generate(product):
             symbol = config['signals'][f'{m.name}.{s.name}']
             lines += ['        {', f'            float v = {prefix}_{s.name}_decode(raw.{s.name});',
                       f'            bool bad = v < {float(s.minimum)}f || v > {float(s.maximum)}f;',
-                      f'            meter_update_t u = {{{symbol}, {{v, f->timestamp_ms, bad ? METER_VALUE_ERROR : METER_VALUE_VALID, {config["source"]}}}}};',
+                      f'            hmi_update_t u = {{{symbol}, {{v, f->timestamp_ms, bad ? HMI_VALUE_ERROR : HMI_VALUE_VALID, {config["source"]}}}}};',
                       '            ok &= sink(ctx, &u);', '        }']
         lines += ['        break;', '    }']
         route_lines += [f'{{{config["bus"]}, {m.frame_id}, {str(m.is_extended_frame).lower()}, {config["owner"]}}},']

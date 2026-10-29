@@ -1,0 +1,257 @@
+#include "core/hmi_core.h"
+#include "contracts/hmi_time.h"
+#include <math.h>
+#include <stddef.h>
+#include <string.h>
+void hmi_core_bind_diagnostics(hmi_core_t *core, hmi_diagnostics_t *d)
+{
+    if (core)
+    {
+        core->diag = d;
+        if (d)
+            d->domain = &core->snapshot;
+    }
+}
+static void diag_stale(hmi_core_t *core, hmi_signal_id_t id, uint32_t now)
+{
+    HMI_DIAG_INC(core->diag, domain, stale_transition);
+    HMI_DIAG_TRACE(core->diag, HMI_TRACE_DOMAIN, DOMAIN_STALE, now, id, 0);
+}
+/* 身份 0 表示“无此条目”，因此半成品目录无法占用槽位；两张表若共用同一身份，
+ * 后写入的一方会静默覆盖前者的数据，必须在绑定前拒绝。 */
+static bool ids_valid(const void *table, size_t count, size_t stride, size_t offset)
+{
+    for (size_t i = 0; i < count; ++i)
+    {
+        const uint16_t *id = (const uint16_t *)((const char *)table + i * stride + offset);
+        if (!*id)
+            return false;
+        for (size_t j = i + 1; j < count; ++j)
+            if (*id == *(const uint16_t *)((const char *)table + j * stride + offset))
+                return false;
+    }
+    return true;
+}
+static bool catalog_valid(const hmi_catalog_t *catalog)
+{
+    if (!catalog || !catalog->signal_count || !catalog->signals)
+        return false;
+    if ((catalog->parameter_count && !catalog->parameters) ||
+        (catalog->monitor_count && !catalog->monitors) || (catalog->fault_count && !catalog->faults))
+        return false;
+    if (!ids_valid(catalog->signals, catalog->signal_count, sizeof(*catalog->signals),
+                   offsetof(hmi_signal_def_t, id)) ||
+        !ids_valid(catalog->parameters, catalog->parameter_count, sizeof(*catalog->parameters),
+                   offsetof(hmi_parameter_def_t, id)) ||
+        !ids_valid(catalog->faults, catalog->fault_count, sizeof(*catalog->faults),
+                   offsetof(hmi_fault_def_t, id)))
+        return false;
+    /* 监视项只是指向已声明信号的呈现映射；引用未声明的身份会让这一行显示别人的值。 */
+    for (size_t i = 0; i < catalog->monitor_count; ++i)
+        if (hmi_catalog_index(catalog, catalog->monitors[i].signal) >= catalog->signal_count)
+            return false;
+    for (size_t i = 0; i < catalog->parameter_count; ++i)
+    {
+        const hmi_parameter_def_t *p = &catalog->parameters[i];
+        if (!isfinite(p->min) || !isfinite(p->max) || !isfinite(p->initial) || p->min > p->max ||
+            p->initial < p->min || p->initial > p->max)
+            return false;
+    }
+    return true;
+}
+static bool value_equal(const hmi_value_t *a, const hmi_value_t *b)
+{
+    return a->value == b->value && a->timestamp_ms == b->timestamp_ms && a->state == b->state &&
+           a->source == b->source;
+}
+bool hmi_core_init(hmi_core_t *core, const hmi_catalog_t *catalog, const hmi_core_storage_t *storage)
+{
+    if (!core || !storage || !catalog_valid(catalog) || catalog->signal_count > storage->signal_capacity ||
+        catalog->parameter_count > storage->parameter_capacity ||
+        catalog->fault_count > storage->fault_capacity || !storage->signals ||
+        (catalog->parameter_count && !storage->parameters) || (catalog->fault_count && !storage->faults))
+        return false;
+    memset(core, 0, sizeof(*core));
+    core->storage = *storage;
+    core->snapshot.catalog = catalog;
+    core->snapshot.signals = storage->signals;
+    core->snapshot.parameters = storage->parameters;
+    core->snapshot.faults = storage->faults;
+    for (size_t i = 0; i < catalog->signal_count; ++i)
+        core->snapshot.signals[i] = hmi_value_unknown();
+    for (size_t i = 0; i < catalog->parameter_count; ++i)
+        core->snapshot.parameters[i] = catalog->parameters[i].initial;
+    for (size_t i = 0; i < catalog->fault_count; ++i)
+        core->snapshot.faults[i] = (hmi_fault_state_t){catalog->faults[i].id, false};
+    core->snapshot.brightness = 80;
+    core->snapshot.can_rate = HMI_CAN_RATE_500K;
+    return true;
+}
+bool hmi_core_init_with_settings(hmi_core_t *core, const hmi_catalog_t *catalog,
+                                  const hmi_core_storage_t *storage,
+                                  const hmi_initial_settings_t *settings)
+{
+    if (settings && ((unsigned)settings->language >= hmi_catalog_language_count(catalog) ||
+                     (unsigned)settings->can_rate > HMI_CAN_RATE_500K || settings->brightness < 10u ||
+                     settings->brightness > 100u))
+        return false;
+    if (!hmi_core_init(core, catalog, storage))
+        return false;
+    if (settings)
+    {
+        core->snapshot.language = settings->language;
+        core->snapshot.can_rate = settings->can_rate;
+        core->snapshot.brightness = settings->brightness;
+        core->snapshot.imperial = settings->imperial;
+    }
+    return true;
+}
+bool hmi_core_apply(void *context, const hmi_update_t *update)
+{
+    hmi_core_t *core = context;
+    if (!core || !update || (unsigned)update->value.state > HMI_VALUE_ERROR)
+        return false;
+    size_t index = hmi_catalog_index(core->snapshot.catalog, update->signal);
+    if (index >= core->snapshot.catalog->signal_count)
+        return false;
+    hmi_value_t value = update->value;
+    if (!isfinite(value.value))
+    {
+        value.value = 0;
+        value.state = HMI_VALUE_ERROR;
+    }
+    const hmi_value_t current = core->snapshot.signals[index];
+    const hmi_source_policy_fn_t policy = core->snapshot.catalog->source_policy;
+    if (policy && !policy(core->snapshot.catalog->source_policy_context, update->signal, &value, &current))
+        return false;
+    HMI_DIAG_INC(core->diag, domain, updates);
+    if (value.state == HMI_VALUE_ERROR)
+        HMI_DIAG_INC(core->diag, domain, error_updates);
+    if (value.state == HMI_VALUE_VALID && current.state != HMI_VALUE_VALID)
+    {
+        HMI_DIAG_INC(core->diag, domain, valid_transition);
+        HMI_DIAG_TRACE(core->diag, HMI_TRACE_DOMAIN, DOMAIN_RECOVER, value.timestamp_ms, update->signal,
+                         value.source);
+    }
+    if (value.state == HMI_VALUE_ERROR && current.state != HMI_VALUE_ERROR)
+        HMI_DIAG_TRACE(core->diag, HMI_TRACE_DOMAIN, DOMAIN_ERROR, value.timestamp_ms, update->signal,
+                         value.source);
+    if (current.source != HMI_SOURCE_NONE && value.source != current.source)
+    {
+        HMI_DIAG_INC(core->diag, domain, source_switch);
+        HMI_DIAG_TRACE(core->diag, HMI_TRACE_DOMAIN, DOMAIN_SOURCE_SWITCH, value.timestamp_ms,
+                         update->signal, ((uint32_t)current.source << 16) | value.source);
+    }
+    if (value.state == HMI_VALUE_STALE && current.state != HMI_VALUE_STALE)
+        diag_stale(core, update->signal, value.timestamp_ms);
+    if (value_equal(&value, &current))
+        return true;
+    core->snapshot.signals[index] = value;
+    ++core->snapshot.revision;
+    return true;
+}
+void hmi_core_tick(hmi_core_t *core, uint32_t now_ms)
+{
+    const hmi_catalog_t *catalog = core->snapshot.catalog;
+    for (size_t i = 0; i < catalog->signal_count; ++i)
+    {
+        hmi_value_t *v = &core->snapshot.signals[i];
+        const uint32_t limit = catalog->signals[i].stale_ms;
+        /* 期限 = 打戳时刻 + 门限，按 RT-CAN-05 的半周期规则比较。帧是在运行时一轮里读取时才打戳的，可以比这一轮开头
+           取的 now_ms 晚几毫秒；直接做无符号减法会回绕成接近 2^32，把刚更新的值误判成过期，界面闪到“无数据”。 */
+        if (v->state == HMI_VALUE_VALID && limit && hmi_time_reached(now_ms, v->timestamp_ms + limit))
+        {
+            v->state = HMI_VALUE_STALE;
+            diag_stale(core, catalog->signals[i].id, now_ms);
+            ++core->snapshot.revision;
+        }
+    }
+}
+void hmi_core_connection(hmi_core_t *core, bool connected, uint32_t generation)
+{
+    bool changed = core->snapshot.connected != connected || core->snapshot.generation != generation;
+    core->snapshot.connected = connected;
+    core->snapshot.generation = generation;
+    if (connected)
+    {
+        if (changed)
+            ++core->snapshot.revision;
+        return;
+    }
+    const hmi_catalog_t *catalog = core->snapshot.catalog;
+    for (size_t i = 0; i < catalog->signal_count; ++i)
+        if (core->snapshot.signals[i].state == HMI_VALUE_VALID)
+        {
+            core->snapshot.signals[i].state = HMI_VALUE_STALE;
+            diag_stale(core, catalog->signals[i].id, core->diag ? core->diag->data.uptime_ms : 0);
+            changed = true;
+        }
+    if (changed)
+        ++core->snapshot.revision;
+}
+bool hmi_core_parameter_valid(const hmi_core_t *core, uint16_t id, float value)
+{
+    if (!core || !isfinite(value))
+        return false;
+    size_t index = hmi_catalog_parameter_index(core->snapshot.catalog, id);
+    if (index >= core->snapshot.catalog->parameter_count)
+        return false;
+    const hmi_parameter_def_t *p = &core->snapshot.catalog->parameters[index];
+    return value >= p->min && value <= p->max;
+}
+bool hmi_core_parameter(hmi_core_t *core, uint16_t id, float value)
+{
+    if (!hmi_core_parameter_valid(core, id, value))
+        return false;
+    size_t index = hmi_catalog_parameter_index(core->snapshot.catalog, id);
+    if (core->snapshot.parameters[index] == value)
+        return true;
+    core->snapshot.parameters[index] = value;
+    ++core->snapshot.revision;
+    return true;
+}
+bool hmi_core_action(hmi_core_t *core, const hmi_action_t *action)
+{
+    if (!action || !isfinite(action->value))
+        return false;
+    switch (action->kind)
+    {
+    case HMI_ACTION_UNITS:
+        if (action->value != 0 && action->value != 1)
+            return false;
+        bool next_units = action->value != 0;
+        if (core->snapshot.imperial == next_units)
+            return true;
+        core->snapshot.imperial = next_units;
+        ++core->snapshot.revision;
+        return true;
+    case HMI_ACTION_BRIGHTNESS:
+        if (action->value < 10 || action->value > 100)
+            return false;
+        uint8_t next_brightness = (uint8_t)action->value;
+        if (core->snapshot.brightness == next_brightness)
+            return true;
+        core->snapshot.brightness = next_brightness;
+        ++core->snapshot.revision;
+        return true;
+    case HMI_ACTION_PARAMETER:
+        return hmi_core_parameter(core, action->id, action->value);
+    case HMI_ACTION_LANGUAGE:
+        if (!(action->value >= 0.0f) ||
+            action->value >= (float)hmi_catalog_language_count(core->snapshot.catalog) ||
+            action->value != (float)(unsigned)action->value)
+            return false;
+        hmi_language_t next_language = (hmi_language_t)action->value;
+        if (core->snapshot.language == next_language)
+            return true;
+        core->snapshot.language = next_language;
+        ++core->snapshot.revision;
+        return true;
+    default:
+        return false;
+    }
+}
+const hmi_snapshot_t *hmi_core_snapshot(const hmi_core_t *core)
+{
+    return core ? &core->snapshot : NULL;
+}

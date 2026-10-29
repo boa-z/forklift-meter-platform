@@ -1,5 +1,5 @@
 /* 直接执行板端适配的取消路径；IPC 替身检查额度和互斥锁契约。 */
-#include "platform/rtthread/meter_update_port.c"
+#include "platform/rtthread/hmi_update_port.c"
 #include <assert.h>
 #include <stdarg.h>
 static char console_output[1024];
@@ -8,13 +8,13 @@ static bool diagnostic_test, nvm_ready = true;
 static bool barrier_test, durable_ready;
 static unsigned barrier_events, flush_requests;
 static uint64_t durable_revision;
-static bool admission(const meter_snapshot_t *snapshot, bool maintenance)
+static bool admission(const hmi_snapshot_t *snapshot, bool maintenance)
 {
     (void)snapshot;
     return maintenance;
 }
-static const meter_update_policy_t test_policy = {"synthetic", "reference-board", 4096, 1000};
-static meter_product_t test_product = {
+static const hmi_update_policy_t test_policy = {"synthetic", "reference-board", 4096, 1000};
+static hmi_product_t test_product = {
     .id = "synthetic", .update = &test_policy, .update_admission = admission, .update_exclusive = true};
 static unsigned released;
 int rt_mutex_take(struct rt_mutex *mutex, int timeout)
@@ -64,7 +64,7 @@ static void setup(void)
     released = 0;
     rx_id = 0x7e0u;
     tx_id = 0x7e8u;
-    service.state = METER_UPDATE_DOWNLOADING;
+    service.state = HMI_UPDATE_DOWNLOADING;
     service.generation = 9;
     service.opened = true;
     service.backend.abort = release_test;
@@ -75,24 +75,24 @@ static void test_optional_storage_barrier(void)
     setup();
     barrier_test = true;
     shared.started = shared.maintenance = shared.barrier_requested = true;
-    meter_core_t core = {0};
+    hmi_core_t core = {0};
     test_product.storage = NULL;
-    meter_board_update_poll(&core, true);
+    hmi_board_update_poll(&core, true);
     assert(barrier_events == 1 && flush_requests == 0);
-    meter_storage_profile_t storage = {.enabled = false};
+    hmi_storage_profile_t storage = {.enabled = false};
     test_product.storage = &storage;
-    meter_board_update_poll(&core, true);
+    hmi_board_update_poll(&core, true);
     assert(barrier_events == 2 && flush_requests == 0);
     storage.enabled = true;
     nvm_ready = false;
-    meter_board_update_poll(&core, true);
+    hmi_board_update_poll(&core, true);
     assert(barrier_events == 2 && flush_requests == 1 && !shared.admitted);
     nvm_ready = true;
     durable_revision = 9;
-    meter_board_update_poll(&core, true);
+    hmi_board_update_poll(&core, true);
     assert(barrier_events == 2 && flush_requests == 2 && shared.barrier_target == 9);
     durable_ready = true;
-    meter_board_update_poll(&core, true);
+    hmi_board_update_poll(&core, true);
     assert(barrier_events == 3 && flush_requests == 2);
     test_product.storage = NULL;
     barrier_test = false;
@@ -100,40 +100,40 @@ static void test_optional_storage_barrier(void)
 /* 进度语义、候选/Manifest 有效性与身份字符串必须来自同一份快照，CAN 与 UART 同源。 */
 static void test_snapshot_contract(void)
 {
-    meter_uds_snapshot_t s;
+    hmi_uds_snapshot_t s;
     uint8_t json[1024];
     diagnostic_test = true;
     setup();
-    service.state = METER_UPDATE_IDLE;
+    service.state = HMI_UPDATE_IDLE;
     publish();
     assert(snapshot(NULL, &s) && s.received == 0 && s.total == 0 && !s.manifest_valid &&
            !s.candidate_verified);
-    service.state = METER_UPDATE_DOWNLOADING;
+    service.state = HMI_UPDATE_DOWNLOADING;
     service.received = 100;
     service.manifest.size = 260;
     publish();
     assert(snapshot(NULL, &s) && s.received == 100 && s.total == 260 && s.manifest_valid &&
            !s.candidate_verified);
-    service.state = METER_UPDATE_CANDIDATE;
+    service.state = HMI_UPDATE_CANDIDATE;
     publish();
     assert(snapshot(NULL, &s) && s.received == 260 && s.total == 260 && s.manifest_valid &&
            s.candidate_verified);
-    service.state = METER_UPDATE_WAIT_DURABLE;
+    service.state = HMI_UPDATE_WAIT_DURABLE;
     publish();
     assert(snapshot(NULL, &s) && s.manifest_valid && s.candidate_verified);
-    service.state = METER_UPDATE_ACTIVATED;
+    service.state = HMI_UPDATE_ACTIVATED;
     publish();
     assert(snapshot(NULL, &s) && s.manifest_valid && s.candidate_verified);
-    service.state = METER_UPDATE_CONFIRMED;
+    service.state = HMI_UPDATE_CONFIRMED;
     publish();
     assert(snapshot(NULL, &s) && s.received == 0 && s.total == 0 && !s.manifest_valid &&
            !s.candidate_verified);
-    service.state = METER_UPDATE_FAILED;
+    service.state = HMI_UPDATE_FAILED;
     service.received = 128;
     publish();
     assert(snapshot(NULL, &s) && s.received == 128 && s.total == 260 && !s.manifest_valid &&
            !s.candidate_verified);
-    service.state = METER_UPDATE_ABORTED;
+    service.state = HMI_UPDATE_ABORTED;
     publish();
     assert(snapshot(NULL, &s) && s.received == 0 && s.total == 0 && !s.manifest_valid);
     assert(strcmp(s.hardware, "reference-board") == 0 && strcmp(s.version, "test") == 0 &&
@@ -145,8 +145,8 @@ static void test_snapshot_contract(void)
 }
 int main(void)
 {
-    meter_update_job_t job = {.kind = METER_UPDATE_JOB_WRITE}, discarded;
-    meter_update_error_t error;
+    hmi_update_job_t job = {.kind = HMI_UPDATE_JOB_WRITE}, discarded;
+    hmi_update_error_t error;
     uint32_t generation, offset;
     setup();
     assert(submit(NULL, &job) && !submit(NULL, &job));
@@ -155,12 +155,12 @@ int main(void)
     cancel_work(&discarded);
     assert(released == 1 && !jobs.full && shared.busy && !shared.cancel);
     assert(result(NULL, &error, &generation, &offset));
-    assert(error == METER_UPDATE_DENIED && generation == 9 && !shared.busy);
+    assert(error == HMI_UPDATE_DENIED && generation == 9 && !shared.busy);
     assert(submit(NULL, &job));
 
     setup();
     assert(submit(NULL, &job));
-    completion_t old = {METER_UPDATE_OK, 9, 512};
+    completion_t old = {HMI_UPDATE_OK, 9, 512};
     assert(rt_mq_send(&results, &old, sizeof(old)) == 0);
     cancel(NULL);
     assert(!result(NULL, &error, &generation, &offset));
@@ -169,80 +169,80 @@ int main(void)
     assert(!result(NULL, &error, &generation, &offset) && submit(NULL, &job));
 
     setup();
-    service.state = METER_UPDATE_CANDIDATE;
+    service.state = HMI_UPDATE_CANDIDATE;
     cancel(NULL);
     cancel_work(&discarded);
-    assert(service.state == METER_UPDATE_CANDIDATE && released == 0);
+    assert(service.state == HMI_UPDATE_CANDIDATE && released == 0);
     /* WAIT_DURABLE 只差 NVM barrier，仍属已验证候选：会话超时/取消必须保留。 */
     setup();
-    service.state = METER_UPDATE_WAIT_DURABLE;
+    service.state = HMI_UPDATE_WAIT_DURABLE;
     cancel(NULL);
     cancel_work(&discarded);
-    assert(service.state == METER_UPDATE_WAIT_DURABLE && released == 0);
+    assert(service.state == HMI_UPDATE_WAIT_DURABLE && released == 0);
     setup();
-    service.state = METER_UPDATE_ACTIVATED;
+    service.state = HMI_UPDATE_ACTIVATED;
     cancel(NULL);
     cancel_work(&discarded);
-    assert(service.state == METER_UPDATE_ACTIVATED && released == 0);
+    assert(service.state == HMI_UPDATE_ACTIVATED && released == 0);
     setup();
     diagnostic_test = true;
     shared.started = true;
-    char *args[] = {"meter_update", "info"};
+    char *args[] = {"hmi_update", "info"};
     uint8_t expected[1024];
     size_t expected_size = info(NULL, expected, sizeof(expected));
     assert(expected_size > 128);
-    assert(meter_update(2, args) == 0);
+    assert(hmi_update(2, args) == 0);
     assert(console_used == expected_size + 1);
     assert(memcmp(console_output, expected, expected_size) == 0);
     assert(console_output[expected_size] == '\n');
     /* 维护入口清空旧业务帧，流控丢弃单独计数；离开后恢复接收。 */
-    meter_core_t core = {0};
-    meter_can_frame_t frame = {0};
-    assert(!meter_board_update_frame(&frame));
+    hmi_core_t core = {0};
+    hmi_can_frame_t frame = {0};
+    assert(!hmi_board_update_frame(&frame));
     shared.maintenance = true;
-    meter_board_update_poll(&core, true);
-    assert(meter_board_update_exclusive() && shared.admitted);
+    hmi_board_update_poll(&core, true);
+    assert(hmi_board_update_exclusive() && shared.admitted);
 
     shared.total = 1065984;
     shared.received = 532992;
-    meter_update_view_t view;
-    meter_board_update_view(&view);
+    hmi_update_view_t view;
+    hmi_board_update_view(&view);
     assert(view.visible && view.received == 532992 && view.total == 1065984);
     nvm_ready = false;
-    meter_board_update_poll(&core, true);
-    assert(shared.cancel && !shared.admitted && meter_board_update_exclusive());
+    hmi_board_update_poll(&core, true);
+    assert(shared.cancel && !shared.admitted && hmi_board_update_exclusive());
     shared.maintenance = false;
-    meter_board_update_poll(&core, true);
-    assert(meter_board_update_exclusive());
+    hmi_board_update_poll(&core, true);
+    assert(hmi_board_update_exclusive());
     cancel_work(&discarded);
-    meter_board_update_poll(&core, true);
-    assert(!meter_board_update_exclusive());
+    hmi_board_update_poll(&core, true);
+    assert(!hmi_board_update_exclusive());
 
     /* 经 CAN 的编程会话同样提出维护请求，离开会话即撤销，串口标志互不影响。 */
     nvm_ready = true;
     session_maintenance_request(NULL, true);
-    meter_board_update_poll(&core, true);
-    assert(meter_board_update_maintenance() && shared.admitted && meter_board_update_exclusive());
+    hmi_board_update_poll(&core, true);
+    assert(hmi_board_update_maintenance() && shared.admitted && hmi_board_update_exclusive());
     session_maintenance_request(NULL, false);
-    meter_board_update_poll(&core, true);
+    hmi_board_update_poll(&core, true);
     /* 失去准入会取消进行中的升级，业务在取消完成后才恢复。 */
-    assert(!meter_board_update_maintenance() && !shared.admitted && shared.cancel);
+    assert(!hmi_board_update_maintenance() && !shared.admitted && shared.cancel);
     cancel_work(&discarded);
-    meter_board_update_poll(&core, true);
-    assert(!meter_board_update_exclusive());
+    hmi_board_update_poll(&core, true);
+    assert(!hmi_board_update_exclusive());
     session_maintenance_request(NULL, true);
     shared.maintenance = true;
     session_maintenance_request(NULL, false);
-    assert(meter_board_update_maintenance());
+    assert(hmi_board_update_maintenance());
     shared.maintenance = false;
 
     shared.maintenance = true;
     test_product.update_exclusive = false;
-    meter_board_update_poll(&core, true);
-    assert(shared.admitted && !meter_board_update_exclusive());
+    hmi_board_update_poll(&core, true);
+    assert(shared.admitted && !hmi_board_update_exclusive());
     /* UDS 寻址来自升级策略：零值使用 0x7E0/0x7E8，帧只在策略指定的总线与标识上被消费。 */
-    meter_can_frame_t foreign = {.bus = METER_BUS_CAN1, .id = rx_id, .size = 1u};
-    assert(!meter_board_update_frame(&foreign));
+    hmi_can_frame_t foreign = {.bus = HMI_BUS_CAN1, .id = rx_id, .size = 1u};
+    assert(!hmi_board_update_frame(&foreign));
     test_optional_storage_barrier();
     test_snapshot_contract();
     return 0;
@@ -346,72 +346,72 @@ int rt_thread_startup(struct rt_thread *t)
     UNEXPECTED();
     return -1;
 }
-const meter_product_t *meter_product_get(void)
+const hmi_product_t *hmi_product_get(void)
 {
     assert(diagnostic_test);
     return &test_product;
 }
-meter_update_backend_t meter_aic_update_backend(void)
+hmi_update_backend_t hmi_aic_update_backend(void)
 {
     UNEXPECTED();
-    return (meter_update_backend_t){0};
+    return (hmi_update_backend_t){0};
 }
-bool meter_aic_update_prepare(void)
+bool hmi_aic_update_prepare(void)
 {
     UNEXPECTED();
     return false;
 }
-bool meter_aic_update_supported(void)
+bool hmi_aic_update_supported(void)
 {
     assert(diagnostic_test);
     return false;
 }
-const char *meter_aic_update_reason(void)
+const char *hmi_aic_update_reason(void)
 {
     assert(diagnostic_test);
     return "test";
 }
-uint32_t meter_aic_update_capacity(void)
+uint32_t hmi_aic_update_capacity(void)
 {
     assert(diagnostic_test);
     return 0;
 }
-int meter_aic_update_confirm(void)
+int hmi_aic_update_confirm(void)
 {
     UNEXPECTED();
     return -1;
 }
-bool meter_board_nvm_ready(void)
+bool hmi_board_nvm_ready(void)
 {
     assert(diagnostic_test);
     return nvm_ready;
 }
-uint64_t meter_board_nvm_flush(void)
+uint64_t hmi_board_nvm_flush(void)
 {
     assert(barrier_test);
     ++flush_requests;
     return durable_revision;
 }
-bool meter_board_nvm_barrier(uint64_t n)
+bool hmi_board_nvm_barrier(uint64_t n)
 {
     assert(barrier_test && n == durable_revision && n != 0);
     return durable_ready;
 }
-bool meter_board_can_raw_read(void *ctx, meter_can_frame_t *f)
+bool hmi_board_can_raw_read(void *ctx, hmi_can_frame_t *f)
 {
     (void)ctx;
     (void)f;
     UNEXPECTED();
     return false;
 }
-bool meter_board_can_send(const meter_can_frame_t *f)
+bool hmi_board_can_send(const hmi_can_frame_t *f)
 {
     (void)f;
     UNEXPECTED();
     return false;
 }
 
-bool meter_execution_can_submit(const meter_can_frame_t *frame, bool urgent)
+bool hmi_execution_can_submit(const hmi_can_frame_t *frame, bool urgent)
 {
     (void)frame;
     (void)urgent;
@@ -419,7 +419,7 @@ bool meter_execution_can_submit(const meter_can_frame_t *frame, bool urgent)
     return false;
 }
 
-uint32_t meter_board_now_ms(void)
+uint32_t hmi_board_now_ms(void)
 {
     return rt_tick_get_millisecond();
 }

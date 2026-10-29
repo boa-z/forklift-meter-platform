@@ -30,28 +30,28 @@ flowchart LR
 
 **Run in: the SDK CMD window opened by `win_cmd.bat`, at the SDK root.**
 
-**Shortcut:** when the defconfig has `CONFIG_AIC_FORKLIFT_CAN_UPDATE=y` and the Product declares a version tool, `lunch` and `m` are enough. The versions are generated, and a ready package appears in `output/<project>/ota/<version>/`. You can then skip the manual variables below and step 1.3 and go to step 1.4 or straight to [step 2](#2-write-over-can-activate-and-verify). See [Defaults instead of variables](../build/build.md#defaults-instead-of-variables). The manual route below stays valid for Products that do not declare a version tool.
+**Shortcut:** when the defconfig has `CONFIG_AIC_HMI_CAN_UPDATE=y` and the Product declares a version tool, `lunch` and `m` are enough. The versions are generated, and a ready package appears in `output/<project>/ota/<version>/`. You can then skip the manual variables below and step 1.3 and go to step 1.4 or straight to [step 2](#2-write-over-can-activate-and-verify). See [Defaults instead of variables](../build/build.md#defaults-instead-of-variables). The manual route below stays valid for Products that do not declare a version tool.
 
 Initialize application dependencies using the [build guide](../build/build.md). Run `list` to confirm the Framework configuration number. The example uses `12`; use the number displayed by your SDK.
 
 For a public Demo candidate:
 
 ```bat
-rem The Product comes from CONFIG_AIC_FORKLIFT_PRODUCT_ROOT in the defconfig. Uncomment to override it for this build:
-rem set "METER_PRODUCT_ROOT=%CD%/application/rt-thread/forklift-meter-platform/products/demo"
-set "METER_CAN_UPDATE=1"
-set "METER_UPDATE_VERSION=ota-demo-b"
-rem 必须与 Product 的 meter_update_policy_t.hardware 相同 / Must match Product hardware; otherwise the build fails.
-set "METER_BOARD_ID=reference-board"
+rem The Product comes from CONFIG_AIC_HMI_PRODUCT_ROOT in the defconfig. Uncomment to override it for this build:
+rem set "HMI_PRODUCT_ROOT=%CD%/application/rt-thread/luban-lite-hmi/products/demo"
+set "HMI_CAN_UPDATE=1"
+set "HMI_UPDATE_VERSION=ota-demo-b"
+rem 必须与 Product 的 hmi_update_policy_t.hardware 相同 / Must match Product hardware; otherwise the build fails.
+set "HMI_BOARD_ID=reference-board"
 lunch 12
 m
 ```
 
-**Pass:** the SDK reports a successful build and the selected target's `output/.../images/` contains `d13x_os.itb` and the board `.img`. Before the compiler starts, SCons prints the resolved Product root, its identity and the board alias — confirm those lines name the Product under test, because a reused CMD window keeps a previous `METER_PRODUCT_ROOT`, which overrides the defconfig. Preserve the candidate OS in a separate directory before another build overwrites that output.
+**Pass:** the SDK reports a successful build and the selected target's `output/.../images/` contains `d13x_os.itb` and the board `.img`. Before the compiler starts, SCons prints the resolved Product root, its identity and the board alias — confirm those lines name the Product under test, because a reused CMD window keeps a previous `HMI_PRODUCT_ROOT`, which overrides the defconfig. Preserve the candidate OS in a separate directory before another build overwrites that output.
 
-The SDK limits the OTA package version to 31 characters. A longer user-facing version (up to 47 characters, for example one that carries the product name, material number and build date) can be set separately with `set "METER_DISPLAY_VERSION=..."` (or `--display-version` on the Framework wrapper). The meter's software-version page and `meter info` (`display_version`) show it; the CAN update identity, package and activation checks keep using `METER_UPDATE_VERSION` (`firmware_version`). The display version does not need CAN OTA: a build without `METER_CAN_UPDATE` shows it too. When unset, a CAN OTA build shows the OTA version and any other build shows `--`.
+The SDK limits the OTA package version to 31 characters. A longer user-facing version (up to 47 characters, for example one that carries the product name, material number and build date) can be set separately with `set "HMI_DISPLAY_VERSION=..."` (or `--display-version` on the Framework wrapper). The meter's software-version page and `hmi info` (`display_version`) show it; the CAN update identity, package and activation checks keep using `HMI_UPDATE_VERSION` (`firmware_version`). The display version does not need CAN OTA: a build without `HMI_CAN_UPDATE` shows it too. When unset, a CAN OTA build shows the OTA version and any other build shows `--`.
 
-Keep OTA enabled in the candidate for future CAN updates. Its embedded `METER_UPDATE_VERSION` must equal the packaging version: changing a manifest does not change firmware identity. Use 1–31 characters from letters, digits, `_`, `.`, `+`, `-`.
+Keep OTA enabled in the candidate for future CAN updates. Its embedded `HMI_UPDATE_VERSION` must equal the packaging version: changing a manifest does not change firmware identity. Use 1–31 characters from letters, digits, `_`, `.`, `+`, `-`.
 
 For another Product, use its Product directory and hardware alias.
 
@@ -66,10 +66,10 @@ Replace the two example paths below. `SDK_ROOT` is the SDK checkout; `CANDIDATE_
 ```bat
 set "SDK_ROOT=C:\sdk\luban-lite"
 set "CANDIDATE_OS=C:\firmware\ota-demo-b\d13x_os.itb"
-cd /d "%SDK_ROOT%\application\rt-thread\forklift-meter-platform"
+cd /d "%SDK_ROOT%\application\rt-thread\luban-lite-hmi"
 python --version
 python -m pip install -r tools/ota/requirements.txt
-cmake -S . -B build-package -G Ninja -DMETER_BUILD_UI=OFF
+cmake -S . -B build-package -G Ninja -DHMI_BUILD_UI=OFF
 cmake --build build-package --target meter-ota-inspect
 set "METER_OTA_INSPECTOR=%CD%\build-package\meter-ota-inspect.exe"
 ```
@@ -80,13 +80,13 @@ This SDK supplies `tools/scripts/cpio.exe` and `tools/scripts/mkenvimage.exe`. T
 
 ### 1.3 Set parameters and create the package
 
-**Run in: the host CMD window.** Confirm values against UART `meter_update info` or the [device probe](#read-device). The following values are a Demo example; do not guess them for another board.
+**Run in: the host CMD window.** Confirm values against UART `hmi_update info` or the [device probe](#read-device). The following values are a Demo example; do not guess them for another board.
 
 | Variable | Meaning | Source / check |
 |---|---|---|
 | `PRODUCT_ID` | Product identity | Device `product` |
 | `HARDWARE_ID` | Hardware alias | Device `hardware` |
-| `OTA_VERSION` | New firmware version | Candidate's `METER_UPDATE_VERSION` |
+| `OTA_VERSION` | New firmware version | Candidate's `HMI_UPDATE_VERSION` |
 | `OS_FILE` | OS member name inside the package | Device `os_file` |
 | `CAPACITY_BYTES` | Inactive OS capacity, in bytes | Device `candidate_capacity` |
 
@@ -156,15 +156,15 @@ flowchart TD
 **Run in: the board UART console, 115200 baud, 8N1.** Connect PCAN to CAN0 H/L and reference ground; check termination. The board must be running its application, not waiting in USB download mode.
 
 ```text
-meter info
-meter can 0
-meter storage
-meter_update info
+hmi info
+hmi can 0
+hmi storage
+hmi_update info
 ```
 
 **Pass:** the application responds; record its version and CAN0 bitrate; update diagnostics report `backend_supported=true`. The Demo also needs ready settings storage. Other Products follow their own storage/admission policy.
 
-If `meter_update` is missing, perform initial USB installation. If the backend is unsupported, resolve `backend_reason` before writing. Detecting a PCAN adapter alone does not establish a working board connection.
+If `hmi_update` is missing, perform initial USB installation. If the backend is unsupported, resolve `backend_reason` before writing. Detecting a PCAN adapter alone does not establish a working board connection.
 
 <a id="read-device"></a>
 
@@ -192,8 +192,8 @@ On timeout, stop and check wiring, power and bitrate. Global options such as `--
 **First run on the board UART console:**
 
 ```text
-meter_update maintenance on
-meter_update info
+hmi_update maintenance on
+hmi_update info
 ```
 
 **Pass:** `maintenance=1`, `backend_supported=true` and Product admission/storage conditions are met. `maintenance requested` alone acknowledges only the request.
@@ -238,15 +238,15 @@ Without `--reboot`, activation does not request an immediate restart. Abort cann
 **Run in: the board UART console after startup.** Preserve the boot log, including the native slot selection.
 
 ```text
-meter info
-meter can 0
-meter storage
-meter_update info
-meter_update maintenance off
-meter_update info
+hmi info
+hmi can 0
+hmi storage
+hmi_update info
+hmi_update maintenance off
+hmi_update info
 ```
 
-Update the host `BITRATE` if the new `meter can 0` result differs. Then query again from the host CMD window:
+Update the host `BITRATE` if the new `hmi can 0` result differs. Then query again from the host CMD window:
 
 ```bat
 python -m tools.ota --channel %CAN_CHANNEL% --bitrate %BITRATE% ^
@@ -274,7 +274,7 @@ python -m tools.ota --channel %CAN_CHANNEL% --bitrate %BITRATE% ^
   update "ota-output\%OTA_VERSION%"
 ```
 
-It asks for confirmation before changing the device; add `--yes` for scripts. The command requests maintenance mode over CAN by opening the UDS programming session (service `0x10` sub-function `0x02`), the usual practice for ECU flashing; no UART is needed. The Product's `update_admission` hook still decides whether the update is allowed (the shipped Products allow it whenever maintenance is requested; a stricter rule such as vehicle stationary can be added there without touching the host or the protocol). The request lasts as long as the session: leaving it, the S3 timeout or the activation reboot withdraws it. If the device does not enter maintenance within a few seconds (older firmware, or the Product refuses), the command prints the UART command `meter_update maintenance on` as a fallback and waits up to `--wait-maintenance` seconds (default 120). The command stops without touching the device when the Product or hardware does not match, the device is already running the version (override with `--force`) or another update session is open. After an interruption, run it again: a validated candidate is not rewritten and an activated one is only rebooted.
+It asks for confirmation before changing the device; add `--yes` for scripts. The command requests maintenance mode over CAN by opening the UDS programming session (service `0x10` sub-function `0x02`), the usual practice for ECU flashing; no UART is needed. The Product's `update_admission` hook still decides whether the update is allowed (the shipped Products allow it whenever maintenance is requested; a stricter rule such as vehicle stationary can be added there without touching the host or the protocol). The request lasts as long as the session: leaving it, the S3 timeout or the activation reboot withdraws it. If the device does not enter maintenance within a few seconds (older firmware, or the Product refuses), the command prints the UART command `hmi_update maintenance on` as a fallback and waits up to `--wait-maintenance` seconds (default 120). The command stops without touching the device when the Product or hardware does not match, the device is already running the version (override with `--force`) or another update session is open. After an interruption, run it again: a validated candidate is not rewritten and an activated one is only rebooted.
 
 **Pass:** exit code `0` and `升级完成`. The checks cover running version, Product/hardware, backend and error code; a maintenance mode that is still open is reported as a warning. The command cannot see the screen, touch or normal CAN traffic: check those on the device as in step 2.5.
 
@@ -296,7 +296,7 @@ The window does not add a new capability: maintenance, admission and verificatio
 
 A board without an OTA-enabled running application needs a baseline installed once:
 
-1. Follow step 1.1 with `METER_CAN_UPDATE=1` and baseline version `ota-demo-a`.
+1. Follow step 1.1 with `HMI_CAN_UPDATE=1` and baseline version `ota-demo-a`.
 2. Preserve the board `.img` and build identity.
 3. Enter the board's USB download mode. Use its supported USB tool to write the `.img`, following the board image/partition procedure.
 4. Exit download mode, boot normally and pass the UART/backend checks in step 2.1.
@@ -316,7 +316,7 @@ Stop at the failed step and preserve its logs. Do not infer success from progres
 | Probe timeout / bus-off | Check application state, CAN0 wiring, termination and exact bitrate |
 | Backend unsupported | Read `backend_reason` and resolve backend readiness |
 | Identity/partition mismatch | Recheck candidate selection and package parameters against the device |
-| Maintenance required / admission rejected | Check `meter_update info`, Product conditions and storage readiness |
+| Maintenance required / admission rejected | Check `hmi_update info`, Product conditions and storage readiness |
 | Transfer interrupted / only progress emitted | Inspect device state; candidate validation is not proven |
 | Activation fails / `WAIT_DURABLE` | Check storage and durable revision; do not bypass the persistence barrier |
 | Old version after reboot | Inspect UART slot selection and `version`; update acceptance has failed |

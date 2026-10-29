@@ -26,9 +26,9 @@ SDK 在应用健康检查前清除升级标志，native_auto 不等于应用控�
 | packages/artinchip/env/absystem_os.c | aic_upgrade_end、aic_ota_status_update 不传递 fw_env_flush 返回值 | 返回成功不足以证明激活/确认已持久化 |
 | packages/artinchip/env/absystem_os.c | 挂载路径在应用健康/NVM 验证之前调用 aic_ota_status_update | 该基线不能宣称应用控制的试运行确认 |
 | packages/artinchip/uds | 现有示例下载处理器执行同步文件 I/O | 不直接照搬到生产 Flash worker 契约 |
-| 当前组合 | SDK OTA downloader 关闭；可选应用组合链接原样 ota.c/burn.c | 仅 METER_CAN_UPDATE=1 提供新端点 |
+| 当前组合 | SDK OTA downloader 关闭；可选应用组合链接原样 ota.c/burn.c | 仅 HMI_CAN_UPDATE=1 提供新端点 |
 
-METER_CAN_UPDATE=1 选择 meter_update_backend_aic.c：调用原生 ENV API 前独立验证物理冗余 ENV CRC，拒绝待激活或不一致槽位及重叠分区，从 MTD 读取并校验 A/B 分区的页大小、每块页数、块数及容量，要求两区几何一致。始终拒绝的旧后端及仅链接它的测试已删除；Host 服务测试不验证原生安装器。
+HMI_CAN_UPDATE=1 选择 hmi_update_backend_aic.c：调用原生 ENV API 前独立验证物理冗余 ENV CRC，拒绝待激活或不一致槽位及重叠分区，从 MTD 读取并校验 A/B 分区的页大小、每块页数、块数及容量，要求两区几何一致。始终拒绝的旧后端及仅链接它的测试已删除；Host 服务测试不验证原生安装器。
 
 候选区必须没有坏块。Flash 擦写、读取与 A/B 选择继续由厂商实现。当前 SDK 的 burn.h/burn.c 已提供 aic_ota_part_read，后端直接复用它读取候选 OS 并核对 SHA256，无需另写读取适配。
 
@@ -46,7 +46,7 @@ METER_CAN_UPDATE=1 选择 meter_update_backend_aic.c：调用原生 ENV API 前�
 
 这些是 Host 依赖，不进入固件。
 
-UDS 收发缓冲各 1024 字节，每个复制的升级块最多 512 字节。所有标识符的线协议只在 protocols/uds/meter_uds_did.h 定义一次，字段与语义见 [UDS DID 参考](#uds-did-参考)。
+UDS 收发缓冲各 1024 字节，每个复制的升级块最多 512 字节。所有标识符的线协议只在 protocols/uds/hmi_uds_did.h 定义一次，字段与语义见 [UDS DID 参考](#uds-did-参考)。
 
 Host 预检每次最多读取 64 KiB，传输块最多 512 字节。同一打开文件在发送过程中再次计算 hash，内容变化时在验证之前中止。
 
@@ -56,7 +56,7 @@ CLI 遵守设备块长与接收端 STmin/流控。独占维护配置请求零 ST
 
 ## UDS DID 参考
 
-protocols/uds/meter_uds_did.h 是本契约的唯一定义处，下表必须与之一致。0xF180（bootSoftwareIdentification）已删除，不得再实现。0xFD00-0xFEFF 是 ISO 14229-1 保留给系统供应商专用的区间，升级相关标识符落在此处；F186/F192/F195 为标准供应商标识符。
+protocols/uds/hmi_uds_did.h 是本契约的唯一定义处，下表必须与之一致。0xF180（bootSoftwareIdentification）已删除，不得再实现。0xFD00-0xFEFF 是 ISO 14229-1 保留给系统供应商专用的区间，升级相关标识符落在此处；F186/F192/F195 为标准供应商标识符。
 
 | DID | 名称 | 长度 | 服务 | 限制 |
 |---|---|---|---|---|
@@ -67,7 +67,7 @@ protocols/uds/meter_uds_did.h 是本契约的唯一定义处，下表必须与�
 | 0xF192 | 硬件号 | 32 | 0x22 读 | 无 |
 | 0xF195 | 软件版本 | 48 | 0x22 读 | 无 |
 
-一次 0x22 可携带多个标识符，响应按请求顺序拼接。每个标识符都是定长，Host 期望其他长度属于协议错误，而不是"更短或更长的值"。CAN 上不再承载 JSON：UART 的 `meter_update info` 仍输出 JSON，但它与这些标识符取自同一份设备快照。
+一次 0x22 可携带多个标识符，响应按请求顺序拼接。每个标识符都是定长，Host 期望其他长度属于协议错误，而不是"更短或更长的值"。CAN 上不再承载 JSON：UART 的 `hmi_update info` 仍输出 JSON，但它与这些标识符取自同一份设备快照。
 
 ### FD10 升级 Manifest（148 字节）
 
@@ -113,7 +113,7 @@ protocols/uds/meter_uds_did.h 是本契约的唯一定义处，下表必须与�
 
 ### F186、F192、F195
 
-F186 返回一字节会话类型。F192 返回 32 字节硬件身份，F195 返回 48 字节 OTA 固件版本，取自 METER_UPDATE_FIRMWARE_VERSION。显示版本 METER_FIRMWARE_DISPLAY_VERSION 只是界面文本，永不通过 F195 暴露。
+F186 返回一字节会话类型。F192 返回 32 字节硬件身份，F195 返回 48 字节 OTA 固件版本，取自 HMI_UPDATE_FIRMWARE_VERSION。显示版本 HMI_FIRMWARE_DISPLAY_VERSION 只是界面文本，永不通过 F195 暴露。
 
 ### 服务权限与 NRC
 
@@ -146,7 +146,7 @@ Manifest 生命周期：
 
 ## OS-only 包策略
 
-update/meter_package.c 中的共享 C 校验器接受 aic-os-only-crc-cpio-v1，Host 检查器与板端 worker 使用同一实现。上下文小于 1 KiB，无堆分配，支持任意输入边界。
+update/hmi_package.c 中的共享 C 校验器接受 aic-os-only-crc-cpio-v1，Host 检查器与板端 worker 使用同一实现。上下文小于 1 KiB，无堆分配，支持任意输入边界。
 
 适配层另外维护包与镜像的流式 SHA256，不缓存完整固件。
 
@@ -170,7 +170,7 @@ Linux CI 安装 cpio 和 u-boot-tools（mkenvimage）；Windows 可显式传入 
 
 ## 验证与剩余工作
 
-连接前通过 UART 读取 `meter can 0`，将其实际速率显式传入 `--bitrate`。CLI 默认值不是 Product 默认值，速率不一致时即使接线正确也可能 bus-off。
+连接前通过 UART 读取 `hmi can 0`，将其实际速率显式传入 `--bitrate`。CLI 默认值不是 Product 默认值，速率不一致时即使接线正确也可能 bus-off。
 
 发现 PCAN 通道不代表已确认它连接的板端 CAN 插座。
 
@@ -188,9 +188,9 @@ C 测试覆盖状态转换、worker 完成、异常 UDS 请求及不链接 SDK �
 
 ## 板端测试构建
 
-通过 SDK OneStep 构建，设置 `METER_CAN_UPDATE=1` 与 `METER_UPDATE_VERSION`，见[构建指南](../build/build.zh-CN.md)。构建成功后升级包写入 `output/<project>/ota/<version>/`。OTA 只通过应用构建设置启用。
+通过 SDK OneStep 构建，设置 `HMI_CAN_UPDATE=1` 与 `HMI_UPDATE_VERSION`，见[构建指南](../build/build.zh-CN.md)。构建成功后升级包写入 `output/<project>/ota/<version>/`。OTA 只通过应用构建设置启用。
 
-厂商 OTA 对象文件放在 `output/<project>/meter/sdk-ota`，不修改 SDK 源码、配置或 gitlink。同一提交分别构建 ota-board-a 基线与 ota-board-b 候选，首次只刷基线 image，候选 OS 生成 CAN 升级包；重启后 version 字段应变化。
+厂商 OTA 对象文件放在 `output/<project>/hmi/sdk-ota`，不修改 SDK 源码、配置或 gitlink。同一提交分别构建 ota-board-a 基线与 ota-board-b 候选，首次只刷基线 image，候选 OS 生成 CAN 升级包；重启后 version 字段应变化。
 
 线程 owner、栈和 CAN 队列预算统一维护在[生产运行时](../runtime/runtime-production.zh-CN.md)。Update 保留一个 job 和一个 completion 信用，取消时须排空旧 job/result 后才能接受新任务。
 
@@ -204,7 +204,7 @@ C 测试覆盖状态转换、worker 完成、异常 UDS 请求及不链接 SDK �
 
 专门测速可停止外部周期发送，负载共存及普通 HIL 不降低原门槛。
 
-刷入后先验证 UI、触摸、meter info、NVM READY 及 backend_supported=true，不先打开维护模式。之后启用维护模式进行受控测试。
+刷入后先验证 UI、触摸、hmi info、NVM READY 及 backend_supported=true，不先打开维护模式。之后启用维护模式进行受控测试。
 
 保留含原生槽位选择的 UART 启动日志、PCAN ASC、包 hash、升级前后版本和诊断。错误 Product、损坏包、传输中断、主动 Abort、维护进入/退出、UART 响应以及升级后普通 CAN 恢复分别留证。
 

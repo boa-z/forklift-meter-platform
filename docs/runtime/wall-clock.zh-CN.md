@@ -4,10 +4,10 @@
 
 ## 归属
 
-`contracts/meter_wall_clock.h` 声明一个朴素的 UTC 日历读数和一个可注入来源，
-`runtime/meter_wall_clock.c` 负责 civil 日期与天数之间的换算。`core`、`contracts` 与 `runtime`
+`contracts/hmi_wall_clock.h` 声明一个朴素的 UTC 日历读数和一个可注入来源，
+`runtime/hmi_wall_clock.c` 负责 civil 日期与天数之间的换算。`core`、`contracts` 与 `runtime`
 保持无 OS 与 LVGL 头文件，因此系统访问只出现在平台端口：固件侧是
-`platform/rtthread/meter_rtc_port.c`，主机孪生是 `sim/product_host.c`。绑定发生在启动阶段，
+`platform/rtthread/hmi_rtc_port.c`，主机孪生是 `sim/product_host.c`。绑定发生在启动阶段，
 轮询是纯读取。
 
 契约固定输出 UTC。区域偏移、12/24 小时制和渲染出来的字符串都是 Product 的展示决策，
@@ -16,14 +16,14 @@
 
 ## 可用性
 
-以下情况 `meter_wall_clock_read()` 返回 false 并把输出清零：没有绑定来源、来源读取失败、
+以下情况 `hmi_wall_clock_read()` 返回 false 并把输出清零：没有绑定来源、来源读取失败、
 来源把自己的采样标为无效，或采样落在 1970..9999 之外或月/日/时/分/秒不合理。
 硬件计数器是外部输入：越界读数一律拒绝而不是裁剪，因为屏幕上裁剪过的值与真实值无法区分。
 失败时消费者继续显示占位符（`--:--`），所以从未对时的板子看起来是未初始化，而不是谎报
 1970-01-01。
 
 掉电后计数复位到纪元哨兵值的计数器，与"真的就是这一秒"的读数无法区分。因此平台端口拒绝
-小于等于 `METER_RTC_FLOOR_UTC` 的一切读数：该宏默认取 d13x 驱动的哨兵值
+小于等于 `HMI_RTC_FLOOR_UTC` 的一切读数：该宏默认取 d13x 驱动的哨兵值
 （2020-05-20T00:00:00Z），并在启动日志里说明。没有 RTC 备份的板子会在一秒内越过这个哨兵值，
 所以需要可信时钟的 Product 必须每次上电都对时，或把这个下界提高到自己的生产日期。
 
@@ -35,11 +35,11 @@
 
 ## 扩展
 
-`meter_wall_time_shift()` 把 UTC 采样加上带符号偏移换算成本地日期，跨月、闰年和跨年都做归一化；
+`hmi_wall_time_shift()` 把 UTC 采样加上带符号偏移换算成本地日期，跨月、闰年和跨年都做归一化；
 结果超出可表示范围时它拒绝而不是回绕。做偏移请用它，而不是给 `time_t` 加秒数，这样算术既不
 依赖工具链的时区数据，也不受 32 位 `time_t` 的地平线限制。
 
-对时是另一个可选绑定：未绑定写通道或平台拒绝写入时，`meter_wall_clock_write()` 报告失败，
+对时是另一个可选绑定：未绑定写通道或平台拒绝写入时，`hmi_wall_clock_write()` 报告失败，
 因此 Product 能区分"这块板不可设置"和"这个值被拒绝"。写入永不捏造硬件没有接受的日期。
 
 ## 消费者

@@ -4,14 +4,14 @@
 
 ## Ownership
 
-`runtime/meter_watchdog.c` owns the judging rule and nothing else: it takes a heartbeat counter per
+`runtime/hmi_watchdog.c` owns the judging rule and nothing else: it takes a heartbeat counter per
 owner plus the set of owners that should be advancing right now, and answers whether the hardware
 watchdog may be fed. It opens no device, creates no thread and holds no lock, so a host test can
-drive every branch. `platform/rtthread/meter_watchdog_port.c` owns the board half: the `"wdt"`
-device, one lowest-priority thread, the keepalive call and the `meter_watchdog` shell command.
+drive every branch. `platform/rtthread/hmi_watchdog_port.c` owns the board half: the `"wdt"`
+device, one lowest-priority thread, the keepalive call and the `hmi_watchdog` shell command.
 
 The watch list is the two resident threads that must keep running for the instrument to stay
-truthful: the runtime thread (`app`) and the UI. Counters come from `meter_execution_liveness()`,
+truthful: the runtime thread (`app`) and the UI. Counters come from `hmi_execution_liveness()`,
 which reads their loop counters. The watchdog never inspects another owner's internals.
 
 ## When the watchdog is armed
@@ -28,7 +28,7 @@ is no runtime stop, so once armed the watchdog stays armed until reset.
 
 Bring-up itself is therefore outside the supervised window. A hidden fatal condition before the
 runtime starts is not converted into a reset by this mechanism; it is reported by the start-up path
-and by `meter` diagnostics. Covering bring-up needs a boot-progress channel fed by the entry point,
+and by `hmi` diagnostics. Covering bring-up needs a boot-progress channel fed by the entry point,
 which is deliberately not part of this contract.
 
 ## Thresholds
@@ -40,15 +40,15 @@ stall.
 
 | Budget | Default | Meaning |
 |---|---|---|
-| `METER_WATCHDOG_TIMEOUT_S` | 8 | Hardware timeout in seconds |
-| `METER_WATCHDOG_POLL_MS` | 200 | Supervisor sampling period |
-| `METER_WATCHDOG_APP_STALL_MS` | 4000 | Runtime-thread heartbeat limit |
-| `METER_WATCHDOG_UI_STALL_MS` | 3000 | UI heartbeat limit |
-| `METER_WATCHDOG_THREAD_PRIO` | 26 | Supervisor priority, below every supervised owner |
+| `HMI_WATCHDOG_TIMEOUT_S` | 8 | Hardware timeout in seconds |
+| `HMI_WATCHDOG_POLL_MS` | 200 | Supervisor sampling period |
+| `HMI_WATCHDOG_APP_STALL_MS` | 4000 | Runtime-thread heartbeat limit |
+| `HMI_WATCHDOG_UI_STALL_MS` | 3000 | UI heartbeat limit |
+| `HMI_WATCHDOG_THREAD_PRIO` | 26 | Supervisor priority, below every supervised owner |
 
-All of them live in `platform/rtthread/meter_watchdog_budget.h` and are `#ifndef`-overridable, so a
+All of them live in `platform/rtthread/hmi_watchdog_budget.h` and are `#ifndef`-overridable, so a
 board retunes them without touching the judging rule. The enable switch is the Kconfig option
-`AIC_FORKLIFT_WATCHDOG`, default on; turning it off compiles the port down to a logging stub. A board
+`AIC_HMI_WATCHDOG`, default on; turning it off compiles the port down to a logging stub. A board
 without a `"wdt"` device logs once and stays unsupervised instead of failing to boot.
 
 The supervisor thread runs at a lower priority than every supervised owner, so it is only scheduled
@@ -62,7 +62,7 @@ and report copying. Diagnostics read the authoritative state directly; no duplic
 Device I/O and logging stay outside the critical section. The report is for thread callers, including MSH.
 
 ```
-meter_watchdog
+hmi_watchdog
 watchdog armed=1 supervising=1 timeout_s=8
 watchdog feeds=812 withheld=0 stalls=0 transitions=1 stalled=2
 watchdog channel=app stall_ms=4000

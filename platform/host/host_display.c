@@ -25,13 +25,13 @@ static void input(lv_indev_t *i, lv_indev_data_t *data)
     data->point.y = mouse_y;
     data->state = mouse_down ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
-bool meter_host_open(bool hidden)
+bool hmi_host_open(bool hidden)
 {
     SDL_SetMainReady();
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
         return false;
     window =
-        SDL_CreateWindow("FIELD - Forklift Reference Demo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        SDL_CreateWindow("Luban-Lite HMI Simulator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                          800, 480, hidden ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN);
     if (!window)
         return false;
@@ -50,7 +50,7 @@ bool meter_host_open(bool hidden)
     lv_indev_set_read_cb(pointer, input);
     return true;
 }
-bool meter_host_events(void)
+bool hmi_host_events(void)
 {
     SDL_Event e;
     while (SDL_PollEvent(&e))
@@ -73,7 +73,7 @@ bool meter_host_events(void)
     }
     return true;
 }
-void meter_host_click(int x, int y, bool pressed)
+void hmi_host_click(int x, int y, bool pressed)
 {
     SDL_Event e;
     SDL_zero(e);
@@ -83,7 +83,7 @@ void meter_host_click(int x, int y, bool pressed)
     e.button.y = y;
     SDL_PushEvent(&e);
 }
-bool meter_host_capture(const char *path)
+bool hmi_host_capture(const char *path)
 {
     lv_refr_now(display);
     SDL_Surface *s =
@@ -94,7 +94,7 @@ bool meter_host_capture(const char *path)
     SDL_FreeSurface(s);
     return ok;
 }
-void meter_host_close(void)
+void hmi_host_close(void)
 {
     if (pointer)
         lv_indev_delete(pointer);
@@ -108,15 +108,15 @@ void meter_host_close(void)
         SDL_DestroyWindow(window);
     SDL_Quit();
 }
-uint64_t meter_host_counter(void)
+uint64_t hmi_host_counter(void)
 {
     return SDL_GetPerformanceCounter();
 }
-double meter_host_us(uint64_t a, uint64_t b)
+double hmi_host_us(uint64_t a, uint64_t b)
 {
     return (b - a) * 1000000.0 / SDL_GetPerformanceFrequency();
 }
-void meter_host_delay(unsigned ms)
+void hmi_host_delay(unsigned ms)
 {
     SDL_Delay(ms);
 }

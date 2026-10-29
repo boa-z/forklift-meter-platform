@@ -17,7 +17,7 @@ spec.loader.exec_module(selector)
 def clean_environment():
     """主机测试不应继承开发者 shell 里的 Product 选择。"""
     environment = dict(os.environ)
-    environment.pop('METER_PRODUCT_ROOT', None)
+    environment.pop('HMI_PRODUCT_ROOT', None)
     return environment
 
 
@@ -74,9 +74,9 @@ class FirmwareSelection(unittest.TestCase):
                 with self.assertRaises(ValueError) as caught:
                     selector.select_firmware(self.app, missing)
                 message = str(caught.exception)
-                self.assertIn('METER_PRODUCT_ROOT', message)
-                self.assertIn('set METER_PRODUCT_ROOT=', message)
-                self.assertIn('AIC_FORKLIFT_PRODUCT_ROOT', message)
+                self.assertIn('HMI_PRODUCT_ROOT', message)
+                self.assertIn('set HMI_PRODUCT_ROOT=', message)
+                self.assertIn('AIC_HMI_PRODUCT_ROOT', message)
                 self.assertIn('products/alpha', message)
         with self.assertRaisesRegex(ValueError, 'none found'):
             selector.select_firmware(self.other, None)
@@ -87,7 +87,7 @@ class FirmwareSelection(unittest.TestCase):
     def test_defconfig_selection_is_used_and_environment_overrides(self):
         """defconfig 保存的选择免去每个 shell 重设变量；环境变量仍可显式覆盖。"""
         config = ('CONFIG_PRJ_APP="x"\r\n'
-                  'CONFIG_AIC_FORKLIFT_PRODUCT_ROOT="products/other"\r\n')
+                  'CONFIG_AIC_HMI_PRODUCT_ROOT="products/other"\r\n')
         configured = selector.configured_product(config)
         self.assertEqual(configured, 'products/other')
         self.assertEqual(selector.firmware_selection(None, configured), ('products/other', 'defconfig'))
@@ -104,8 +104,8 @@ class FirmwareSelection(unittest.TestCase):
                 self.assertIsNone(selector.config_string(blank))
 
     def test_unset_or_blank_defconfig_value_is_not_a_selection(self):
-        for text in ('', 'CONFIG_AIC_FORKLIFT_PRODUCT_ROOT=""\n', '# CONFIG_AIC_FORKLIFT_PRODUCT_ROOT is not set\n',
-                     'CONFIG_AIC_FORKLIFT_PRODUCT_ROOT="  "\n'):
+        for text in ('', 'CONFIG_AIC_HMI_PRODUCT_ROOT=""\n', '# CONFIG_AIC_HMI_PRODUCT_ROOT is not set\n',
+                     'CONFIG_AIC_HMI_PRODUCT_ROOT="  "\n'):
             with self.subTest(text=text):
                 configured = selector.configured_product(text)
                 self.assertIsNone(configured)
@@ -120,7 +120,7 @@ class FirmwareSelection(unittest.TestCase):
         report = json.loads(result.stdout)
         self.assertEqual(report['selected_by'], 'cli')
         self.assertEqual(Path(report['product']), self.other)
-        environment['METER_PRODUCT_ROOT'] = str(self.other)
+        environment['HMI_PRODUCT_ROOT'] = str(self.other)
         result = subprocess.run([sys.executable, str(ROOT / 'tools/firmware_product.py')],
                                 check=True, capture_output=True, text=True, env=environment)
         report = json.loads(result.stdout)
@@ -131,7 +131,7 @@ class FirmwareSelection(unittest.TestCase):
         result = subprocess.run([sys.executable, str(ROOT / 'tools/firmware_product.py')],
                                 capture_output=True, text=True, env=clean_environment())
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('METER_PRODUCT_ROOT', result.stderr)
+        self.assertIn('HMI_PRODUCT_ROOT', result.stderr)
         self.assertNotIn('Traceback', result.stderr)
 
     def test_reject_invalid_manifest(self):

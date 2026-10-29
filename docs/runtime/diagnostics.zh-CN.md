@@ -25,61 +25,61 @@ UI present_count 在展示入口统计，flush_count 统计默认显示的 LVGL 
 
 公共头文件定义 Runtime/CAN/Domain/Product event ID；模块编号 3、4（原 PDO/SDO）保留不复用。Product READY/FAILED 表示通用 Service 结果，不携带客户状态机。Domain 的 arg0 是 signal 身份。CAN 的 arg0 是 bus；其余细节以数字保留在 dump 输出中。
 
-正常 CAN RX/TX、Touch sample、UI frame 只累计 Counter，状态转移与异常进入 Trace。RT-Thread 后端将选定事件映射到原生 ULog tag：meter.runtime、meter.can、meter.domain、meter.product；初始化使用 meter.boot/meter.board，LVGL 使用 meter.ui。无效帧与 CAN 错误为 WARN；连接变化与 product ready 为 INFO；product service 失败为 ERROR。重复告警每模块每秒最多一条，Counter 与 Trace 仍完整记录。Debug 遵循原生 ULog 设置，现有 SDK 使用 INFO 与异步 Console 输出。
+正常 CAN RX/TX、Touch sample、UI frame 只累计 Counter，状态转移与异常进入 Trace。RT-Thread 后端将选定事件映射到原生 ULog tag：hmi.runtime、hmi.can、hmi.domain、hmi.product；初始化使用 hmi.boot/hmi.board，LVGL 使用 hmi.ui。无效帧与 CAN 错误为 WARN；连接变化与 product ready 为 INFO；product service 失败为 ERROR。重复告警每模块每秒最多一条，Counter 与 Trace 仍完整记录。Debug 遵循原生 ULog 设置，现有 SDK 使用 INFO 与异步 Console 输出。
 
 后端每个 owner 循环消费增量 Trace。覆盖或显式 clear 可能丢掉尚未消费的日志事件；Trace/Log 是有界调试证据，不是可靠事件总线。消费前 clear 可能抑制对应历史 Log。MSH 输出可与异步 Log 交错，raw capture 保留真实字节。MSH trace 副本和日志消费者副本各占额外静态 4096 字节，总 trace 相关 BSS 约 12 KiB，不仅是历史 ring 的 4 KiB。
 
 ## MSH 查询
 
 ```text
-meter info
-meter diag
-meter runtime
-meter_exec
-meter storage
-meter can
-meter can 1
-meter domain
-meter signal vehicle.speed
-meter touch
-meter trace
-meter trace dump
-meter trace clear
-meter_color
-meter_color ccm
-meter_testcard
-meter_testcard grid
-meter_testcard patch 0x0DD462
+hmi info
+hmi diag
+hmi runtime
+hmi_exec
+hmi storage
+hmi can
+hmi can 1
+hmi domain
+hmi signal vehicle.speed
+hmi touch
+hmi trace
+hmi trace dump
+hmi trace clear
+hmi_color
+hmi_color ccm
+hmi_testcard
+hmi_testcard grid
+hmi_testcard patch 0x0DD462
 ```
 
 未知或多余参数只显示 usage，不修改状态。CAN capture 预留为后续有界静态过滤缓冲（bus/id/count），没有无限实时 dump，也不在 RX callback 同步打印 UART。signal 不存在时明确报告；Demo 已知 key 为 vehicle.speed。info 输出 Product、platform SHA、SDK SHA、LVGL 版本、board、编译日期/时间和 uptime。
 
-SCons 通过 tools/build_identity.py 自动生成身份。生成的头文件还会以 METER_BUILD_PRODUCT 记录选中的 Product（取清单 identity.id，否则取 meter_product_t.id），并以 METER_BUILD_PRODUCT_REVISION 记录其版本，因此归档的头文件本身就能说明镜像由哪个 Product 组成。干净仓库输出完整 SHA，dirty 仓库附加源码/状态指纹，包含未忽略的未跟踪源码；板名从 Kconfig 规范化。源码身份与镜像 SHA256 共同绑定证据，只有日期不足以识别镜像。仓库不可访问时显示 unavailable。SDK 可能因其他私有子模块脏而带标记，不得为了去掉标记清理其他任务的文件。
+SCons 通过 tools/build_identity.py 自动生成身份。生成的头文件还会以 HMI_BUILD_PRODUCT 记录选中的 Product（取清单 identity.id，否则取 hmi_product_t.id），并以 HMI_BUILD_PRODUCT_REVISION 记录其版本，因此归档的头文件本身就能说明镜像由哪个 Product 组成。干净仓库输出完整 SHA，dirty 仓库附加源码/状态指纹，包含未忽略的未跟踪源码；板名从 Kconfig 规范化。源码身份与镜像 SHA256 共同绑定证据，只有日期不足以识别镜像。仓库不可访问时显示 unavailable。SDK 可能因其他私有子模块脏而带标记，不得为了去掉标记清理其他任务的文件。
 
 ## 显示色彩台架
 
-`meter_color` 与 `meter_testcard` 是面板台架工具，不属于生产诊断。gamma/CCM 由显示引擎持有：色卡只提供参考像素，
-`meter_color` 的补偿对色卡同样生效，与 Product 界面完全一致。
+`hmi_color` 与 `hmi_testcard` 是面板台架工具，不属于生产诊断。gamma/CCM 由显示引擎持有：色卡只提供参考像素，
+`hmi_color` 的补偿对色卡同样生效，与 Product 界面完全一致。
 
-`meter_color` 打印并修改显示引擎的 gamma、CCM 表（`meter_color ccm`、`meter_color ccm r|g|b C0 C1 C2 OFF`、
+`hmi_color` 打印并修改显示引擎的 gamma、CCM 表（`hmi_color ccm`、`hmi_color ccm r|g|b C0 C1 C2 OFF`、
 `reset`、`identity`、`sat`）。改动只存在 RAM，断电即丢失。开机默认 CCM 表来自
-`AIC_FORKLIFT_DISPLAY_CCM`，`reset` 复原到它，`identity` 清成单位阵。
+`AIC_HMI_DISPLAY_CCM`，`reset` 复原到它，`identity` 清成单位阵。
 
-`meter_testcard` 在 `lv_layer_top()` 上画诊断色卡；Product 界面照常在下面运行，`off` 后原样返回；色卡打开时
+`hmi_testcard` 在 `lv_layer_top()` 上画诊断色卡；Product 界面照常在下面运行，`off` 后原样返回；色卡打开时
 触摸由色卡吸收。MSH 命令只写一个请求，由 UI owner 线程用 LVGL 定时器取走执行，shell 线程不直接碰 LVGL。
 
 | 命令 | 结果 |
 |---|---|
-| `meter_testcard` | 当前状态、预置色表（序号与 `0xRRGGBB`）和用法 |
-| `meter_testcard grid` | 网格总览，每页 12 块；`next`/`prev` 翻页 |
-| `meter_testcard patch 0xRRGGBB` | 指定任意颜色的整屏色块 |
-| `meter_testcard patch INDEX` | 按预置序号显示整屏色块 |
-| `meter_testcard next` / `prev` | 网格翻页；单色切换下一个/上一个预置色 |
-| `meter_testcard off` | 关闭色卡 |
+| `hmi_testcard` | 当前状态、预置色表（序号与 `0xRRGGBB`）和用法 |
+| `hmi_testcard grid` | 网格总览，每页 12 块；`next`/`prev` 翻页 |
+| `hmi_testcard patch 0xRRGGBB` | 指定任意颜色的整屏色块 |
+| `hmi_testcard patch INDEX` | 按预置序号显示整屏色块 |
+| `hmi_testcard next` / `prev` | 网格翻页；单色切换下一个/上一个预置色 |
+| `hmi_testcard off` | 关闭色卡 |
 
-内置预置为灰阶、RGB、CMY；Product 可在 `meter_ui_factory_t.create()` 里用 `meter_testcard_set_extra()`
+内置预置为灰阶、RGB、CMY；Product 可在 `hmi_ui_factory_t.create()` 里用 `hmi_testcard_set_extra()`
 追加自己的 UI 关键色。不带参数的命令会打印整张预置表，主机脚本可按序号选色，让每次拍照顺序一致。
-上位机 `tools/serial/meter_ccm_tuner.py` 用同一个串口同时驱动两条命令：CCM 按行滑杆调，
+上位机 `tools/serial/hmi_ccm_tuner.py` 用同一个串口同时驱动两条命令：CCM 按行滑杆调，
 「测试色卡」区可直接开网格、翻预置色、显示单色与关闭色卡。
 
 单色模式在固定 `#202020` 背景上居中画 65% × 62.5% 的色块（800 × 480 屏为 520 × 300），块内没有文字、边框、
@@ -92,19 +92,19 @@ SCons 通过 tools/build_identity.py 自动生成身份。生成的头文件还�
 应用继续绘制就会覆盖渐变并引起闪烁。Color Bar 是显示引擎的测试输出，因此能够单独正常显示。
 仅编入官方命令还不足以解决显示所有权冲突。
 
-应用侧提供 `meter_display`，无需修改 SDK 源码。命令经 UI owner 执行：排空已有绘制、禁用 invalidation、
+应用侧提供 `hmi_display`，无需修改 SDK 源码。命令经 UI owner 执行：排空已有绘制、禁用 invalidation、
 暂停显示刷新和首个指针设备的读取定时器，将扫描输出切到官方 Gradient 写入的缓冲 0。
 应用/UI 周期任务与看门狗继续运行；本模式用于静止台架，不能用于正常操作。
 目前不支持 SDK 的异步旋转显示路径，进入时会明确报错。
 
-1. 先在 AiPQ 关闭 Color Bar，再断开其串口连接，用终端执行 `meter_display pause`。
-2. 等待日志 `display=paused`，或执行 `meter_display` 确认 `display=paused pending=0`。
+1. 先在 AiPQ 关闭 Color Bar，再断开其串口连接，用终端执行 `hmi_display pause`。
+2. 等待日志 `display=paused`，或执行 `hmi_display` 确认 `display=paused pending=0`。
    `pending=1` 只是请求已排队，失败时日志会输出 `display request failed`。
 3. 关闭终端串口，连接 AiPQ，使用 Pure Color 和 Gradient。暂停状态下图案应保持稳定。
-4. 若从 Pure Color 切到 Gradient 仍看不到图案，断开 AiPQ，在终端执行 `meter_display fb`，
+4. 若从 Pure Color 切到 Gradient 仍看不到图案，断开 AiPQ，在终端执行 `hmi_display fb`，
    等待 `display=paused framebuffer=0`，再执行 `test_fb -b`。`fb` 会重新打开 UI 并选中缓冲 0，
    不会恢复应用绘制。可先用 `bg_color -m 1 -r 0 -g 255 -b 0` 验证纯绿。
-5. 完成后先关闭 AiPQ Color Bar、断开 AiPQ；在终端执行 `meter_display resume`，等待 `display=app`。
+5. 完成后先关闭 AiPQ Color Bar、断开 AiPQ；在终端执行 `hmi_display resume`，等待 `display=app`。
    恢复时还原 UI 图层配置、整屏重绘并恢复原先运行的触摸读取。重复 pause/resume 不叠加暂停状态。
 
 `pause`、`fb`、`resume` 都只操作 RAM；不会保存、重置或固化本次 gamma/CCM 校色值。
@@ -116,12 +116,12 @@ Host 回归使用真实 LVGL 验证暂停时双缓冲不被写入、心跳继续
 
 ```sh
 python -m pip install -r tools/serial/requirements.txt
-python tools/serial/meter_serial.py --port /dev/ttyUSB0 capture evidence/serial.log
-python tools/serial/meter_serial.py --port /dev/ttyUSB0 command "meter info" --output evidence/info.txt
-python tools/serial/meter_serial.py --port /dev/ttyUSB0 command "meter diag" --output evidence/diag.txt
-python tools/serial/meter_serial.py --port /dev/ttyUSB0 command "meter runtime" --output evidence/runtime.txt
-python tools/serial/meter_serial.py --port /dev/ttyUSB0 command "meter can" --output evidence/can.txt
-python tools/serial/meter_serial.py --port /dev/ttyUSB0 command "meter trace dump" --timeout 10 --idle 1 --output evidence/trace.txt
+python tools/serial/hmi_serial.py --port /dev/ttyUSB0 capture evidence/serial.log
+python tools/serial/hmi_serial.py --port /dev/ttyUSB0 command "hmi info" --output evidence/info.txt
+python tools/serial/hmi_serial.py --port /dev/ttyUSB0 command "hmi diag" --output evidence/diag.txt
+python tools/serial/hmi_serial.py --port /dev/ttyUSB0 command "hmi runtime" --output evidence/runtime.txt
+python tools/serial/hmi_serial.py --port /dev/ttyUSB0 command "hmi can" --output evidence/can.txt
+python tools/serial/hmi_serial.py --port /dev/ttyUSB0 command "hmi trace dump" --timeout 10 --idle 1 --output evidence/trace.txt
 ```
 
 Windows 将 /dev/ttyUSB0 替换为明确的 COM 口。安装依赖与运行工具使用同一 Python 解释器。文件追加原始字节，保留 ANSI 与非法 UTF-8，不解读协议成功与否。capture 直到 Ctrl-C 或 --duration；command 收到数据后等待 --idle 静默，最长 --timeout，无响应退出失败。长 dump 应增加超时，只有命令回显不等于执行成功。打开设备前设置控制线为 inactive，但 DTR/RTS 连到 reset 时仍需注意适配器与 OS 行为。

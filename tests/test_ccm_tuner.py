@@ -5,7 +5,7 @@ import queue
 import unittest
 
 spec = importlib.util.spec_from_file_location(
-    'meter_ccm_tuner', Path(__file__).resolve().parents[1] / 'tools/serial/meter_ccm_tuner.py')
+    'hmi_ccm_tuner', Path(__file__).resolve().parents[1] / 'tools/serial/hmi_ccm_tuner.py')
 tuner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tuner)
 
@@ -43,7 +43,7 @@ class TapFieldTests(unittest.TestCase):
 
 class ReportTests(unittest.TestCase):
     def test_custom_report_with_table(self):
-        response = 'meter_color ccm\r\n' + TABLE_LINE + '\r\n\r\naic /> '
+        response = 'hmi_color ccm\r\n' + TABLE_LINE + '\r\n\r\naic /> '
         self.assertEqual(tuner.parse_ccm_report(response),
                          (True, False, [276, -20, 0, 0, 0, 256, 0, 0, 0, 20, 236, 0]))
 
@@ -55,7 +55,7 @@ class ReportTests(unittest.TestCase):
 
     def test_ignores_unrelated_lines(self):
         text = ('display gamma=100% (100 = DE default; build default 100%)\r\n'
-                'usage: meter_color ccm reset  restore the build default (identity when unset)\r\n')
+                'usage: hmi_color ccm reset  restore the build default (identity when unset)\r\n')
         self.assertIsNone(tuner.parse_ccm_report(text))
 
     def test_build_default_line_is_not_read_as_state(self):
@@ -83,9 +83,9 @@ class RowPatternTests(unittest.TestCase):
 
     def test_row_command_matches_board_rows(self):
         self.assertEqual(tuner.row_command('r', tuner.row_kill_red(20)),
-                         'meter_color ccm r 0x0114 0xFFEC 0x0000 0x0000')
+                         'hmi_color ccm r 0x0114 0xFFEC 0x0000 0x0000')
         self.assertEqual(tuner.row_command('b', tuner.row_add_blue(20)),
-                         'meter_color ccm b 0x0000 0x0014 0x00EC 0x0000')
+                         'hmi_color ccm b 0x0000 0x0014 0x00EC 0x0000')
 
     def test_commands_fit_finsh_limits(self):
         cases = (('r', tuner.row_kill_red(512)), ('g', (-512, 512, 0, -256)),
@@ -161,11 +161,11 @@ class TestcardTests(unittest.TestCase):
         self.assertEqual((state['rgb'], state['index']), (0xFFFFFF, None))
 
     def test_applied_log_line_updates_state(self):
-        text = '[2026-10-20 09:00:00.000] I/meter.testcard testcard patch page=1/2 rgb=0x0DD462 index=13\r\n'
+        text = '[2026-10-20 09:00:00.000] I/hmi.testcard testcard patch page=1/2 rgb=0x0DD462 index=13\r\n'
         state, _ = tuner.parse_testcard_report(text)
         self.assertEqual((state['mode'], state['page'], state['rgb'], state['index']),
                          ('patch', 1, 0x0DD462, 13))
-        text = '[27] I/meter.testcard testcard off page=1/2 rgb=0x0DD462 index=4294967295\r\n'
+        text = '[27] I/hmi.testcard testcard off page=1/2 rgb=0x0DD462 index=4294967295\r\n'
         state, _ = tuner.parse_testcard_report(text)
         self.assertEqual((state['mode'], state['rgb'], state['index']), ('off', None, None))
 
@@ -187,7 +187,7 @@ class TestcardTests(unittest.TestCase):
 
     def test_patch_command_fits_finsh(self):
         argument = tuner.testcard_patch_argument('0xFFFFFF')
-        command = 'meter_testcard patch %s' % argument
+        command = 'hmi_testcard patch %s' % argument
         self.assertLessEqual(len(command), tuner.FINSH_LINE_LIMIT)
         self.assertLessEqual(len(command.split()), tuner.FINSH_ARG_LIMIT)
 
@@ -223,7 +223,7 @@ class WorkerWiringTests(unittest.TestCase):
         worker = tuner.BoardWorker()
         worker._link = self.Link(TABLE_LINE + '\r\n'
                                  + 'testcard=off\r\npresets=2\r\n  0 0x000000\r\n  1 0x0DD462\r\n')
-        worker._command('meter_color ccm')
+        worker._command('hmi_color ccm')
         events = []
         while True:
             try:

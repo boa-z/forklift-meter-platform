@@ -1,5 +1,5 @@
 /* DID v2 线协议契约：固定长度、字节序、会话权限、NRC 与 Manifest 生命周期。 */
-#include "protocols/uds/meter_uds.h"
+#include "protocols/uds/hmi_uds.h"
 #include <assert.h>
 #include <string.h>
 
@@ -13,9 +13,9 @@ static uint8_t request[1024], response[1024];
 static size_t request_n, response_n;
 static unsigned submits, cancellations;
 static bool done, reset_allowed;
-static meter_update_error_t completion_error;
-static meter_update_job_t saved;
-static meter_uds_snapshot_t snap;
+static hmi_update_error_t completion_error;
+static hmi_update_job_t saved;
+static hmi_uds_snapshot_t snap;
 
 static UDSErr_t tx(UDSTp_t *p, const uint8_t *d, size_t n, const UDSSDU_t *i)
 {
@@ -42,27 +42,27 @@ static UDSErr_t poll(UDSTp_t *p)
     (void)p;
     return UDS_OK;
 }
-static bool submit(void *c, const meter_update_job_t *j)
+static bool submit(void *c, const hmi_update_job_t *j)
 {
     (void)c;
     saved = *j;
     submits++;
     return true;
 }
-static bool result(void *c, meter_update_error_t *e, uint32_t *gen, uint32_t *offset)
+static bool result(void *c, hmi_update_error_t *e, uint32_t *gen, uint32_t *offset)
 {
     (void)c;
     if (!done)
         return false;
     *e = completion_error;
     *gen = 1;
-    if (saved.kind == METER_UPDATE_JOB_BEGIN)
+    if (saved.kind == HMI_UPDATE_JOB_BEGIN)
         *offset = 0;
-    else if (saved.kind == METER_UPDATE_JOB_WRITE)
+    else if (saved.kind == HMI_UPDATE_JOB_WRITE)
         *offset = saved.offset + (uint32_t)saved.size;
     return true;
 }
-static bool snapshot_port(void *c, meter_uds_snapshot_t *out)
+static bool snapshot_port(void *c, hmi_uds_snapshot_t *out)
 {
     (void)c;
     *out = snap;
@@ -89,7 +89,7 @@ static void maintenance(void *c, bool on)
     maintenance_on = on;
 }
 
-static void send(meter_uds_t *u, const uint8_t *d, size_t n)
+static void send(hmi_uds_t *u, const uint8_t *d, size_t n)
 {
     memcpy(request, d, n);
     request_n = n;
@@ -101,25 +101,25 @@ static void send(meter_uds_t *u, const uint8_t *d, size_t n)
     }
 }
 /* 让异步 worker 完成并把权威状态交回端口快照。 */
-static void complete(meter_uds_t *u)
+static void complete(hmi_uds_t *u)
 {
     done = true;
-    if (saved.kind == METER_UPDATE_JOB_BEGIN)
+    if (saved.kind == HMI_UPDATE_JOB_BEGIN)
     {
         snap.manifest = saved.manifest;
         snap.manifest_valid = true;
-        snap.state = METER_UPDATE_DOWNLOADING;
+        snap.state = HMI_UPDATE_DOWNLOADING;
         snap.total = saved.manifest.size;
     }
-    else if (saved.kind == METER_UPDATE_JOB_VERIFY)
+    else if (saved.kind == HMI_UPDATE_JOB_VERIFY)
     {
-        snap.state = METER_UPDATE_CANDIDATE;
+        snap.state = HMI_UPDATE_CANDIDATE;
         snap.candidate_verified = true;
         snap.received = snap.total;
     }
-    else if (saved.kind == METER_UPDATE_JOB_ACTIVATE)
+    else if (saved.kind == HMI_UPDATE_JOB_ACTIVATE)
     {
-        snap.state = METER_UPDATE_ACTIVATED;
+        snap.state = HMI_UPDATE_ACTIVATED;
         snap.candidate_verified = true;
     }
     for (unsigned i = 0; i < 60; ++i)
@@ -131,7 +131,7 @@ static void complete(meter_uds_t *u)
 static void fill_manifest(uint8_t *out, const char *product, const char *hardware, const char *version,
                           uint32_t size, uint8_t seed)
 {
-    memset(out, 0, METER_UDS_MANIFEST_SIZE);
+    memset(out, 0, HMI_UDS_MANIFEST_SIZE);
     memcpy(out, product, strlen(product));
     memcpy(out + 32, hardware, strlen(hardware));
     memcpy(out + 64, version, strlen(version));
@@ -153,13 +153,13 @@ static void setup(void)
     done = false;
     reset_allowed = false;
     maintenance_on = -1;
-    completion_error = METER_UPDATE_OK;
+    completion_error = HMI_UPDATE_OK;
     memset(&saved, 0, sizeof(saved));
     memset(&snap, 0, sizeof(snap));
     memset(response, 0, sizeof(response));
     response_n = 0;
-    snap.state = METER_UPDATE_IDLE;
-    snap.error = METER_UPDATE_OK;
+    snap.state = HMI_UPDATE_IDLE;
+    snap.error = HMI_UPDATE_OK;
     snap.backend_supported = true;
     snap.capacity = 4096;
     strcpy(snap.product, "synthetic");
@@ -168,12 +168,12 @@ static void setup(void)
     strcpy(snap.os_file, "d13x_os.itb");
     strcpy(snap.reason, "native_auto_unverified");
 }
-static void init(meter_uds_t *u, UDSTp_t *tp)
+static void init(hmi_uds_t *u, UDSTp_t *tp)
 {
-    meter_uds_port_t p = {0, submit, result, snapshot_port, can_reset, noop, cancel, maintenance};
-    assert(meter_uds_init(u, tp, &p));
+    hmi_uds_port_t p = {0, submit, result, snapshot_port, can_reset, noop, cancel, maintenance};
+    assert(hmi_uds_init(u, tp, &p));
 }
-static void program(meter_uds_t *u)
+static void program(hmi_uds_t *u)
 {
     const uint8_t session[] = {0x10, 2};
     send(u, session, sizeof(session));
@@ -183,8 +183,8 @@ static void program(meter_uds_t *u)
 int main(void)
 {
     UDSTp_t tp = {.send = tx, .recv = rx, .poll = poll};
-    meter_uds_t u;
-    uint8_t manifest[METER_UDS_MANIFEST_SIZE];
+    hmi_uds_t u;
+    uint8_t manifest[HMI_UDS_MANIFEST_SIZE];
 
     /* 1. F180 彻底移除：读写都必须是 RequestOutOfRange。 */
     setup();
@@ -193,7 +193,7 @@ int main(void)
         const uint8_t read_f180[] = {0x22, 0xf1, 0x80};
         send(&u, read_f180, sizeof(read_f180));
         assert(response[0] == 0x7f && response[1] == 0x22 && response[2] == 0x31);
-        uint8_t write_f180[3 + METER_UDS_MANIFEST_SIZE] = {0x2e, 0xf1, 0x80};
+        uint8_t write_f180[3 + HMI_UDS_MANIFEST_SIZE] = {0x2e, 0xf1, 0x80};
         program(&u);
         send(&u, write_f180, sizeof(write_f180));
         assert(response[0] == 0x7f && response[1] == 0x2e && response[2] == 0x31);
@@ -205,9 +205,9 @@ int main(void)
     {
         const uint8_t read_manifest[] = {0x22, 0xfd, 0x10};
         send(&u, read_manifest, sizeof(read_manifest));
-        assert(response_n == 3u + METER_UDS_MANIFEST_SIZE && response[0] == 0x62 && response[1] == 0xfd &&
+        assert(response_n == 3u + HMI_UDS_MANIFEST_SIZE && response[0] == 0x62 && response[1] == 0xfd &&
                response[2] == 0x10);
-        for (unsigned i = 0; i < METER_UDS_MANIFEST_SIZE; ++i)
+        for (unsigned i = 0; i < HMI_UDS_MANIFEST_SIZE; ++i)
             assert(response[3 + i] == 0);
     }
 
@@ -217,7 +217,7 @@ int main(void)
     {
         const uint8_t read_manifest[] = {0x22, 0xfd, 0x10};
         fill_manifest(manifest, "synthetic", "reference-board", "v2", 260, 0x11);
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -226,7 +226,7 @@ int main(void)
         send(&u, write, sizeof(write));
         assert(response_n == 3 && response[0] == 0x6e && response[1] == 0xfd && response[2] == 0x10);
         send(&u, read_manifest, sizeof(read_manifest));
-        assert(response_n == 3u + METER_UDS_MANIFEST_SIZE &&
+        assert(response_n == 3u + HMI_UDS_MANIFEST_SIZE &&
                memcmp(response + 3, manifest, sizeof(manifest)) == 0);
     }
 
@@ -234,7 +234,7 @@ int main(void)
     setup();
     init(&u, &tp);
     {
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -260,7 +260,7 @@ int main(void)
     setup();
     init(&u, &tp);
     {
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -268,7 +268,7 @@ int main(void)
         memcpy(write + 3, manifest, sizeof(manifest));
         program(&u);
         snap.manifest_valid = true;
-        snap.state = METER_UPDATE_DOWNLOADING;
+        snap.state = HMI_UPDATE_DOWNLOADING;
         send(&u, write, sizeof(write));
         assert(response[0] == 0x7f && response[1] == 0x2e && response[2] == 0x22);
     }
@@ -278,7 +278,7 @@ int main(void)
     init(&u, &tp);
     {
         const uint8_t read_manifest[] = {0x22, 0xfd, 0x10};
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -295,7 +295,7 @@ int main(void)
         complete(&u);
         assert(response[0] == 0x74 && !u.staged_valid);
         send(&u, read_manifest, sizeof(read_manifest));
-        assert(response_n == 3u + METER_UDS_MANIFEST_SIZE &&
+        assert(response_n == 3u + HMI_UDS_MANIFEST_SIZE &&
                memcmp(response + 3, manifest, sizeof(manifest)) == 0);
     }
 
@@ -316,8 +316,8 @@ int main(void)
     init(&u, &tp);
     {
         const uint8_t read_status[] = {0x22, 0xfd, 0x11};
-        snap.state = METER_UPDATE_DOWNLOADING;
-        snap.error = METER_UPDATE_NVM;
+        snap.state = HMI_UPDATE_DOWNLOADING;
+        snap.error = HMI_UPDATE_NVM;
         snap.received = 0x01020304u;
         snap.total = 0x05060708u;
         snap.maintenance = true;
@@ -326,19 +326,19 @@ int main(void)
         snap.manifest_valid = true;
         snap.candidate_verified = false;
         send(&u, read_status, sizeof(read_status));
-        assert(response_n == 3u + METER_UDS_STATUS_SIZE && response[0] == 0x62 && response[2] == 0x11);
+        assert(response_n == 3u + HMI_UDS_STATUS_SIZE && response[0] == 0x62 && response[2] == 0x11);
         assert(response[3] == 1u && response[4] == 9u);
         assert(response[5] ==
-               (METER_UDS_FLAG_BACKEND_SUPPORTED | METER_UDS_FLAG_MAINTENANCE | METER_UDS_FLAG_EXCLUSIVE |
-                METER_UDS_FLAG_ADMISSION | METER_UDS_FLAG_MANIFEST_PRESENT));
+               (HMI_UDS_FLAG_BACKEND_SUPPORTED | HMI_UDS_FLAG_MAINTENANCE | HMI_UDS_FLAG_EXCLUSIVE |
+                HMI_UDS_FLAG_ADMISSION | HMI_UDS_FLAG_MANIFEST_PRESENT));
         assert(response[6] == 0u);
         assert(be32(response + 7) == 0x01020304u && be32(response + 11) == 0x05060708u);
-        snap.state = METER_UPDATE_CANDIDATE;
+        snap.state = HMI_UPDATE_CANDIDATE;
         snap.candidate_verified = true;
         snap.received = 260;
         snap.total = 260;
         send(&u, read_status, sizeof(read_status));
-        assert(response[3] == 4u && (response[5] & METER_UDS_FLAG_CANDIDATE_VERIFIED));
+        assert(response[3] == 4u && (response[5] & HMI_UDS_FLAG_CANDIDATE_VERIFIED));
     }
 
     /* 9. FD12 恰好 164B，字符串 NUL 终止并零填充，容量大端。 */
@@ -348,7 +348,7 @@ int main(void)
         const uint8_t read_endpoint[] = {0x22, 0xfd, 0x12};
         snap.capacity = 0x00010000u;
         send(&u, read_endpoint, sizeof(read_endpoint));
-        assert(response_n == 3u + METER_UDS_ENDPOINT_SIZE && response[0] == 0x62 && response[2] == 0x12);
+        assert(response_n == 3u + HMI_UDS_ENDPOINT_SIZE && response[0] == 0x62 && response[2] == 0x12);
         assert(strcmp((const char *)response + 3, "synthetic") == 0);
         assert(strcmp((const char *)response + 35, "reference-board") == 0);
         assert(strcmp((const char *)response + 67, "v1") == 0);
@@ -372,11 +372,11 @@ int main(void)
         assert(response_n == 4 && response[3] == 0x02);
         const uint8_t read_hardware[] = {0x22, 0xf1, 0x92};
         send(&u, read_hardware, sizeof(read_hardware));
-        assert(response_n == 3u + METER_UDS_HARDWARE_SIZE &&
+        assert(response_n == 3u + HMI_UDS_HARDWARE_SIZE &&
                strcmp((const char *)response + 3, "reference-board") == 0);
         const uint8_t read_version[] = {0x22, 0xf1, 0x95};
         send(&u, read_version, sizeof(read_version));
-        assert(response_n == 3u + METER_UDS_SOFTWARE_SIZE && strcmp((const char *)response + 3, "v1") == 0);
+        assert(response_n == 3u + HMI_UDS_SOFTWARE_SIZE && strcmp((const char *)response + 3, "v1") == 0);
     }
 
     /* 11. 多 DID 组合读取：FD10 + FD11 + FD12 一次拼包。 */
@@ -389,12 +389,12 @@ int main(void)
         snap.manifest_valid = true;
         send(&u, multi, sizeof(multi));
         assert(response_n ==
-               1u + 2u + METER_UDS_MANIFEST_SIZE + 2u + METER_UDS_STATUS_SIZE + 2u + METER_UDS_ENDPOINT_SIZE);
+               1u + 2u + HMI_UDS_MANIFEST_SIZE + 2u + HMI_UDS_STATUS_SIZE + 2u + HMI_UDS_ENDPOINT_SIZE);
         assert(response[1] == 0xfd && response[2] == 0x10);
-        assert(response[3 + METER_UDS_MANIFEST_SIZE] == 0xfd &&
-               response[4 + METER_UDS_MANIFEST_SIZE] == 0x11);
-        assert(response[5 + METER_UDS_MANIFEST_SIZE + METER_UDS_STATUS_SIZE] == 0xfd &&
-               response[6 + METER_UDS_MANIFEST_SIZE + METER_UDS_STATUS_SIZE] == 0x12);
+        assert(response[3 + HMI_UDS_MANIFEST_SIZE] == 0xfd &&
+               response[4 + HMI_UDS_MANIFEST_SIZE] == 0x11);
+        assert(response[5 + HMI_UDS_MANIFEST_SIZE + HMI_UDS_STATUS_SIZE] == 0xfd &&
+               response[6 + HMI_UDS_MANIFEST_SIZE + HMI_UDS_STATUS_SIZE] == 0x12);
     }
 
     /* 12. S3 超时清除 staged，但已验证候选继续可读。 */
@@ -402,7 +402,7 @@ int main(void)
     init(&u, &tp);
     {
         const uint8_t read_manifest[] = {0x22, 0xfd, 0x10};
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -414,14 +414,14 @@ int main(void)
         assert(u.server.fn(&u.server, UDS_EVT_SessionTimeout, NULL) == UDS_PositiveResponse);
         assert(!u.staged_valid && maintenance_on == 0 && cancellations == 1);
         send(&u, read_manifest, sizeof(read_manifest));
-        assert(response_n == 3u + METER_UDS_MANIFEST_SIZE);
-        for (unsigned i = 0; i < METER_UDS_MANIFEST_SIZE; ++i)
+        assert(response_n == 3u + HMI_UDS_MANIFEST_SIZE);
+        for (unsigned i = 0; i < HMI_UDS_MANIFEST_SIZE; ++i)
             assert(response[3 + i] == 0);
         /* 候选属于 worker，S3 后必须继续可读。 */
         memcpy(snap.manifest.product, "synthetic", 10);
         snap.manifest_valid = true;
         snap.candidate_verified = true;
-        snap.state = METER_UPDATE_CANDIDATE;
+        snap.state = HMI_UPDATE_CANDIDATE;
         send(&u, read_manifest, sizeof(read_manifest));
         assert(strcmp((const char *)response + 3, "synthetic") == 0);
     }
@@ -431,7 +431,7 @@ int main(void)
     init(&u, &tp);
     {
         const uint8_t read_manifest[] = {0x22, 0xfd, 0x10};
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -439,9 +439,9 @@ int main(void)
         memcpy(write + 3, manifest, sizeof(manifest));
         memcpy(snap.manifest.product, "stale", 5);
         snap.manifest_valid = false;
-        snap.state = METER_UPDATE_FAILED;
+        snap.state = HMI_UPDATE_FAILED;
         send(&u, read_manifest, sizeof(read_manifest));
-        for (unsigned i = 0; i < METER_UDS_MANIFEST_SIZE; ++i)
+        for (unsigned i = 0; i < HMI_UDS_MANIFEST_SIZE; ++i)
             assert(response[3 + i] == 0);
         program(&u);
         send(&u, write, sizeof(write));
@@ -455,7 +455,7 @@ int main(void)
     setup();
     init(&u, &tp);
     {
-        uint8_t write[3 + METER_UDS_MANIFEST_SIZE];
+        uint8_t write[3 + HMI_UDS_MANIFEST_SIZE];
         write[0] = 0x2e;
         write[1] = 0xfd;
         write[2] = 0x10;
@@ -478,7 +478,7 @@ int main(void)
         }
         uint8_t exit_request[] = {0x37};
         send(&u, exit_request, 1);
-        assert(response[0] == 0x77 && saved.kind == METER_UPDATE_JOB_VERIFY);
+        assert(response[0] == 0x77 && saved.kind == HMI_UPDATE_JOB_VERIFY);
         uint8_t reset[] = {0x11, 1};
         send(&u, reset, 2);
         assert(response[0] == 0x7f && response[2] == 0x22);
@@ -491,8 +491,8 @@ int main(void)
     setup();
     strcpy(snap.reason, "0123456789012345678901234567890123");
     {
-        meter_uds_port_t p = {0, submit, result, snapshot_port, can_reset, noop, cancel, maintenance};
-        assert(!meter_uds_init(&u, &tp, &p));
+        hmi_uds_port_t p = {0, submit, result, snapshot_port, can_reset, noop, cancel, maintenance};
+        assert(!hmi_uds_init(&u, &tp, &p));
     }
     return 0;
 }

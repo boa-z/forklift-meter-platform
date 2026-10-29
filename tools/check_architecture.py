@@ -99,10 +99,10 @@ for area in ('contracts','core','runtime'):
     for file in (ROOT/area).rglob('*'):
         if file.suffix not in ('.c','.h'): continue
         text=file.read_text(encoding='utf-8')
-        for macro in re.findall(r'#\s*define\s+(METER_[A-Z0-9_]+)', text):
+        for macro in re.findall(r'#\s*define\s+(HMI_[A-Z0-9_]+)', text):
             if re.search(r'SIGNAL|PARAMETER|MONITOR|FAULT', macro) and re.search(r'CAPACITY|COUNT|SLOTS|SIZE', macro):
                 errors.append(f'{file.relative_to(ROOT)} caps a product table: {macro}')
-        if re.search(r'\bmeter_(?:value_t|fault_state_t)\s+\w+\s*\[', text):
+        if re.search(r'\bhmi_(?:value_t|fault_state_t)\s+\w+\s*\[', text):
             errors.append(f'{file.relative_to(ROOT)} declares fixed-size domain storage')
         if re.search(r'\bactive_faults\b', text):
             errors.append(f'{file.relative_to(ROOT)} folds fault state into one word')
@@ -110,7 +110,7 @@ for area in ('contracts','core','runtime'):
         # 去掉注释和字符串，避免文档示例误报；此检查不替代宏展开和类型别名评审。
         declarations = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', text, flags=re.S)
         if re.search(
-                r'\bmeter_parameter_(?:definition|def)_t\s+(?:const\s+)?\w+\s*'
+                r'\bhmi_parameter_(?:definition|def)_t\s+(?:const\s+)?\w+\s*'
                 r'(?:\[[^;{}\]]*\]\s*(?:=|;)|=\s*\{)', declarations):
             errors.append(f'{file.relative_to(ROOT)} defines a Product parameter catalog in Framework')
 # 域、运行时、产品与板级适配代码绑定调用方提供的存储，不申请堆。
@@ -133,8 +133,8 @@ for group, files in manifest.items():
 core_sources=manifest['core']
 assert all(p.startswith('core/') for p in core_sources)
 cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
-for deps in re.findall(r'target_link_libraries\(meter_core\s+([^)]*)\)',cmake,re.S):
-    if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','meter_contracts','meter_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
+for deps in re.findall(r'target_link_libraries\(hmi_core\s+([^)]*)\)',cmake,re.S):
+    if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','hmi_contracts','hmi_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')
 for file in (ROOT/'products').glob('*/application/*'):
     if file.suffix in ('.c', '.h') and re.search(r'lvgl|lv_obj_t|rtthread', file.read_text(encoding='utf-8'), re.I):
