@@ -31,4 +31,9 @@
 #define LV_USE_SYSMON 0
 #define LV_USE_PERF_MONITOR 0
 #define LV_USE_MEM_MONITOR 0
+/* The Product's native LVGL options (sources.json lvgl.config) layer on top, as in the firmware build;
+   an option already set here is #undef'd there first. */
+#ifdef HMI_PRODUCT_LV_CONF
+#include HMI_PRODUCT_LV_CONF
+#endif
 #endif

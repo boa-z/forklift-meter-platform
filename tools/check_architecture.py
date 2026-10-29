@@ -24,6 +24,7 @@ for product in PRODUCTS:
     RULES.update({
         product + '/ui': ('contracts/', 'ui/common/') + own,
         product + '/application': ('contracts/',) + own,
+        product + '/app': ('contracts/',) + own,
         product + '/protocol': ('contracts/', 'protocols/common/') + own,
     })
 # Product 内的子模块（嵌套 Git 检出）是原样引入的第三方代码，不按第一方规则检查。

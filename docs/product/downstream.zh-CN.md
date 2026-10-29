@@ -40,9 +40,28 @@ UI 主机的合成数据源在 start 之后才推进。Product 自己启动的�
 
 除 UI 工厂外，所有回调都在唯一的运行时线程里执行，所以 Product 状态不需要加锁。回调不得阻塞：会阻塞的外设（MCU 串口、摄像头、音频、振动）由 Product 自己开线程，通过 Product 自己的队列交换数据，再由适配器的 `process` 或 `app_tick` 取走。本地算出的值（计时、计数、外设读数）用 `hmi_snapshot_write()` 发布，运行中识别到的设备型号用 `hmi_snapshot_profile()` 发布。
 
+## 目录与分层
+
+所有 Product 用同一套目录，读一个 Product 就能读懂下一个；目录内怎么拆文件由 Product 决定。
+
+| 目录 | 内容 | 可以包含的 Framework 目录 |
+|---|---|---|
+| `product/` | 只做装配：`product.c`（`hmi_product_t`）、`firmware.c`、`sources.json`、`tests.cmake`，可选 `product.cmake`、`lv_conf.h`、版本文件 | 全部契约 |
+| `catalog/` | 信号、设置、故障、动作的 id 与目录表 | `contracts/` |
+| `protocol/` | 总线协议：解码表、协议适配器、周期帧编码、协议生成物 | `contracts/`、`protocols/common/` |
+| `app/` | 业务规则与状态：运行时线程里的 `app_tick`/`local_action`、呈现数据 | `contracts/` |
+| `components/` | 可选：无文件级状态、配置作首参的可复用机制 | `contracts/` |
+| `platform/`、`board/` | 可选：外设适配与会阻塞的硬件 worker；板级角色映射 | SDK 与 OS |
+| `ui/` | LVGL 页面与 UI 工厂；只经 Product 的呈现数据与动作接触业务 | `contracts/`、`ui/common/` |
+| `i18n/` | `languages.json`、`translations/`、`generated/` | — |
+| `sim/` | 主机入口 `main.c`，需要时 `sim/host/` 放 OS 替身 | `sim/` |
+| `tests/`、`tools/`、`assets/`、`generated/`、`docs/` | 测试、生成器与门禁、素材、生成物、文档 | — |
+
+`tools/check_architecture.py` 按上表检查 `ui/`、`app/`（与旧名 `application/`）和 `protocol/` 的包含关系。命名按职责，不带客户或型号前缀（`settings_get`、`application_tick`、`PRODUCT_SIGNAL_*`）；外部契约（升级身份、NVM 命名空间、协议 id、语言编号、资源路径）保持原值。Product 测试只守对外行为（报文、持久化、组合、界面能起来）与生成物同步，设计稿保真与文档检查留给手动脚本。
+
 ## 源文件与依赖声明
 
-`product/sources.json` 在共用源文件组之外，可声明 `rtthread`（仅固件）、`host_support`（仅链接进 Host Application）、`include_dirs`（两端共用）和 `host_include_dirs`（仅 Host）。路径必须位于 Product 内且真实存在，头文件路径必须是目录。硬件源文件和主机替身分组列出。Product 的 CMake 入口可在添加 Framework 前设置 `LV_BUILD_CONF_PATH`，启用需要的 LVGL 组件和原生文件系统后端。
+`product/sources.json` 在共用源文件组之外，可声明 `rtthread`（仅固件）、`host_support`（仅链接进 Host Application）、`include_dirs`（两端共用）和 `host_include_dirs`（仅 Host）。路径必须位于 Product 内且真实存在，头文件路径必须是目录。硬件源文件和主机替身分组列出。主机构建总是从 Framework 根目录开始；Product 可选的 `product/product.cmake` 在全部 Product 目标建立后被包含，用来补充第三方源码的告警、主机依赖（如 FreeType）与资源目录。`lvgl.config` 指定的头文件在主机上同样叠加在 `sim/lv_conf.h` 之后，主机专用的 `LV_*` 选项放在它的 `#ifndef __RTTHREAD__` 分支里。
 
 固件可通过 `lvgl.config` 指定 Product 内的配置头；所有翻译单元在 SDK 的 `lv_conf.h` 之后包含它（经 `platform/rtthread/lvgl/lv_conf.h`，它用 `#include_next` 取 SDK 的文件，SDK 源码不改），用来叠加原生 `LV_*` 选项；SDK 已经定义的选项要先 `#undef` 再重新定义（例如 `LV_USE_FREETYPE`）。UI 在 SDK 的 LVGL 线程里运行，栈预算使用 `LPKG_LVGL_THREAD_STACK_SIZE`。
 

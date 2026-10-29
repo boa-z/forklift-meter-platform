@@ -43,9 +43,28 @@ input advances only after start. Product hardware workers must respect their own
 
 Every callback except the UI factory runs on the single runtime thread, so Product state needs no locks. Callbacks must not block: blocking peripherals (MCU UART, camera, audio, haptics) get their own Product thread and exchange data through a Product-owned queue that an adapter's `process` or `app_tick` drains. Publish values computed locally (timers, counters, peripheral readings) with `hmi_snapshot_write()`, and a device model detected at run time with `hmi_snapshot_profile()`.
 
+## Layout and layering
+
+Every Product uses the same directories, so reading one Product prepares you for the next; how files are split inside a directory is up to the Product.
+
+| Directory | Contents | Framework directories it may include |
+|---|---|---|
+| `product/` | Assembly only: `product.c` (`hmi_product_t`), `firmware.c`, `sources.json`, `tests.cmake`, optional `product.cmake`, `lv_conf.h`, version files | all contracts |
+| `catalog/` | Ids and tables of signals, settings, faults, actions | `contracts/` |
+| `protocol/` | Bus protocols: decode tables, protocol adapters, periodic-frame encoders, generated protocol data | `contracts/`, `protocols/common/` |
+| `app/` | Business rules and state: `app_tick`/`local_action` in the runtime thread, presentation data | `contracts/` |
+| `components/` | Optional: reusable mechanisms without file-scope state, configuration as first argument | `contracts/` |
+| `platform/`, `board/` | Optional: peripheral adapters and blocking hardware workers; board role mapping | SDK and OS |
+| `ui/` | LVGL pages and the UI factory; reaches business logic only through the Product's presentation data and actions | `contracts/`, `ui/common/` |
+| `i18n/` | `languages.json`, `translations/`, `generated/` | — |
+| `sim/` | Host entry `main.c`, with OS stand-ins in `sim/host/` when needed | `sim/` |
+| `tests/`, `tools/`, `assets/`, `generated/`, `docs/` | Tests, generators and gates, assets, generated sources, documents | — |
+
+`tools/check_architecture.py` enforces the includes of `ui/`, `app/` (and the older name `application/`) and `protocol/` from this table. Names describe responsibility and carry no customer or model prefix (`settings_get`, `application_tick`, `PRODUCT_SIGNAL_*`); external contracts (update identity, NVM namespace, protocol ids, language ids, asset paths) keep their values. Product tests guard external behaviour (frames, persistence, composition, the UI starting) and generated-source sync; design-fidelity and document checks stay as scripts run by hand.
+
 ## Source and dependency declarations
 
-`product/sources.json` declares the shared source groups plus optional `rtthread` (firmware only), `host_support` (linked into the host Application only), `include_dirs` (both builds), and `host_include_dirs` (host only). Paths must stay inside the Product and exist; include entries must be directories. Keep hardware sources and host substitutes in separate groups. A Product CMake entry point can set `LV_BUILD_CONF_PATH` before adding the Framework to enable required LVGL components and native filesystem backends.
+`product/sources.json` declares the shared source groups plus optional `rtthread` (firmware only), `host_support` (linked into the host Application only), `include_dirs` (both builds), and `host_include_dirs` (host only). Paths must stay inside the Product and exist; include entries must be directories. Keep hardware sources and host substitutes in separate groups. The host build always starts at the Framework root; an optional `product/product.cmake` is included after every Product target exists, for third-party warning flags, host dependencies (such as FreeType) and resource directories. The header named by `lvgl.config` also layers after `sim/lv_conf.h` on the host; host-only `LV_*` options go in its `#ifndef __RTTHREAD__` branch.
 
 Firmware can declare `lvgl.config` as a Product-relative configuration header. It is included after the SDK `lv_conf.h` for every translation unit (through `platform/rtthread/lvgl/lv_conf.h`, which `#include_next`s the SDK file, so SDK sources stay untouched); use it for native `LV_*` options, and `#undef` the ones the SDK already defines before redefining them (for example `LV_USE_FREETYPE`). The UI runs in the SDK LVGL thread, so its stack budget is `LPKG_LVGL_THREAD_STACK_SIZE`.
 
