@@ -1,6 +1,7 @@
 #include "core/hmi_core.h"
 #include "protocols/common/hmi_frame_router.h"
 #include "runtime/hmi_periodic.h"
+#include "runtime/hmi_runtime.h"
 #include <assert.h>
 #include <math.h>
 
@@ -170,8 +171,55 @@ static void test_encoder_reads_the_snapshot(void)
     assert(!hmi_periodic_valid(&broken));
 }
 
+static bool sink(void *context, const hmi_update_t *update)
+{
+    (void)context;
+    (void)update;
+    return true;
+}
+
+/* 只有本地业务和 UI 的 Product：没有协议、没有路由，目录也可以没有信号。 */
+static void test_product_without_protocols_or_signals(void)
+{
+    static const hmi_catalog_t empty = {0};
+    hmi_core_storage_t none = {0};
+    hmi_core_t core;
+    assert(hmi_core_init(&core, &empty, &none));
+    static const hmi_product_t local = {.id = "local", .catalog = &empty};
+    hmi_runtime_t runtime;
+    assert(hmi_runtime_init(&runtime, &local, sink, NULL));
+    hmi_runtime_connection(&runtime, true);
+    hmi_can_frame_t frame = {.bus = HMI_BUS_CAN0, .id = 0x100u, .size = 1u};
+    assert(!hmi_runtime_receive(&runtime, &frame));
+    assert(runtime.diagnostics.unrouted == 1u);
+    const hmi_command_t command = {.id = 1u};
+    assert(!hmi_runtime_command(&runtime, &command));
+    hmi_runtime_step(&runtime, &core, 10u, true);
+}
+
+/* app_tick 用 hmi_snapshot_write 发布本地算出的值：只有内容变化才推进 revision。 */
+static void test_local_value_publication(void)
+{
+    static const hmi_signal_def_t signals[] = {{.key = "local.count", .unit = "", .id = 7u}};
+    static const hmi_catalog_t catalog = {.signals = signals, .signal_count = 1u};
+    hmi_value_t slots[1];
+    hmi_core_storage_t storage = {.signals = slots, .signal_capacity = 1u};
+    hmi_core_t core;
+    assert(hmi_core_init(&core, &catalog, &storage));
+    const uint32_t revision = core.snapshot.revision;
+    assert(hmi_snapshot_write(&core.snapshot, 7u, 3.0f, 100u));
+    assert(core.snapshot.revision == revision + 1u);
+    assert(hmi_snapshot_write(&core.snapshot, 7u, 3.0f, 200u));
+    assert(core.snapshot.revision == revision + 1u);
+    const hmi_value_t value = hmi_snapshot_read(&core.snapshot, 7u);
+    assert(value.state == HMI_VALUE_VALID && value.value == 3.0f && value.timestamp_ms == 200u);
+    assert(!hmi_snapshot_write(&core.snapshot, 8u, 1.0f, 300u));
+}
+
 int main(void)
 {
+    test_product_without_protocols_or_signals();
+    test_local_value_publication();
     test_encoder_reads_the_snapshot();
     test_overlapping_bus_and_format_identity();
     test_fallback_is_scoped_and_exact_routes_win();

@@ -29,3 +29,17 @@
 ## 更新 Product
 
 替换 Product 源码、CMake、脚本和文档中的 Framework 标识符；Product 自有的 `meter_*` 名称保持不变。按记号精确替换（只替换 Framework 定义的标识符）是安全的；盲目把 `meter_` 换成 `hmi_` 会连 Product 的名字一起改掉。之后用 Framework 工具重新生成 i18n/CAN 文件并运行主机测试。
+
+## 更名之后的 Product 契约变化
+
+这些变化让不是 CAN 仪表的 HMI 也能直接使用 Framework。除非用到了两项被删除的内容，现有 Product 不受影响。
+
+| 变化 | Product 要做什么 |
+|---|---|
+| 删除 `hmi_monitor_def_t` 与 `hmi_catalog_t.monitors`/`monitor_count` | 监视页属于 Product UI：行表留在 Product 里（Demo 现在生成 `demo_monitors[]`） |
+| 删除 `HMI_SOURCE_DEMO` | 自己定义来源身份（Demo 用 `DEMO_SOURCE_CAN`） |
+| `protocols`、`routes` 改为可选 | 不接总线的 Product 不设置它们，此时不打开任何 CAN 总线 |
+| 目录各表都可以为空；`hmi_firmware_composition_t.locale_init` 可选 | 无需改动 |
+| 新增 `hmi_snapshot_write(snapshot, id, value, now_ms)` | 在 `app_tick`/`local_action` 里用它代替自己写的“发布本地值”函数 |
+| 主机构建也把 `product/sources.json` 的分组视为可选 | 可以省略 `protocol`（以及其他分组） |
+| `create_product.py` 默认生成不接总线的模板，`--can` 加上 DBC 解码 | 现有 Product 无需改动 |

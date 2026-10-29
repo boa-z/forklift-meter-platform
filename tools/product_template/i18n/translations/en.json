@@ -1,4 +1,5 @@
 {
   "language.name.en": "English",
-  "ui.speed": "@PRODUCT_ID@: {0} m/s ({1})"
+  "ui.uptime": "@PRODUCT_ID@ running for {0} s",
+  "ui.speed": "Speed {0} m/s ({1})"
 }

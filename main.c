@@ -62,7 +62,7 @@ static void hmi_gui_start(void)
 {
     app.product = hmi_product_get();
     const hmi_product_t *product = app.product;
-    if (!hmi_firmware_compose(&app.composition) || !app.composition.locale_init ||
+    if (!hmi_firmware_compose(&app.composition) ||
         (product->prepare && !product->prepare()))
     {
         LOG_E("Product composition failed");
@@ -82,7 +82,7 @@ static void hmi_gui_start(void)
     if (!hmi_debug_init(&diagnostics, &identity))
         return;
     hmi_debug_lvgl_log_init();
-    if (!hmi_i18n_init() || !app.composition.locale_init() ||
+    if (!hmi_i18n_init() || (app.composition.locale_init && !app.composition.locale_init()) ||
         !hmi_core_init_with_settings(&core, product->catalog, &app.composition.domain, product->initial_settings) ||
         !hmi_board_display_init() || (product->start && !product->start()))
     {

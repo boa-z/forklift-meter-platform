@@ -23,7 +23,7 @@ The reference Demo is the independent repository `boa-z/forklift-meter-platform-
 cmake -S . -B build-private -DHMI_PRODUCT_ROOT=/path/to/product
 ```
 
-Scaffold a blank product template with:
+Scaffold a Product with a catalog, an LVGL UI and local business only (add `--can` for a DBC-generated CAN decoder):
 
 ```sh
 python tools/create_product.py --id my-product --output ../my-product

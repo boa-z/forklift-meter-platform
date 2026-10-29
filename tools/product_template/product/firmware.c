@@ -3,7 +3,7 @@
 #include "ui/ui.h"
 
 /* 运行时 Domain、发给 UI 的发布副本、UI 自己的副本各一份；扩展目录时同步调整容量，不共享可变数组。 */
-enum { PRODUCT_SIGNAL_CAPACITY = 1 };
+enum { PRODUCT_SIGNAL_CAPACITY = 2 };
 static hmi_value_t domain[PRODUCT_SIGNAL_CAPACITY], presentation[PRODUCT_SIGNAL_CAPACITY],
     ui[PRODUCT_SIGNAL_CAPACITY];
 

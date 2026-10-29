@@ -29,3 +29,17 @@ The project `forklift-meter-platform` became **Luban-Lite HMI Framework** (repos
 ## Updating a Product
 
 Replace the Framework identifiers in the Product sources, CMake files, scripts and docs; Product-owned `meter_*` names stay as they are. A token-exact replacement (only identifiers the Framework defines) is safe; a blind `meter_` → `hmi_` would also rename Product names. Then rebuild the generated i18n/CAN files with the Framework tools and run the host tests.
+
+## Product contract changes after the rename
+
+These make the Framework usable by HMIs that are not CAN instruments. Existing Products keep working unless they used the two removed items.
+
+| Change | What a Product does |
+|---|---|
+| `hmi_monitor_def_t` and `hmi_catalog_t.monitors`/`monitor_count` removed | A monitor page is Product UI: keep the row table in the Product (the Demo now generates `demo_monitors[]`) |
+| `HMI_SOURCE_DEMO` removed | Define your own source identities (the Demo uses `DEMO_SOURCE_CAN`) |
+| `protocols`, `routes` optional | Leave them unset when the Product talks to no bus; no CAN bus is opened then |
+| Catalog tables may all be empty; `hmi_firmware_composition_t.locale_init` optional | Nothing to do |
+| `hmi_snapshot_write(snapshot, id, value, now_ms)` added | Use it in `app_tick`/`local_action` instead of a hand-written "publish local value" helper |
+| `product/sources.json` groups optional on the host too | `protocol` (and any other group) can be omitted |
+| `create_product.py` makes a CAN-free template; `--can` adds the DBC decoder | Nothing to do for existing Products |

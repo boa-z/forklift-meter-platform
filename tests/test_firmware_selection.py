@@ -29,6 +29,9 @@ class FirmwareSelection(unittest.TestCase):
         cls.other = Path(cls.temp.name) / 'other-product'
         subprocess.run([sys.executable, str(ROOT / 'tools/create_product.py'),
                         '--id', 'other-product', '--output', str(cls.other)], check=True, capture_output=True)
+        cls.can = Path(cls.temp.name) / 'can-product'
+        subprocess.run([sys.executable, str(ROOT / 'tools/create_product.py'),
+                        '--id', 'can-product', '--can', '--output', str(cls.can)], check=True, capture_output=True)
         cls.unsupported = Path(cls.temp.name) / 'sdo-product'
         (cls.unsupported / 'product').mkdir(parents=True)
         (cls.unsupported / 'product/sources.json').write_text('{"features": ["canopennode-sdo"]}', encoding='utf-8')
@@ -57,7 +60,16 @@ class FirmwareSelection(unittest.TestCase):
         self.assertIn(self.other / 'product/firmware.c', sources)
         self.assertIn(self.other / 'i18n/generated/product_i18n.c', sources)
         self.assertTrue(all(p.is_relative_to(selected) for p in sources))
-        self.assertIn('NAME dbc-generation', (self.other / 'product/tests.cmake').read_text())
+        # 默认模板不接总线：没有协议源码，也没有 DBC 检查。
+        self.assertFalse((self.other / 'protocol').exists())
+        self.assertNotIn('NAME dbc-generation', (self.other / 'product/tests.cmake').read_text())
+        self.assertNotIn('[can]', (self.other / 'product/product.c').read_text(encoding='utf-8'))
+
+    def test_can_template_adds_generated_protocol(self):
+        selected, sources = selector.select(ROOT, str(self.can))
+        self.assertIn(self.can / 'generated/can/product.c', sources)
+        self.assertIn('NAME dbc-generation', (self.can / 'product/tests.cmake').read_text())
+        self.assertIn('.protocols = &protocols,', (self.can / 'product/product.c').read_text(encoding='utf-8'))
 
     def test_unsupported_feature_closure(self):
         with self.assertRaisesRegex(ValueError, 'feature closure'):

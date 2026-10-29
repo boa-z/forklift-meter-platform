@@ -11,7 +11,7 @@ git clone PRODUCT_REPOSITORY products/my-product
 cmake -S . -B build-my-product -G Ninja -DHMI_PRODUCT_ROOT=products/my-product
 ```
 
-Firmware names the Product with `CONFIG_AIC_HMI_PRODUCT_ROOT="products/my-product"` in the board defconfig. Nothing pins the Product commit, so record the Product, Framework and SDK commits for every release build. Start a new Product with `python tools/create_product.py --id my-product --output products/my-product`. Do not add customer symbols to `contracts`, `core`, `runtime`, `protocols/common` or `ui/common`; propose missing generic capabilities to the Framework instead.
+Firmware names the Product with `CONFIG_AIC_HMI_PRODUCT_ROOT="products/my-product"` in the board defconfig. Nothing pins the Product commit, so record the Product, Framework and SDK commits for every release build. Start a new Product with `python tools/create_product.py --id my-product --output products/my-product`: the template has a catalog, an LVGL UI and one piece of local business (`app_tick`) and opens no bus; add `--can` for a DBC-generated CAN decoder and routes. A Product never edits Framework sources to be added. Do not add customer symbols to `contracts`, `core`, `runtime`, `protocols/common` or `ui/common`; propose missing generic capabilities to the Framework instead.
 
 ## What a Product provides
 
@@ -27,11 +27,11 @@ tick or page creation. `hmi_firmware_compose()` only composes storage and `local
 registers language resources. Neither restores settings or starts business services. Synthetic host
 input advances only after start. Product hardware workers must respect their own state synchronization.
 
-`hmi_product_get()` returns one static `hmi_product_t` (`contracts/hmi_product.h`). Only `id`, `catalog`, `protocols` and `routes` are required.
+`hmi_product_get()` returns one static `hmi_product_t` (`contracts/hmi_product.h`). Only `id` and `catalog` are required, and the catalog tables may be empty. A Product that talks to no bus leaves `protocols`, `routes` and `periodic` unset; the runtime then opens no CAN bus (the CAN update endpoint excepted) and starts no CAN transmit thread.
 
 | Field | Purpose |
 |---|---|
-| `catalog`, `initial_settings` | Signals, local settings, monitors, faults; first-boot language, bit rate, brightness, units |
+| `catalog`, `initial_settings` | Signals, local settings, faults; first-boot language, brightness, units and, for CAN Products, bit rate. How a page lays out signals (monitor lists and so on) belongs to the Product UI |
 | `protocols`, `routes` | Receive routing to stateless DBC decoders or stateful adapters (SDO, CANopenNode wrapper, private handshakes, a UART poller in `process`) |
 | `command_route` | Which adapter executes a `hmi_command_t`; App sends commands through the synchronous command port |
 | `periodic`, `periodic_count` | Periodic frames encoded from the snapshot (see [runtime](../runtime/runtime-production.md)) |
@@ -41,7 +41,7 @@ input advances only after start. Product hardware workers must respect their own
 | `storage`, `allow_parameter_extension` | Settings record identity, debounce and append-only schema growth |
 | `update`, `update_admission`, `update_exclusive` | CAN update identity, size, UDS bus/identifiers, admission and maintenance behaviour |
 
-Every callback except the UI factory runs on the single runtime thread, so Product state needs no locks. Callbacks must not block: blocking peripherals (MCU UART, camera, audio, haptics) get their own Product thread and exchange data through a Product-owned queue that an adapter's `process` or `app_tick` drains. Publish a normalized vehicle profile with `hmi_snapshot_profile()`.
+Every callback except the UI factory runs on the single runtime thread, so Product state needs no locks. Callbacks must not block: blocking peripherals (MCU UART, camera, audio, haptics) get their own Product thread and exchange data through a Product-owned queue that an adapter's `process` or `app_tick` drains. Publish values computed locally (timers, counters, peripheral readings) with `hmi_snapshot_write()`, and a device model detected at run time with `hmi_snapshot_profile()`.
 
 ## Source and dependency declarations
 

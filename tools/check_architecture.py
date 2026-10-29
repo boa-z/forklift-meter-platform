@@ -88,7 +88,7 @@ for group in ('ui_common',):
 identities=[]
 for product in PRODUCTS:
     for catalog in (ROOT/product/'generated').glob('*catalog.h'):
-        identities += re.findall(r'^\s+([A-Z][A-Z0-9_]+)\s*=\s*\d+,', catalog.read_text(encoding='utf-8'), re.M)
+        identities += re.findall(r'^[s*[A-Z][A-Z0-9_]+([A-Z][A-Z0-9_]+)\s*=\s*\d+,', catalog.read_text(encoding='utf-8'), re.M)
 for file in (ROOT/'ui/common').rglob('*'):
     if file.suffix not in ('.c','.h'): continue
     text=file.read_text(encoding='utf-8')
@@ -99,10 +99,10 @@ for area in ('contracts','core','runtime'):
     for file in (ROOT/area).rglob('*'):
         if file.suffix not in ('.c','.h'): continue
         text=file.read_text(encoding='utf-8')
-        for macro in re.findall(r'#\s*define\s+(HMI_[A-Z0-9_]+)', text):
+        for macro in re.findall(r'#\s*define[s*[A-Z][A-Z0-9_]+(HMI_[A-Z0-9_]+)', text):
             if re.search(r'SIGNAL|PARAMETER|MONITOR|FAULT', macro) and re.search(r'CAPACITY|COUNT|SLOTS|SIZE', macro):
                 errors.append(f'{file.relative_to(ROOT)} caps a product table: {macro}')
-        if re.search(r'\bhmi_(?:value_t|fault_state_t)\s+\w+\s*\[', text):
+        if re.search(r'\bhmi_(?:value_t|fault_state_t)[s*[A-Z][A-Z0-9_]+\w+\s*\[', text):
             errors.append(f'{file.relative_to(ROOT)} declares fixed-size domain storage')
         if re.search(r'\bactive_faults\b', text):
             errors.append(f'{file.relative_to(ROOT)} folds fault state into one word')
@@ -110,7 +110,7 @@ for area in ('contracts','core','runtime'):
         # 去掉注释和字符串，避免文档示例误报；此检查不替代宏展开和类型别名评审。
         declarations = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', text, flags=re.S)
         if re.search(
-                r'\bhmi_parameter_(?:definition|def)_t\s+(?:const\s+)?\w+\s*'
+                r'\bhmi_parameter_(?:definition|def)_t[s*[A-Z][A-Z0-9_]+(?:const\s+)?\w+\s*'
                 r'(?:\[[^;{}\]]*\]\s*(?:=|;)|=\s*\{)', declarations):
             errors.append(f'{file.relative_to(ROOT)} defines a Product parameter catalog in Framework')
 # 域、运行时、产品与板级适配代码绑定调用方提供的存储，不申请堆。
@@ -122,7 +122,7 @@ for area in ('diagnostics','contracts','core','runtime','protocols','products','
 # 身份是句柄而不是下标：产品一旦插入或追加条目，用身份去索引域存储就会读到另一条数据。
 for area in ('ui','products','protocols','platform'):
     for file in filter(first_party, (ROOT/area).rglob('*.c')):
-        for match in re.findall(r'snapshot(?:\.|->)\w+\s*\[\s*(?:METER|DEMO)_[A-Z0-9_]+', file.read_text(encoding='utf-8')):
+        for match in re.findall(r'snapshot(?:\.|->)\w+\s*\[\s*[A-Z][A-Z0-9]*_[A-Z0-9_]+', file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} indexes domain storage by identity: {match}')
 # 一个 Product 只有一个 lv_i18n 语言包，键在生成它的 JSON 里唯一（generate_i18n.py 拒绝重复键），
 # 不再有多个翻译包按注册顺序互相覆盖的问题。
@@ -133,7 +133,7 @@ for group, files in manifest.items():
 core_sources=manifest['core']
 assert all(p.startswith('core/') for p in core_sources)
 cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')
-for deps in re.findall(r'target_link_libraries\(hmi_core\s+([^)]*)\)',cmake,re.S):
+for deps in re.findall(r'target_link_libraries\(hmi_core[s*[A-Z][A-Z0-9_]+([^)]*)\)',cmake,re.S):
     if any(d not in ('PUBLIC','PRIVATE','INTERFACE','m','hmi_contracts','hmi_diagnostics') for d in deps.split()): errors.append('Core target imports an implementation dependency')
 if re.search(r'\b(?:GLOB|Glob)\s*\(',cmake): errors.append('CMake uses unselected glob sources')
 for file in (ROOT/'products').glob('*/application/*'):

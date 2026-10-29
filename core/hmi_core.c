@@ -34,10 +34,8 @@ static bool ids_valid(const void *table, size_t count, size_t stride, size_t off
 }
 static bool catalog_valid(const hmi_catalog_t *catalog)
 {
-    if (!catalog || !catalog->signal_count || !catalog->signals)
-        return false;
-    if ((catalog->parameter_count && !catalog->parameters) ||
-        (catalog->monitor_count && !catalog->monitors) || (catalog->fault_count && !catalog->faults))
+    if (!catalog || (catalog->signal_count && !catalog->signals) ||
+        (catalog->parameter_count && !catalog->parameters) || (catalog->fault_count && !catalog->faults))
         return false;
     if (!ids_valid(catalog->signals, catalog->signal_count, sizeof(*catalog->signals),
                    offsetof(hmi_signal_def_t, id)) ||
@@ -46,10 +44,6 @@ static bool catalog_valid(const hmi_catalog_t *catalog)
         !ids_valid(catalog->faults, catalog->fault_count, sizeof(*catalog->faults),
                    offsetof(hmi_fault_def_t, id)))
         return false;
-    /* 监视项只是指向已声明信号的呈现映射；引用未声明的身份会让这一行显示别人的值。 */
-    for (size_t i = 0; i < catalog->monitor_count; ++i)
-        if (hmi_catalog_index(catalog, catalog->monitors[i].signal) >= catalog->signal_count)
-            return false;
     for (size_t i = 0; i < catalog->parameter_count; ++i)
     {
         const hmi_parameter_def_t *p = &catalog->parameters[i];
@@ -68,7 +62,7 @@ bool hmi_core_init(hmi_core_t *core, const hmi_catalog_t *catalog, const hmi_cor
 {
     if (!core || !storage || !catalog_valid(catalog) || catalog->signal_count > storage->signal_capacity ||
         catalog->parameter_count > storage->parameter_capacity ||
-        catalog->fault_count > storage->fault_capacity || !storage->signals ||
+        catalog->fault_count > storage->fault_capacity || (catalog->signal_count && !storage->signals) ||
         (catalog->parameter_count && !storage->parameters) || (catalog->fault_count && !storage->faults))
         return false;
     memset(core, 0, sizeof(*core));

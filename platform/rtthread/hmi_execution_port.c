@@ -284,8 +284,8 @@ static bool open_buses(void)
 {
     const hmi_product_t *p = config.product;
     bool used[HMI_BUS_COUNT] = {false};
-    for (size_t i = 0u; i < p->routes->count; ++i)
-        used[p->routes->entries[i].bus] = true;
+    for (size_t i = 0u; i < runtime.routes->count; ++i)
+        used[runtime.routes->entries[i].bus] = true;
     for (size_t i = 0u; i < p->periodic_count; ++i)
         used[p->periodic[i].frame.bus] = true;
 #ifdef HMI_ENABLE_CAN_UPDATE

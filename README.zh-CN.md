@@ -23,7 +23,7 @@ Linux CI 使用 `ubuntu-latest`。SDL 运行时可设置 `SDL_VIDEODRIVER=dummy`
 cmake -S . -B build-private -DHMI_PRODUCT_ROOT=/path/to/product
 ```
 
-创建空白产品模板：
+创建只有目录、LVGL UI 和本地业务的 Product 模板（加 `--can` 带上由 DBC 生成的 CAN 解码）：
 
 ```sh
 python tools/create_product.py --id my-product --output ../my-product

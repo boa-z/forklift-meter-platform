@@ -6,7 +6,7 @@ static void diag_sync(hmi_runtime_t *r)
 {
     if (r->diag)
         r->diag->data.runtime = (hmi_diag_runtime_t){true, r->connected, r->generation,
-                                                       r->product->protocols->count, r->diagnostics};
+                                                       r->protocols->count, r->diagnostics};
 }
 static hmi_protocol_services_t services_of(const hmi_runtime_t *r)
 {
@@ -14,16 +14,16 @@ static hmi_protocol_services_t services_of(const hmi_runtime_t *r)
 }
 static const hmi_protocol_binding_t *binding_of(const hmi_runtime_t *r, hmi_frame_route_owner_t owner)
 {
-    for (size_t i = 0; i < r->product->protocols->count; ++i)
-        if (r->product->protocols->bindings[i].owner == owner)
-            return &r->product->protocols->bindings[i];
+    for (size_t i = 0; i < r->protocols->count; ++i)
+        if (r->protocols->bindings[i].owner == owner)
+            return &r->protocols->bindings[i];
     return NULL;
 }
 static void reset_adapters(const hmi_runtime_t *r)
 {
-    for (size_t i = 0; i < r->product->protocols->count; ++i)
+    for (size_t i = 0; i < r->protocols->count; ++i)
     {
-        const hmi_protocol_adapter_t *a = r->product->protocols->bindings[i].adapter;
+        const hmi_protocol_adapter_t *a = r->protocols->bindings[i].adapter;
         if (a && a->reset)
             a->reset(a->context);
     }
@@ -31,24 +31,32 @@ static void reset_adapters(const hmi_runtime_t *r)
 bool hmi_runtime_init(hmi_runtime_t *r, const hmi_product_t *p, hmi_update_sink_t update,
                         void *update_context)
 {
-    if (!r || !p || !p->protocols || !hmi_routes_valid(p->routes) || !update ||
-        (p->protocols->count && !p->protocols->bindings))
+    /* 不接协议的 Product（只有本地业务和 UI）不声明 protocols/routes，按空表处理。 */
+    static const hmi_protocol_profile_t no_protocols = {NULL, 0};
+    static const hmi_route_profile_t no_routes = {NULL, 0};
+    if (!r || !p || !update)
         return false;
-    for (size_t i = 0; i < p->protocols->count; ++i)
+    const hmi_protocol_profile_t *protocols = p->protocols ? p->protocols : &no_protocols;
+    const hmi_route_profile_t *routes = p->routes ? p->routes : &no_routes;
+    if (!hmi_routes_valid(routes) || (protocols->count && !protocols->bindings))
+        return false;
+    for (size_t i = 0; i < protocols->count; ++i)
     {
-        const hmi_protocol_binding_t *b = &p->protocols->bindings[i];
+        const hmi_protocol_binding_t *b = &protocols->bindings[i];
         if ((!b->decode && !b->adapter) || (b->adapter && !b->adapter->on_frame))
             return false;
         for (size_t j = 0; j < i; ++j)
-            if (b->owner == p->protocols->bindings[j].owner)
+            if (b->owner == protocols->bindings[j].owner)
                 return false;
     }
-    hmi_runtime_t probe = {.product = p};
-    for (size_t i = 0; i < p->routes->count; ++i)
-        if (!binding_of(&probe, p->routes->entries[i].owner))
+    hmi_runtime_t probe = {.product = p, .protocols = protocols};
+    for (size_t i = 0; i < routes->count; ++i)
+        if (!binding_of(&probe, routes->entries[i].owner))
             return false;
     memset(r, 0, sizeof(*r));
     r->product = p;
+    r->protocols = protocols;
+    r->routes = routes;
     r->update = update;
     r->update_context = update_context;
     return true;
@@ -99,7 +107,7 @@ bool hmi_runtime_receive(hmi_runtime_t *r, const hmi_can_frame_t *f)
     else
     {
         ++r->diagnostics.accepted;
-        const hmi_frame_route_t *route = hmi_route_lookup(r->product->routes, f);
+        const hmi_frame_route_t *route = hmi_route_lookup(r->routes, f);
         const hmi_protocol_binding_t *b = route ? binding_of(r, route->owner) : NULL;
         if (!b)
             ++r->diagnostics.unrouted;
@@ -132,9 +140,9 @@ bool hmi_runtime_process(hmi_runtime_t *r, uint32_t now_ms)
     hmi_diagnostics_time(r->diag, now_ms);
     const hmi_protocol_services_t services = services_of(r);
     bool ok = true;
-    for (size_t i = 0; i < r->product->protocols->count; ++i)
+    for (size_t i = 0; i < r->protocols->count; ++i)
     {
-        const hmi_protocol_adapter_t *a = r->product->protocols->bindings[i].adapter;
+        const hmi_protocol_adapter_t *a = r->protocols->bindings[i].adapter;
         if (a && a->process && !a->process(a->context, now_ms, &services))
             ok = false;
     }

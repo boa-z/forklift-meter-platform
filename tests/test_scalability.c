@@ -8,17 +8,15 @@
  * 这里不代表任何客户目录。 */
 #define SIGNAL_COUNT 128
 #define PARAMETER_COUNT 128
-#define MONITOR_COUNT 96
 #define FAULT_COUNT 192
 #define STRIDE 4
 #define ID(i) ((hmi_signal_id_t)(HMI_ID_PRIVATE_FIRST + (unsigned)(i) * STRIDE))
 static const char synthetic_key[] = "synthetic";
 static hmi_signal_def_t signal_table[SIGNAL_COUNT];
 static hmi_parameter_def_t parameter_table[PARAMETER_COUNT];
-static hmi_monitor_def_t monitor_table[MONITOR_COUNT];
 static hmi_fault_def_t fault_table[FAULT_COUNT];
-static const hmi_catalog_t catalog = {signal_table,  SIGNAL_COUNT,  parameter_table, PARAMETER_COUNT,
-                                        monitor_table, MONITOR_COUNT, fault_table,     FAULT_COUNT};
+static const hmi_catalog_t catalog = {signal_table, SIGNAL_COUNT, parameter_table, PARAMETER_COUNT, fault_table,
+                                      FAULT_COUNT};
 static hmi_value_t signal_slots[SIGNAL_COUNT];
 static float parameter_slots[PARAMETER_COUNT];
 static hmi_fault_state_t fault_slots[FAULT_COUNT];
@@ -32,8 +30,6 @@ static void build(void)
         signal_table[i] = (hmi_signal_def_t){.id = ID(i), .key = synthetic_key, .unit = "u", .stale_ms = 750};
     for (unsigned i = 0; i < PARAMETER_COUNT; ++i)
         parameter_table[i] = (hmi_parameter_def_t){.id = ID(i), .key = synthetic_key, .unit = "u", .min = 0.0f, .max = 1000.0f, .initial = 25.0f};
-    for (unsigned i = 0; i < MONITOR_COUNT; ++i)
-        monitor_table[i] = (hmi_monitor_def_t){synthetic_key, "u", ID(i)};
     for (unsigned i = 0; i < FAULT_COUNT; ++i)
         fault_table[i] = (hmi_fault_def_t){ID(i), synthetic_key, synthetic_key};
 }
@@ -59,9 +55,6 @@ static int identities(void)
     /* 落在私有区间但超出表长的身份是未知数据，不是槽位。 */
     CHECK(hmi_catalog_index(&catalog, ID(SIGNAL_COUNT)) == SIGNAL_COUNT);
     CHECK(hmi_snapshot_read(&core.snapshot, ID(SIGNAL_COUNT)).state == HMI_VALUE_UNKNOWN);
-    /* 监控项不占域存储：它解析到自己所展示的那个信号。 */
-    for (unsigned i = 0; i < MONITOR_COUNT; ++i)
-        CHECK(hmi_catalog_index(&catalog, monitor_table[i].signal) == i);
     /* 恰好等于目录规模的存储被接受，少一个槽位则在写入前就被拒绝。 */
     hmi_core_storage_t short_one = storage;
     short_one.fault_capacity = FAULT_COUNT - 1;
@@ -69,10 +62,6 @@ static int identities(void)
     short_one = storage;
     short_one.signal_capacity = SIGNAL_COUNT - 1;
     CHECK(!hmi_core_init(&core, &catalog, &short_one));
-    /* 指向未声明信号的监控项会展示另一条数据的值，必须拒绝。 */
-    monitor_table[MONITOR_COUNT - 1] = (hmi_monitor_def_t){synthetic_key, "u", ID(SIGNAL_COUNT)};
-    CHECK(!hmi_core_init(&core, &catalog, &storage));
-    monitor_table[MONITOR_COUNT - 1] = (hmi_monitor_def_t){synthetic_key, "u", ID(MONITOR_COUNT - 1)};
     return 0;
 }
 static int updates(void)
@@ -158,6 +147,6 @@ int main(void)
         result = state();
     printf("scalability: %s\n", result ? "FAIL" : "PASS");
     if (!result)
-        puts("Synthetic 128 signals / 128 parameters / 96 monitors / 192 faults bound by the product PASS");
+        puts("Synthetic 128 signals / 128 parameters / 192 faults bound by the product PASS");
     return result;
 }

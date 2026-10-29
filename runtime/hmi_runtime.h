@@ -13,6 +13,9 @@
 typedef struct
 {
     const hmi_product_t *product;
+    /** @brief Product 的协议绑定与接收路由；Product 未声明时指向空表。 */
+    const hmi_protocol_profile_t *protocols;
+    const hmi_route_profile_t *routes;
     hmi_diagnostics_t *diag;
     hmi_update_sink_t update;
     void *update_context;

@@ -42,12 +42,11 @@ typedef struct
  * @brief 信号与来源身份，产品词汇表中的 16 位句柄。
  *
  * 身份由产品目录解析，绝不是平台数组的下标，因此产品增删条目不需要修改 contracts 或 core。
- * 公共 Demo 身份从 1 开始；0 保留给“无此条目”。
+ * 0 保留给“无此条目”，其余编号由 Product 分配。
  */
 typedef uint16_t hmi_signal_id_t;
 typedef uint16_t hmi_source_id_t;
 #define HMI_SOURCE_NONE 0u
-#define HMI_SOURCE_DEMO 1u
 /** @brief 私有扩展身份区间的起点，公共目录不得占用。 */
 #define HMI_ID_PRIVATE_FIRST 0x1000u
 /** @brief 一次采样。timestamp_ms 为单调回绕的毫秒计数，非有限浮点一律降级为 ERROR。 */
@@ -88,13 +87,6 @@ typedef struct
     float min, max, initial;
     uint16_t id;
 } hmi_parameter_def_t;
-/** @brief 监视页的一行呈现映射。signal 必须指向已声明的信号身份，本身不占域存储。 */
-typedef struct
-{
-    const char *key;
-    const char *unit;
-    hmi_signal_id_t signal;
-} hmi_monitor_def_t;
 /** @brief 故障定义。description 仅用于演示与诊断输出，不参与判定。 */
 typedef struct
 {
@@ -102,15 +94,14 @@ typedef struct
     const char *key;
     const char *description;
 } hmi_fault_def_t;
-/** @brief 产品目录。core 只按数量校验并解析身份，不假设任何上限。 */
+/** @brief 产品目录。core 只按数量校验并解析身份，不假设任何上限；各表都可以为空。
+ *  页面怎样排列信号（监视页、列表）属于 Product 的 UI，不在目录里。 */
 typedef struct
 {
     const hmi_signal_def_t *signals;
     size_t signal_count;
     const hmi_parameter_def_t *parameters;
     size_t parameter_count;
-    const hmi_monitor_def_t *monitors;
-    size_t monitor_count;
     const hmi_fault_def_t *faults;
     size_t fault_count;
     hmi_source_policy_fn_t source_policy;
@@ -243,7 +234,7 @@ static inline bool hmi_snapshot_fault_set(hmi_snapshot_t *snapshot, uint16_t id,
     return true;
 }
 /**
- * @brief App 发布归一化的车型配置（系列与能力位）。
+ * @brief App 发布运行中识别到的设备型号配置（系列与能力位），例如所连接控制器的型号。
  *
  * 未确认时系列与能力必须为零，已确认时系列非零，否则返回 false 且不改快照。内容不变时不推进代次；
  * 语义变化推进 profile.generation 与快照 revision，代次耗尽时拒绝回绕。只在运行时线程调用。
@@ -260,6 +251,23 @@ static inline bool hmi_snapshot_profile(hmi_snapshot_t *snapshot, bool confirmed
         return false;
     snapshot->profile = (hmi_profile_t){current.generation + 1u, family, capabilities, confirmed};
     ++snapshot->revision;
+    return true;
+}
+/**
+ * @brief 运行时线程里的 Product 业务（app_tick、local_action、适配器）发布一个本地算出的信号值：
+ * 写成 VALID 并带上 now_ms；数值或状态变化时递增 revision。身份未声明返回 false。
+ */
+static inline bool hmi_snapshot_write(hmi_snapshot_t *snapshot, hmi_signal_id_t id, float value, uint32_t now_ms)
+{
+    if (!snapshot || !snapshot->catalog || !snapshot->signals)
+        return false;
+    const size_t index = hmi_catalog_index(snapshot->catalog, id);
+    if (index >= snapshot->catalog->signal_count)
+        return false;
+    hmi_value_t *slot = &snapshot->signals[index];
+    if (slot->state != HMI_VALUE_VALID || slot->value != value)
+        ++snapshot->revision;
+    *slot = (hmi_value_t){value, now_ms, HMI_VALUE_VALID, HMI_SOURCE_NONE};
     return true;
 }
 /** @brief UI 本地设置意图。HMI_ACTION_PARAMETER 使用本地 id，不派发远端事务。其余类别忽略 id。 */

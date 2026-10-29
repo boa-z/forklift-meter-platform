@@ -14,7 +14,7 @@ typedef struct
         当前驱动写返回后通过原生控制器接口停止总线参与；重启前不恢复。 */
     bool (*stop)(void *context, hmi_bus_role_t bus);
 } hmi_can_tx_port_t;
-/** @brief 车辆命令，与 UI 的本地设置动作完全分离。单位与含义由产品协议定义。 */
+/** @brief 发给设备协议的命令，与 UI 的本地设置动作完全分离。单位与含义由产品协议定义。 */
 typedef struct
 {
     uint16_t id;

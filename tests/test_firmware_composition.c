@@ -11,7 +11,7 @@ int main(void)
     assert(!hmi_firmware_compose(NULL));
     assert(hmi_firmware_compose(&composition));
     const hmi_product_t *product = hmi_product_get();
-    assert(product && product->ui && composition.locale_init);
+    assert(product && product->ui);
     const hmi_core_storage_t stores[] = {composition.domain, composition.presentation, composition.ui};
     hmi_core_t cores[3];
     for (size_t i = 0u; i < 3u; ++i)
@@ -35,7 +35,7 @@ int main(void)
     cores[0].snapshot.signals[0].value = 19.0f;
     assert(copy.signals[0].value == 17.0f);
     lv_init();
-    assert(hmi_i18n_init() && composition.locale_init());
+    assert(hmi_i18n_init() && (!composition.locale_init || composition.locale_init()));
     lv_deinit();
     return 0;
 }

@@ -17,7 +17,7 @@ Every firmware contains exactly one Product. A Product is a directory with `prod
 
 The reference Demo is maintained in the public [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo) repository. It is optional and not a submodule: clone it into `products/demo` to build it. Every Product is its own repository under `products/<id>`, which the Framework ignores; see [products/README.md](../../products/README.md).
 
-Create a starting point and inspect its closure:
+Create a starting point (catalog, LVGL UI and local business; `--can` adds a DBC-generated CAN decoder and routes) and inspect its closure:
 
 ```text
 python tools/create_product.py --id my-product --output ../my-product

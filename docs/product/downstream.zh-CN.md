@@ -11,7 +11,7 @@ git clone PRODUCT_REPOSITORY products/my-product
 cmake -S . -B build-my-product -G Ninja -DHMI_PRODUCT_ROOT=products/my-product
 ```
 
-固件在板级 defconfig 里用 `CONFIG_AIC_HMI_PRODUCT_ROOT="products/my-product"` 指定 Product。没有任何机制固定 Product 提交，所以每次发布构建都要记录 Product、框架与 SDK 的提交。新 Product 用 `python tools/create_product.py --id my-product --output products/my-product` 起步。不要在 `contracts`、`core`、`runtime`、`protocols/common` 或 `ui/common` 里加入客户符号；缺少的通用能力向框架提出。
+固件在板级 defconfig 里用 `CONFIG_AIC_HMI_PRODUCT_ROOT="products/my-product"` 指定 Product。没有任何机制固定 Product 提交，所以每次发布构建都要记录 Product、框架与 SDK 的提交。新 Product 用 `python tools/create_product.py --id my-product --output products/my-product` 起步：模板只有目录、LVGL UI 和一段本地业务（`app_tick`），不打开任何总线；加 `--can` 会带上一路由 DBC 生成的 CAN 解码与路由。接入新 Product 不需要修改框架源码。不要在 `contracts`、`core`、`runtime`、`protocols/common` 或 `ui/common` 里加入客户符号；缺少的通用能力向框架提出。
 
 ## Product 提供什么
 
@@ -24,11 +24,11 @@ Product 可以提供两个可选启动回调：`prepare()` 在 Core 初始化之
 `hmi_firmware_compose()` 只装配存储，`locale_init()` 只注册语言资源；二者不承担设置恢复和业务启动。
 UI 主机的合成数据源在 start 之后才推进。Product 自己启动的硬件 worker 必须遵守自己的状态同步边界。
 
-`hmi_product_get()` 返回一个静态的 `hmi_product_t`（`contracts/hmi_product.h`）。只有 `id`、`catalog`、`protocols` 与 `routes` 是必需的。
+`hmi_product_get()` 返回一个静态的 `hmi_product_t`（`contracts/hmi_product.h`）。只有 `id` 与 `catalog` 是必需的，目录里的各表都可以为空。不接任何总线的 Product 不设 `protocols`、`routes` 与 `periodic`，运行时就不打开 CAN 总线（CAN 升级端点除外），也不启动 CAN 发送线程。
 
 | 字段 | 用途 |
 |---|---|
-| `catalog`、`initial_settings` | 信号、本机设置、监视项、故障；首次开机的语言、速率、亮度、单位 |
+| `catalog`、`initial_settings` | 信号、本机设置、故障；首次开机的语言、亮度、单位，CAN Product 还有总线速率。页面怎样排列信号（监视列表等）属于 Product 的 UI |
 | `protocols`、`routes` | 接收路由到无状态 DBC 解码或有状态适配器（SDO、CANopenNode 包装、私有握手、在 `process` 里轮询的串口） |
 | `command_route` | 由哪个适配器执行 `hmi_command_t`；App 经同步命令端口发送命令 |
 | `periodic`、`periodic_count` | 按快照编码的周期帧（见[运行时](../runtime/runtime-production.zh-CN.md)） |
@@ -38,7 +38,7 @@ UI 主机的合成数据源在 start 之后才推进。Product 自己启动的�
 | `storage`、`allow_parameter_extension` | 设置记录身份、去抖以及只增参数的格式扩展 |
 | `update`、`update_admission`、`update_exclusive` | CAN 升级身份、容量、UDS 总线与标识、准入与维护行为 |
 
-除 UI 工厂外，所有回调都在唯一的运行时线程里执行，所以 Product 状态不需要加锁。回调不得阻塞：会阻塞的外设（MCU 串口、摄像头、音频、振动）由 Product 自己开线程，通过 Product 自己的队列交换数据，再由适配器的 `process` 或 `app_tick` 取走。归一化的车型配置用 `hmi_snapshot_profile()` 发布。
+除 UI 工厂外，所有回调都在唯一的运行时线程里执行，所以 Product 状态不需要加锁。回调不得阻塞：会阻塞的外设（MCU 串口、摄像头、音频、振动）由 Product 自己开线程，通过 Product 自己的队列交换数据，再由适配器的 `process` 或 `app_tick` 取走。本地算出的值（计时、计数、外设读数）用 `hmi_snapshot_write()` 发布，运行中识别到的设备型号用 `hmi_snapshot_profile()` 发布。
 
 ## 源文件与依赖声明
 

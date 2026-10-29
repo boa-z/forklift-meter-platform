@@ -1,10 +1,10 @@
 {
+  "catalog": [
+    "catalog/catalog.c"
+  ],
   "protocol": [
     "generated/can/product.c",
     "generated/can/product_adapter.c"
-  ],
-  "catalog": [
-    "catalog/catalog.c"
   ],
   "product": [
     "product/product.c"
@@ -13,7 +13,6 @@
     "ui/ui.c",
     "i18n/generated/product_i18n.c"
   ],
-  "ui_binding": [],
   "host": [
     "sim/main.c"
   ],

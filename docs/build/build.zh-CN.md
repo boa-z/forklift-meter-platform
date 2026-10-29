@@ -17,7 +17,7 @@ python -m pip install -r tools/protocol/requirements.txt -r tools/serial/require
 
 参考 Demo 维护在公开仓库 [`boa-z/forklift-meter-platform-demo`](https://github.com/boa-z/forklift-meter-platform-demo)，它是可选的，也不是 submodule：需要构建时把它克隆到 `products/demo`。每个 Product 都是 `products/<id>` 下的独立仓库，Framework 忽略该目录，见 [products/README.zh-CN.md](../../products/README.zh-CN.md)。
 
-创建模板并检查源码闭包：
+创建模板（目录、LVGL UI 和本地业务；`--can` 加上由 DBC 生成的 CAN 解码与路由）并检查源码闭包：
 
 ```text
 python tools/create_product.py --id my-product --output ../my-product

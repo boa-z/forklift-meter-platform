@@ -42,7 +42,7 @@ hmi_snapshot_result_t hmi_snapshot_copy(hmi_snapshot_t *destination,
         return HMI_SNAPSHOT_CAPACITY;
     }
     memory_span_t writes[4];
-    memory_span_t reads[10];
+    memory_span_t reads[9];
     if (!span_make(&writes[0], destination, 1u, sizeof(*destination)) ||
         !span_make(&writes[1], storage->signals, catalog->signal_count, sizeof(*storage->signals)) ||
         !span_make(&writes[2], storage->parameters, catalog->parameter_count, sizeof(*storage->parameters)) ||
@@ -55,14 +55,13 @@ hmi_snapshot_result_t hmi_snapshot_copy(hmi_snapshot_t *destination,
         !span_make(&reads[5], catalog, 1u, sizeof(*catalog)) ||
         !span_make(&reads[6], catalog->signals, catalog->signal_count, sizeof(*catalog->signals)) ||
         !span_make(&reads[7], catalog->parameters, catalog->parameter_count, sizeof(*catalog->parameters)) ||
-        !span_make(&reads[8], catalog->faults, catalog->fault_count, sizeof(*catalog->faults)) ||
-        !span_make(&reads[9], catalog->monitors, catalog->monitor_count, sizeof(*catalog->monitors)))
+        !span_make(&reads[8], catalog->faults, catalog->fault_count, sizeof(*catalog->faults)))
     {
         return HMI_SNAPSHOT_INVALID;
     }
     for (size_t i = 0u; i < 4u; ++i)
     {
-        for (size_t j = 0u; j < 10u; ++j)
+        for (size_t j = 0u; j < sizeof(reads) / sizeof(reads[0]); ++j)
         {
             if (overlap(writes[i], reads[j]))
             {

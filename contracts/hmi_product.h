@@ -65,7 +65,8 @@ typedef struct
     /** @brief 平台设备就绪后、UI 创建和协议推进前调用一次；启动 Product 的外设服务，不访问 LVGL。 */
     bool (*start)(void);
 
-    /* 协议：接收路由、owner 绑定、命令路由与周期发送。 */
+    /* 可选协议：接收路由、owner 绑定、命令路由与周期发送。只做本地业务的 Product 全部留空，
+       此时不打开任何 CAN 总线（CAN 升级端点除外）。 */
     const hmi_protocol_profile_t *protocols;
     const hmi_route_profile_t *routes;
     hmi_command_route_fn_t command_route;

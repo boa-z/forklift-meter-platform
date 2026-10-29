@@ -1,3 +1,6 @@
-vehicle.speed:
-  value: 10
+app.uptime:
+  value: 42
   state: valid
+telemetry.speed: # [can]
+  value: 10 # [can]
+  state: valid # [can]
