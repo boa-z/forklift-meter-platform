@@ -136,20 +136,27 @@ config AIC_HMI_DISPLAY_GAMMA
       compensate panels that look washed out next to the simulator. Values above 100 darken the
       mid-tones and make mixed colours more saturated; black, white and the pure primaries stay
       put. The SDK colour adjustment (brightness/contrast/saturation) only affects the video
-      layer, so it cannot change the LVGL picture. Try values live with the hmi_color shell
-      command (not kept across reboot), then set the result here.
+      layer, so it cannot change the LVGL picture. Bench values found with a panel tuning tool
+      (for example hmi_color from Luban-Lite Display Lab) are set here.
 config AIC_HMI_DISPLAY_CCM
     string "Display CCM table, 12 taps (empty = display engine default)"
     default ""
     help
       Loads a 3x4 colour-correction matrix into the display engine once the display has started:
-      three Q8 gains and one 9-bit offset per output row (red, green, blue). The spelling matches
-      what the hmi_color shell command prints, so a bench-tuned table can be pasted here
-      directly, for example the identity matrix:
+      three Q8 gains and one 9-bit offset per output row (red, green, blue). Taps are decimal or
+      hex with 0x / a leading 0 (two's complement, 0xFFD8 = -40), so the table printed by
+      Display Lab's hmi_color ccm can be pasted directly, for example the identity matrix:
         "0x0100 0x0000 0x0000 0x0000 0x0000 0x0100 0x0000 0x0000 0x0000 0x0000 0x0100 0x0000"
-      An empty value keeps the display engine default (identity, no correction). hmi_color
-      still tunes the live table (RAM only, lost on reboot); hmi_color ccm reset restores this
-      build default and hmi_color ccm identity clears all correction.
+      An empty value keeps the display engine default (identity, no correction).
+config AIC_HMI_EXTRA_COMPONENTS
+    string "Extra components linked into the firmware"
+    default ""
+    help
+      Space-separated directories, relative to this application, each with a SConscript that
+      returns a DefineGroup, for example ../luban-lite-display-lab for the Luban-Lite Display
+      Lab bench tools. Keep them inside the SDK tree so their objects land in output/. A listed
+      directory without a SConscript stops the build. The HMI_EXTRA_COMPONENTS environment
+      variable overrides this setting for one build. Release firmware lists none.
 
 endif
 endmenu

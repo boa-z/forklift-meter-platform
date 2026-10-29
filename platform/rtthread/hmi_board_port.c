@@ -2,8 +2,6 @@
 #define LOG_LVL LOG_LVL_INFO
 #include "platform/rtthread/hmi_board_port.h"
 #include "platform/rtthread/hmi_board_color.h"
-#include "platform/rtthread/hmi_board_testcard.h"
-#include "platform/rtthread/hmi_board_display_bench.h"
 #include <lvgl.h>
 #include <aic_core.h>
 #include <aic_time.h>
@@ -106,8 +104,6 @@ bool hmi_board_display_init(void)
     else
         LOG_W("no pointer input device; UI runs without touch");
     hmi_board_color_init();
-    hmi_board_testcard_init();
-    hmi_board_display_bench_init();
     return true;
 }
 void hmi_board_display_close(hmi_diagnostics_t *diag)

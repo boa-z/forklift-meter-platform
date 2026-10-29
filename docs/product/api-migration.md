@@ -16,7 +16,7 @@ The project `forklift-meter-platform` became **Luban-Lite HMI Framework** (repos
 | Environment `METER_PRODUCT_ROOT`, `METER_CAN_UPDATE`, `METER_UPDATE_VERSION`, `METER_DISPLAY_VERSION`, `METER_VERSION_SEQUENCE`, `METER_BOARD_ID`, `METER_OTA_PACKAGE`, `METER_PLATFORM_ROOT` | `HMI_…` | Build and test environment |
 | `meter-demo`, `meter-protocol-runner` | `hmi-sim`, `hmi-protocol-runner` | Host executables |
 | Generated `output/<project>/meter/` (`meter_build_identity.h`, `meter_update_build.h`, `meter_display_version.h`) | `output/<project>/hmi/` (`hmi_…h`) | The automatic daily `V<n>` counter starts again in the new directory |
-| MSH `meter info\|diag\|…`, `meter_color`, `meter_display`, `meter_testcard`, `meter_settings`, `meter_exec`, `meter_watchdog`, `meter_update` | `hmi …`, `hmi_color`, … `hmi_update` | `meter_update` stays as an alias of `hmi_update` (see below) |
+| MSH `meter info\|diag\|…`, `meter_color`, `meter_display`, `meter_testcard`, `meter_settings`, `meter_exec`, `meter_watchdog`, `meter_update` | `hmi …`, `hmi_color`, … `hmi_update` | `meter_update` stays as an alias of `hmi_update` (see below); `hmi_color`, `hmi_display` and `hmi_testcard` later moved to Luban-Lite Display Lab |
 | Log tags `meter.*`, thread names `meter_app`, `meter_tx0`, … | `hmi.*`, `hmi_app`, `hmi_tx0`, … | Serial log filters must follow |
 
 ## What deliberately did not change

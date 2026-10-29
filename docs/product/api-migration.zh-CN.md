@@ -16,7 +16,7 @@
 | 环境变量 `METER_PRODUCT_ROOT`、`METER_CAN_UPDATE`、`METER_UPDATE_VERSION`、`METER_DISPLAY_VERSION`、`METER_VERSION_SEQUENCE`、`METER_BOARD_ID`、`METER_OTA_PACKAGE`、`METER_PLATFORM_ROOT` | `HMI_…` | 构建与测试环境 |
 | `meter-demo`、`meter-protocol-runner` | `hmi-sim`、`hmi-protocol-runner` | 主机可执行文件 |
 | 生成目录 `output/<project>/meter/`（`meter_build_identity.h`、`meter_update_build.h`、`meter_display_version.h`） | `output/<project>/hmi/`（`hmi_…h`） | 自动当日序号 `V<n>` 在新目录里重新计数 |
-| MSH `meter info\|diag\|…`、`meter_color`、`meter_display`、`meter_testcard`、`meter_settings`、`meter_exec`、`meter_watchdog`、`meter_update` | `hmi …`、`hmi_color`、…、`hmi_update` | `meter_update` 保留为 `hmi_update` 的别名（见下） |
+| MSH `meter info\|diag\|…`、`meter_color`、`meter_display`、`meter_testcard`、`meter_settings`、`meter_exec`、`meter_watchdog`、`meter_update` | `hmi …`、`hmi_color`、…、`hmi_update` | `meter_update` 保留为 `hmi_update` 的别名（见下）；`hmi_color`、`hmi_display`、`hmi_testcard` 之后移到 Luban-Lite Display Lab |
 | 日志标签 `meter.*`、线程名 `meter_app`、`meter_tx0` 等 | `hmi.*`、`hmi_app`、`hmi_tx0` 等 | 串口日志过滤条件需同步 |
 
 ## 刻意保持不变的部分

@@ -93,8 +93,7 @@ common = ['main.c', 'platform/rtthread/hmi_execution_port.c',
           'platform/rtthread/hmi_board_port.c', 'platform/rtthread/hmi_nvm_port.c',
           'platform/rtthread/hmi_rtc_port.c', 'platform/rtthread/hmi_watchdog_port.c',
           'platform/rtthread/hmi_board_settings.c', 'platform/rtthread/hmi_eeprom_i2c.c',
-          'platform/rtthread/hmi_board_color.c', 'platform/rtthread/hmi_board_testcard.c',
-          'platform/rtthread/hmi_board_display_bench.c',
+          'platform/rtthread/hmi_board_color.c',
           'platform/common/hmi_display_gamma.c', 'platform/common/hmi_display_ccm.c',
           'storage/hmi_file.c', 'platform/common/hmi_diag_commands.c',
           'platform/rtthread/debug/hmi_debug_console.c', 'platform/rtthread/debug/hmi_debug_log.c']
@@ -144,5 +143,18 @@ if can_update:
         CPPDEFINES=['UDS_SYS=0', 'UDS_TP_ISOTP_C', 'UDS_LOG_LEVEL=0', 'UDS_SERVER_DEFAULT_P2_MS=1',
                     'UDS_SERVER_RECV_BUF_SIZE=1024', 'UDS_SERVER_SEND_BUF_SIZE=1024',
                     'ISO_TP_DEFAULT_ST_MIN_US=0', 'ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000'])
+
+# 额外组件（例如 Luban-Lite Display Lab 台架工具）：Kconfig AIC_HMI_EXTRA_COMPONENTS 列目录，环境变量
+# HMI_EXTRA_COMPONENTS 覆盖一次构建。每个目录自带 SConscript 并返回 DefineGroup；按相对本目录的路径调用，
+# 对象才会落进 output/<prj>。Framework 不认识任何组件，也不给它们提供 API；空值什么都不加。
+components = os.environ.get('HMI_EXTRA_COMPONENTS')
+if components is None:
+    components = config_value('AIC_HMI_EXTRA_COMPONENTS') or ''
+for component in components.split():
+    script = os.path.join(component if os.path.isabs(component) else os.path.join(cwd, component), 'SConscript')
+    if not os.path.isfile(script):
+        raise ValueError('HMI component has no SConscript: ' + component)
+    print('HMI component : ' + component)
+    group += SConscript(os.path.relpath(script, cwd))
 
 Return('group')

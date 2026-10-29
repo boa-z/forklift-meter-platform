@@ -64,9 +64,10 @@ for area in ('protocols', 'core', 'diagnostics'):
         if file.suffix in ('.c', '.h') and re.search(r'\b(?:printf|rt_kprintf|snprintf|sprintf)\s*\(',file.read_text(encoding='utf-8')):
             errors.append(f'{file.relative_to(ROOT)} formats output in a hot-path layer')
 manifest=json.loads((ROOT/'cmake/sources.json').read_text(encoding='utf-8'))
-# 框架是多 Product 的运行平台而不是仪表控件库：ui/common 只有翻译服务和显示调试测试卡，可视控件属于 Product。
+# 框架是多 Product 的运行平台而不是仪表控件库：ui/common 只有翻译服务，可视控件属于 Product，
+# 显示台架工具（色卡、实时调色、AiPQ 接管）属于独立的 Luban-Lite Display Lab。
 for entry in (ROOT/'ui/common').iterdir():
-    if entry.name not in ('i18n', 'testcard'):
+    if entry.name != 'i18n':
         errors.append(f'ui/common/{entry.name} is not a shared capability (visual widgets belong to Products)')
 # 产品文案与产品字体符号属于产品层。
 for file in (ROOT/'ui/common').rglob('*'):
