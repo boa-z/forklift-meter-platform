@@ -57,7 +57,7 @@ UI 主机的合成数据源在 start 之后才推进。Product 自己启动的�
 | `sim/` | 主机入口 `main.c`，需要时 `sim/host/` 放 OS 替身 | `sim/` |
 | `tests/`、`tools/`、`assets/`、`generated/`、`docs/` | 测试、生成器与门禁、素材、生成物、文档 | — |
 
-`tools/check_architecture.py` 按上表检查 `ui/`、`app/`（与旧名 `application/`）和 `protocol/` 的包含关系。命名按职责，不带客户或型号前缀（`settings_get`、`application_tick`、`PRODUCT_SIGNAL_*`）；外部契约（升级身份、NVM 命名空间、协议 id、语言编号、资源路径）保持原值。Product 测试只守对外行为（报文、持久化、组合、界面能起来）与生成物同步，设计稿保真与文档检查留给手动脚本。
+`tools/check_architecture.py` 按上表检查 `ui/`、`app/`（与旧名 `application/`）和 `protocol/` 的包含关系。命名按职责，不带客户或型号前缀（`settings_get`、`application_tick`、`PRODUCT_SIGNAL_*`）；外部契约（升级身份、NVM 命名空间、协议 id、语言编号、资源路径）保持原值。Product 测试只守对外行为（报文、持久化、组合、界面能起来）与生成物同步，设计稿保真与文档检查留给手动脚本。两个代码门禁对所有 Product 相同：`tools/check_product_format.py`（clang-format，`sources.json` 的 `format_exclude` 跳过原样引入的代码与生成物）和 `tools/check_product_static.py`（cppcheck + MISRA 可检子集，`sources.json` 的 `static` 声明扫描目录、排除前缀与是否要求逐条偏差登记，基线与偏差登记在 Product 的 `tools/`）。
 
 ## 源文件与依赖声明
 
