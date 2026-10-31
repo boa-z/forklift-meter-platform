@@ -44,6 +44,8 @@ AIC_HMI_NVM_FILE_BACKEND 显式选择已挂载文件后端，AIC_HMI_NVM_FILE_PR
 
 LOADING 为异步启动操作。App 接收匹配 generation 后才允许设置动作。加载完成本身不观察或回写 RAM 默认值，后续设置变化的观察或显式保存才进入普通可靠保存流程。损坏或不兼容记录仍可使用 RAM 默认设置，但阻止写入；查询不初始化介质。自有设置存储的 Product 不绑定 Framework 存储策略。
 
+Product 可在 `hmi_storage_profile_t` 置 `always_writable=true`，让介质状态不再阻止保存：读不出有效记录（CORRUPT、INCOMPATIBLE、IO_ERROR）时用当前设置写替代记录，序号从介质上见到的最大有效序号往后编；另一槽不兼容但本槽有效时照常读取；提交失败（FAILED、UNCERTAIN）保留 dirty，隔 `debounce_ms` 后再写，不需要 `hmi_settings retry`。状态名仍照实报告，供 `hmi storage` 诊断。代价：不兼容的旧记录会被覆盖，总线长期不通时持续重试。默认 false，上面的保守口径不变。
+
 IN_PROGRESS 独占在途版本，直到匹配结果到达。保存 R11 时 App 已到 R12，R11 完成只推进 durable 到 R11，R12 仍 dirty。进入 I/O 后失败为 UNCERTAIN，保留 dirty，显式重扫协调后才能重试。协调不把旧介质值覆盖到新 RAM。barrier 针对明确目标版本，完整替代的更高版本可以满足目标，但不声称中间值精确写过。启动有效记录可满足对应 barrier。只支持 worker 派发前取消，不因超时删除阻塞 worker 或释放仍被使用的缓冲。
 
 Host 退出前请求立即保存并有界等待；失败返回非零进程状态，不伪造 dirty 清除。板端由运行时线程使用 hmi_board_nvm_flush 和 hmi_board_nvm_barrier；升级激活前等待此门禁。

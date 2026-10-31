@@ -43,6 +43,8 @@ static int run(void *ctx)
             result = hmi_slots_scan(&h->slots, job.record.product_namespace, job.record.schema);
             if (result == HMI_SLOTS_OK)
                 (void)hmi_slots_active(&h->slots, &record);
+            else
+                record.sequence = h->slots.max_sequence;
         }
         else
             result = hmi_slots_commit(&h->slots, &job.record, SIZE_MAX);
@@ -87,6 +89,8 @@ hmi_host_nvm_t *hmi_host_nvm_open_profile(hmi_core_t *core, const char *path,
                           h->allocation + 3u * capacity + 2u * slot, slot) ||
         !hmi_slots_bind(&h->slots, &h->file.io))
         goto failed;
+    h->service.always_writable = profile->always_writable;
+    h->slots.force_writable = profile->always_writable;
     h->load = true;
     h->outstanding = true;
     h->job.generation = h->service.generation;

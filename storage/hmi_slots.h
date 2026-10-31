@@ -47,13 +47,18 @@ typedef struct
     const hmi_nvm_io_t *io;
     size_t seal_page;
     bool writable, degraded;
+    /* 置位后扫描结果不再决定能否提交：无有效槽时从 A 槽重新开始写，有效槽仍不被覆盖；
+       另一槽是不兼容记录时仍选用有效槽。 */
+    bool force_writable;
+    /* 最近一次扫描见到的最大有效序号（含同代次冲突）；无有效槽时为 0。 */
+    uint64_t max_sequence;
     hmi_io_result_t last_error;
 } hmi_slots_t;
 /** @brief 绑定 Host 撕裂介质模型；调用方缓冲覆盖对象生命周期。 */
 bool hmi_slots_init(hmi_slots_t *, uint8_t *, size_t, uint8_t *, size_t);
 /** @brief 绑定实际后端及双槽读缓存；槽与 seal 页必须物理隔离。 */
 bool hmi_slots_bind(hmi_slots_t *, const hmi_nvm_io_t *);
-/** @brief 只读扫描，校验所有候选与相同代次冲突；未知 schema 禁止自动覆盖。 */
+/** @brief 只读扫描，校验所有候选与相同代次冲突；未知 schema 默认禁止自动覆盖（force_writable 除外）。 */
 hmi_slots_result_t hmi_slots_scan(hmi_slots_t *, uint16_t product_namespace, uint16_t schema);
 /** @brief 失效 seal、同步读回、写 body、同步读回、写 seal、同步读回后才更新活动槽。 */
 hmi_slots_result_t hmi_slots_commit(hmi_slots_t *, const hmi_record_view_t *,

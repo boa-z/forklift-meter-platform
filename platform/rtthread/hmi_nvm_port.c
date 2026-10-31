@@ -84,6 +84,8 @@ static void worker(void *arg)
                 hmi_slots_scan(&port.slots, work.job.record.product_namespace, work.job.record.schema);
             if (result.result == HMI_SLOTS_OK)
                 (void)hmi_slots_active(&port.slots, &result.record);
+            else
+                result.record.sequence = port.slots.max_sequence;
         }
         else
             result.result = hmi_slots_commit(&port.slots, &work.job.record, SIZE_MAX);
@@ -141,6 +143,9 @@ bool hmi_board_nvm_start(hmi_core_t *core)
     if (!io || !hmi_slots_init(&port.slots, port.media, sizeof(port.media), port.scratch, sizeof(port.scratch)) ||
         !hmi_slots_bind(&port.slots, io))
         return false;
+    /* Product 声明 always_writable 时，介质状态与写失败都不让设置停在只读。 */
+    port.service.always_writable = product->storage->always_writable;
+    port.slots.force_writable = product->storage->always_writable;
     if (rt_mq_init(&port.requests, "nvm_req", port.request_pool, sizeof(work_t), sizeof(port.request_pool),
                    RT_IPC_FLAG_FIFO) != RT_EOK ||
         rt_mq_init(&port.results, "nvm_done", port.result_pool, sizeof(result_t), sizeof(port.result_pool),

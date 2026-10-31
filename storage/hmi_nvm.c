@@ -51,7 +51,7 @@ bool hmi_nvm_loaded(hmi_nvm_service_t *s, uint32_t generation, hmi_slots_result_
         result = HMI_SLOTS_INCOMPATIBLE;
     s->last_result = result;
     s->state = load_state(result);
-    s->writable = result == HMI_SLOTS_OK || result == HMI_SLOTS_EMPTY;
+    s->writable = s->always_writable || result == HMI_SLOTS_OK || result == HMI_SLOTS_EMPTY;
     if (result == HMI_SLOTS_OK)
     {
         memcpy(s->pending, r->payload, r->payload_size);
@@ -59,6 +59,12 @@ bool hmi_nvm_loaded(hmi_nvm_service_t *s, uint32_t generation, hmi_slots_result_
         s->ram_revision = r->sequence;
         s->durable_revision = r->sequence;
         s->observed = true;
+    }
+    else if (s->always_writable && r && r->sequence != UINT64_MAX)
+    {
+        /* 介质上有用不了的记录（payload 不兼容、同代次冲突）：从见到的最大序号往后编，
+           替代记录才会在下次扫描时被选中。 */
+        s->ram_revision = r->sequence;
     }
     return true;
 }
@@ -98,10 +104,13 @@ void hmi_nvm_request_save(hmi_nvm_service_t *s)
 }
 bool hmi_nvm_take(hmi_nvm_service_t *s, uint32_t now, hmi_nvm_job_t *job)
 {
+    /* always_writable 下失败后的状态（FAILED/UNCERTAIN）留给诊断，不挡下一次提交。 */
     if (!s || !job || !s->dirty || s->busy || !s->writable || s->state == HMI_NVM_CANCELLED ||
         (!s->immediate && (uint32_t)(now - s->last_change_ms) < s->debounce_ms &&
-         (uint32_t)(now - s->first_dirty_ms) < s->max_delay_ms))
+         (uint32_t)(now - s->first_dirty_ms) < s->max_delay_ms) ||
+        (s->backoff && (uint32_t)(now - s->take_ms) < s->debounce_ms))
         return false;
+    s->take_ms = now;
     memcpy(s->inflight, s->pending, s->pending_size);
     s->inflight_revision = s->ram_revision;
     s->busy = true;
@@ -120,6 +129,7 @@ bool hmi_nvm_complete(hmi_nvm_service_t *s, uint32_t generation, uint64_t revisi
         return false;
     s->busy = false;
     s->last_result = result;
+    s->backoff = s->always_writable && result != HMI_SLOTS_OK;
     if (result == HMI_SLOTS_OK)
     {
         s->durable_revision = revision;
@@ -128,7 +138,7 @@ bool hmi_nvm_complete(hmi_nvm_service_t *s, uint32_t generation, uint64_t revisi
     }
     else
     {
-        s->writable = false;
+        s->writable = s->always_writable;
         s->state = result == HMI_SLOTS_WRITE_INTERRUPTED ? HMI_NVM_UNCERTAIN : HMI_NVM_FAILED;
     }
     return true;
@@ -140,7 +150,7 @@ bool hmi_nvm_reconcile(hmi_nvm_service_t *s, hmi_slots_result_t result, const hm
     if (result == HMI_SLOTS_OK && !identity(s, r))
         result = HMI_SLOTS_INCOMPATIBLE;
     s->last_result = result;
-    s->writable = result == HMI_SLOTS_OK || result == HMI_SLOTS_EMPTY;
+    s->writable = s->always_writable || result == HMI_SLOTS_OK || result == HMI_SLOTS_EMPTY;
     if (!s->writable)
     {
         s->state = load_state(result);

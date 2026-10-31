@@ -38,8 +38,9 @@ hmi_slots_result_t hmi_slots_scan(hmi_slots_t *s, uint16_t ns, uint16_t schema)
     if (!s || !s->media || !ns || !schema)
         return HMI_SLOTS_INVALID;
     s->has_active = false;
-    s->writable = false;
+    s->writable = s->force_writable;
     s->degraded = false;
+    s->max_sequence = 0u;
     if (s->io)
     {
         s->last_error = s->io->read(s->io->context, 0u, s->media, s->media_size);
@@ -69,6 +70,8 @@ hmi_slots_result_t hmi_slots_scan(hmi_slots_t *s, uint16_t ns, uint16_t schema)
         if (memcmp(p + seal, p + s->slot_size - s->seal_page, HMI_RECORD_TRAILER_SIZE))
             continue;
         ++valid;
+        if (v.sequence > s->max_sequence)
+            s->max_sequence = v.sequence;
         if (s->has_active && v.sequence == s->active.sequence &&
             (v.type != s->active.type || v.payload_size != s->active.payload_size ||
              memcmp(v.payload, s->active.payload, v.payload_size)))
@@ -83,13 +86,14 @@ hmi_slots_result_t hmi_slots_scan(hmi_slots_t *s, uint16_t ns, uint16_t schema)
             s->active_slot = i;
         }
     }
-    if (incompatible)
+    /* 默认口径：只要有一槽不兼容就整体不兼容；force_writable 下有效槽优先，替代记录写完即可读回。 */
+    if (incompatible && !(s->force_writable && s->has_active))
     {
         s->has_active = false;
         return HMI_SLOTS_INCOMPATIBLE;
     }
     s->degraded = valid == 1u && empty == 0u;
-    s->writable = s->has_active || empty == 2u;
+    s->writable = s->force_writable || s->has_active || empty == 2u;
     return s->has_active ? HMI_SLOTS_OK : (empty == 2u ? HMI_SLOTS_EMPTY : HMI_SLOTS_NO_VALID_SLOT);
 }
 static bool write_part(hmi_slots_t *s, size_t offset, const uint8_t *p, size_t n, size_t *remaining)
@@ -127,10 +131,13 @@ static bool verify_part(hmi_slots_t *s, size_t offset, const uint8_t *p, size_t 
 }
 hmi_slots_result_t hmi_slots_commit(hmi_slots_t *s, const hmi_record_view_t *record, size_t budget)
 {
+    /* force_writable 下活动槽的身份不同也照样写替代记录；序号仍须递增，扫描才能选出新记录。 */
     if (!s || !record || !s->writable || record->sequence == 0u ||
         (s->has_active &&
-         (record->sequence <= s->active.sequence || record->type != s->active.type ||
-          record->product_namespace != s->active.product_namespace || record->schema != s->active.schema)))
+         (record->sequence <= s->active.sequence ||
+          (!s->force_writable &&
+           (record->type != s->active.type || record->product_namespace != s->active.product_namespace ||
+            record->schema != s->active.schema)))))
         return HMI_SLOTS_INVALID;
     size_t n = 0u;
     if (hmi_record_encode(record, s->scratch, s->scratch_size, &n) != HMI_RECORD_RESULT_OK ||
@@ -150,14 +157,14 @@ hmi_slots_result_t hmi_slots_commit(hmi_slots_t *s, const hmi_record_view_t *rec
         !verify_part(s, seal_offset, s->scratch + n - HMI_RECORD_TRAILER_SIZE, HMI_RECORD_TRAILER_SIZE))
     {
         /* 进入写阶段后结果不确定；必须重新扫描，不能凭 RAM 缓存继续下一次提交。 */
-        s->writable = false;
+        s->writable = s->force_writable;
         return HMI_SLOTS_WRITE_INTERRUPTED;
     }
     hmi_record_view_t verified;
     if (hmi_record_decode(s->media + offset, n, record->product_namespace, record->schema, &verified) !=
         HMI_RECORD_RESULT_OK)
     {
-        s->writable = false;
+        s->writable = s->force_writable;
         return HMI_SLOTS_WRITE_INTERRUPTED;
     }
     s->has_active = true;

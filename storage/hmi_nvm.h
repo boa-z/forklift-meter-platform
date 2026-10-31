@@ -35,11 +35,15 @@ typedef struct
     hmi_nvm_state_t state;
     hmi_slots_result_t last_result;
     bool dirty, busy, writable, immediate, observed;
+    /* 置位后加载、协调与提交失败都不清 writable；失败的提交保留 dirty，隔 debounce_ms 后再写。 */
+    bool always_writable, backoff;
+    uint32_t take_ms;
 } hmi_nvm_service_t;
 /** @brief 初始化 App 状态与两个产品容量缓冲；不分配、不访问介质。 */
 bool hmi_nvm_init(hmi_nvm_service_t *, uint8_t *, uint8_t *, size_t, uint16_t type,
                     uint16_t product_namespace, uint16_t schema, uint32_t debounce_ms, uint32_t max_delay_ms);
-/** @brief 只接纳同 generation 且 RAM 未修改的启动结果；payload 已由 App 完整验证。 */
+/** @brief 只接纳同 generation 且 RAM 未修改的启动结果；payload 已由 App 完整验证。
+    always_writable 时结果不是 OK 也可传入只带 sequence 的记录，作为后续提交的序号起点。 */
 bool hmi_nvm_loaded(hmi_nvm_service_t *, uint32_t generation, hmi_slots_result_t,
                       const hmi_record_view_t *);
 /** @brief 接纳 App 完整偏好副本；内容不变不增版，连续变化也受最大延迟限制。 */

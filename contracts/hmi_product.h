@@ -38,12 +38,16 @@ typedef struct
     /** @brief 可选只读升级展示，由 UI 线程调用，不触发下载或激活。 */
     void (*present_update)(void *ui, const hmi_update_view_t *view, hmi_language_t language);
 } hmi_ui_factory_t;
-/** @brief Product 本机设置记录策略；未绑定或 enabled=false 时平台不启用持久化。 */
+/** @brief Product 本机设置记录策略；未绑定或 enabled=false 时平台不启用持久化。
+    always_writable=true 时介质状态不阻止保存：读不出有效记录（损坏、不兼容、读错误）就用当前设置覆盖，
+    写失败后下一轮重扫再写，不停在只读状态。代价是不兼容的旧记录会被覆盖，总线长期不通时会持续重试。
+    默认 false 保持“未知内容不覆盖、失败后需显式重试”的保守口径。 */
 typedef struct
 {
     bool enabled;
     uint16_t record_type, product_namespace, schema;
     uint32_t debounce_ms, max_delay_ms;
+    bool always_writable;
 } hmi_storage_profile_t;
 /**
  * @brief 一个构建目标唯一的 Product 描述。
