@@ -36,11 +36,11 @@ enum
     BACKLIGHT_RETRY_MS = 1000
 };
 static bool retry_pending;
-static uint8_t applied_brightness, requested_brightness;
+static uint8_t applied_brightness = UINT8_MAX, requested_brightness;
 static uint32_t retry_at;
 bool hmi_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
 {
-    if (brightness < 10u || brightness > 100u)
+    if (brightness > 100u)
         return false;
     if (brightness == applied_brightness && !retry_pending)
         return true;
@@ -80,7 +80,8 @@ bool hmi_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
 bool hmi_board_backlight_apply(uint8_t brightness, uint32_t now_ms)
 {
     /* 背光由 SDK 默认值或 Product 自己负责；设置值仍照常保存。 */
+    (void)brightness;
     (void)now_ms;
-    return brightness >= 10u && brightness <= 100u;
+    return true;
 }
 #endif

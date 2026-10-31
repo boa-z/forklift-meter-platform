@@ -1,5 +1,6 @@
 #include "platform/rtthread/hmi_nvm_port.h"
 #include "contracts/hmi_product.h"
+#include "platform/rtthread/hmi_board_port.h"
 #include "platform/rtthread/hmi_eeprom_i2c.h"
 #include "platform/rtthread/hmi_execution_port.h"
 #include "storage/hmi_file.h"
@@ -169,16 +170,18 @@ bool hmi_board_nvm_changed(uint32_t now)
            hmi_nvm_observe(&port.service, port.encoded, size, now);
 }
 /* MSH 维护请求：只在运行时线程里执行，与正常保存走同一服务。 */
-static void maintenance_requests(void)
+static void maintenance_requests(uint32_t now)
 {
     if (port.save_requested)
     {
         port.save_requested = false;
+        (void)hmi_board_nvm_changed(now);
         hmi_nvm_request_save(&port.service);
     }
     if (port.retry_requested && !port.outstanding)
     {
         port.retry_requested = false;
+        (void)hmi_board_nvm_changed(now);
         port.retry = true;
     }
     if (port.initialize_requested && !port.outstanding)
@@ -186,12 +189,13 @@ static void maintenance_requests(void)
         port.initialize_requested = false;
         if (port.service.state == HMI_NVM_CORRUPT || port.service.state == HMI_NVM_INCOMPATIBLE)
         {
+            (void)hmi_board_nvm_changed(now);
             port.initialize = true;
             port.retry = true;
         }
     }
 }
-static void handle(const result_t *result, uint32_t now)
+static void handle(const result_t *result)
 {
     if (result->scan)
     {
@@ -209,7 +213,6 @@ static void handle(const result_t *result, uint32_t now)
                 code = HMI_SLOTS_INCOMPATIBLE;
             (void)hmi_nvm_loaded(&port.service, result->generation, code, &result->record);
             port.loaded = true;
-            (void)hmi_board_nvm_changed(now);
         }
         else
             (void)hmi_nvm_reconcile(&port.service, result->result, &result->record);
@@ -230,12 +233,12 @@ void hmi_board_nvm_poll(uint32_t now, hmi_diag_storage_t *status)
     if (!port.started)
         return;
     if (port.loaded)
-        maintenance_requests();
+        maintenance_requests(now);
     result_t result;
     if (rt_mq_recv(&port.results, &result, sizeof(result), 0) == RT_EOK)
     {
         port.outstanding = false;
-        handle(&result, now);
+        handle(&result);
     }
     if (!port.outstanding && port.retry)
     {
@@ -276,6 +279,7 @@ uint64_t hmi_board_nvm_flush(void)
 {
     if (!port.started || !port.loaded)
         return 0u;
+    (void)hmi_board_nvm_changed(hmi_board_now_ms());
     hmi_nvm_request_save(&port.service);
     return port.service.ram_revision;
 }

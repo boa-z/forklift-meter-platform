@@ -22,6 +22,12 @@ startup; false aborts startup. Products without these needs leave the callbacks 
 UI host runner and the headless protocol runner follow this ordering; `--catalog` prepares settings
 and catalog data without starting device services.
 
+Product settings own defaults, valid ranges, repair of stored values and runtime effects. Core copies
+the settings returned by `prepare()` without repeating those rules; catalog and storage-capacity checks
+still apply. A Product with its own settings store leaves `storage` unset and disables
+`AIC_HMI_BACKLIGHT` when it controls the backlight. The Framework still latches the configured CAN
+rate before opening buses and checks device operations.
+
 Startup callbacks do not access LVGL and must not be called again from the first protocol frame,
 tick or page creation. `hmi_firmware_compose()` only composes storage and `locale_init()` only
 registers language resources. Neither restores settings or starts business services. Synthetic host

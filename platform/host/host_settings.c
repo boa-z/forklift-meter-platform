@@ -137,7 +137,6 @@ void hmi_host_nvm_poll(hmi_host_nvm_t *h, uint32_t now)
                      : hmi_settings_decode(h->core, record.payload, record.payload_size))))
                 result = HMI_SLOTS_INCOMPATIBLE;
             (void)hmi_nvm_loaded(&h->service, completed.generation, result, &record);
-            (void)hmi_host_nvm_changed(h, now);
         }
         else
             (void)hmi_nvm_complete(&h->service, completed.generation, completed.revision, result);
@@ -161,6 +160,7 @@ bool hmi_host_nvm_close(hmi_host_nvm_t *h, uint32_t timeout)
 {
     if (!h)
         return true;
+    (void)hmi_host_nvm_changed(h, SDL_GetTicks());
     hmi_nvm_request_save(&h->service);
     const uint32_t start = SDL_GetTicks();
     while (h->outstanding || h->service.dirty)

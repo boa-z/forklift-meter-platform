@@ -42,7 +42,7 @@ AIC_HMI_NVM_FILE_BACKEND 显式选择已挂载文件后端，AIC_HMI_NVM_FILE_PR
 
 ## 结果与生命周期
 
-LOADING 为异步启动操作。App 接收匹配 generation 后才允许设置动作。空白偏好区允许默认值通过普通可靠流程初始化。损坏或不兼容记录仍可使用 RAM 默认设置，但阻止写入；查询不初始化介质。
+LOADING 为异步启动操作。App 接收匹配 generation 后才允许设置动作。加载完成本身不观察或回写 RAM 默认值，后续设置变化的观察或显式保存才进入普通可靠保存流程。损坏或不兼容记录仍可使用 RAM 默认设置，但阻止写入；查询不初始化介质。自有设置存储的 Product 不绑定 Framework 存储策略。
 
 IN_PROGRESS 独占在途版本，直到匹配结果到达。保存 R11 时 App 已到 R12，R11 完成只推进 durable 到 R11，R12 仍 dirty。进入 I/O 后失败为 UNCERTAIN，保留 dirty，显式重扫协调后才能重试。协调不把旧介质值覆盖到新 RAM。barrier 针对明确目标版本，完整替代的更高版本可以满足目标，但不声称中间值精确写过。启动有效记录可满足对应 barrier。只支持 worker 派发前取消，不因超时删除阻塞 worker 或释放仍被使用的缓冲。
 

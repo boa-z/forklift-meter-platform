@@ -20,6 +20,11 @@ Product 可以提供两个可选启动回调：`prepare()` 在 Core 初始化之
 返回 false 会终止启动。没有这些需求的 Product 留空即可。固件、UI 主机运行器与无界面的协议运行器
 均遵守此顺序；协议运行器的 `--catalog` 只准备目录与设置，不启动设备服务。
 
+Product 设置负责默认值、合法范围、存储值修复和运行时效果。Core 直接复制 `prepare()` 提供的设置，
+不重复这些规则；目录与存储容量检查继续保留。自有设置存储的 Product 不绑定 `storage`，
+自行控制背光时关闭 `AIC_HMI_BACKLIGHT`。Framework 仍在打开总线前锁存配置的 CAN 速率，
+并检查设备操作结果。
+
 启动回调不访问 LVGL，也不在协议首帧、首个 tick 或页面创建时补调用。
 `hmi_firmware_compose()` 只装配存储，`locale_init()` 只注册语言资源；二者不承担设置恢复和业务启动。
 UI 主机的合成数据源在 start 之后才推进。Product 自己启动的硬件 worker 必须遵守自己的状态同步边界。

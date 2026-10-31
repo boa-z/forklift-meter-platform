@@ -21,7 +21,7 @@ typedef struct
  * 此时既不写 core 也不写 storage。仅在启动阶段调用一次，不阻塞、不持锁。
  */
 bool hmi_core_init(hmi_core_t *core, const hmi_catalog_t *catalog, const hmi_core_storage_t *storage);
-/** @brief 启动前验证 Product 默认设置；失败不改写 core/存储，NULL 保留兼容默认。 */
+/** @brief 绑定目录与存储后复制 Product 已确认的启动设置；NULL 保留兼容默认。 */
 bool hmi_core_init_with_settings(hmi_core_t *core, const hmi_catalog_t *catalog,
                                   const hmi_core_storage_t *storage,
                                   const hmi_initial_settings_t *settings);

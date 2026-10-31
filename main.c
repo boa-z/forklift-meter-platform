@@ -39,7 +39,7 @@ static void present_tick(lv_timer_t *timer)
     hmi_update_view_t update;
     if (hmi_execution_present(&app.snapshot, &app.composition.ui, &update, &normal))
     {
-        /* 语言只有一个来源：持久化的快照。UI 与升级页都在这之后才取词，已绑定的标签随之刷新。 */
+        /* 按 Product 发布的当前显示语言同步翻译服务，已绑定的标签随之刷新。 */
         (void)hmi_i18n_set_language(app.snapshot.language);
         if (app.product->ui->present_update)
             app.product->ui->present_update(app.ui, &update, app.snapshot.language);
@@ -102,9 +102,6 @@ static void hmi_gui_start(void)
         hmi_board_display_close(&ui_diagnostics);
         return;
     }
-    if (hmi_i18n_language_count() < hmi_catalog_language_count(product->catalog))
-        LOG_E("catalog accepts %u languages, Product registered %u", hmi_catalog_language_count(product->catalog),
-              (unsigned)hmi_i18n_language_count());
     LOG_I("product=%s; UI running in the LVGL thread", product->id);
     app.ui_start = hmi_board_now_ms();
     ui_diagnostics.data.ui.available = true;

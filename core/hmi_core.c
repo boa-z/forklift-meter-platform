@@ -85,10 +85,6 @@ bool hmi_core_init_with_settings(hmi_core_t *core, const hmi_catalog_t *catalog,
                                   const hmi_core_storage_t *storage,
                                   const hmi_initial_settings_t *settings)
 {
-    if (settings && ((unsigned)settings->language >= hmi_catalog_language_count(catalog) ||
-                     (unsigned)settings->can_rate > HMI_CAN_RATE_500K || settings->brightness < 10u ||
-                     settings->brightness > 100u))
-        return false;
     if (!hmi_core_init(core, catalog, storage))
         return false;
     if (settings)

@@ -375,8 +375,10 @@ static size_t app_step(uint32_t now)
 #ifdef HMI_ENABLE_CAN_UPDATE
     hmi_board_update_protocol();
 #endif
+#ifdef AIC_HMI_BACKLIGHT
     if (hmi_board_nvm_ready())
         (void)hmi_board_backlight_apply(core->snapshot.brightness, now);
+#endif
     /* 快照有变化才编码设置；内容与上次相同时 NVM 服务不会产生写入。 */
     if (core->snapshot.revision != observed_revision)
     {

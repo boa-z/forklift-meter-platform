@@ -80,8 +80,6 @@ int hmi_product_host(int argc, char **argv, void (*step)(hmi_runtime_t *, uint32
     hmi_ui_actions_t actions = {action,&core};
     void *ui = p->ui->create(lv_screen_active(),&actions);
     if (!ui) return 6;
-    /* 目录接受的每个语言字节都要有 Product 注册的语言，否则已存的设置会落到没有译文的编号上。 */
-    if (hmi_i18n_language_count() < hmi_catalog_language_count(c)) return 7;
     unsigned n;
     for (n=0; (!frames || n<frames) && hmi_host_events(); ++n)
     {
