@@ -1,0 +1,101 @@
+# Product API 文档的公共 Doxygen 配置。Product 的 docs/api/Doxyfile 只写自己的 INPUT、
+# 排除项与首页，并以 tools/doxygen/generate.py 生成；这里不放任何产品内容。
+# 输出、日志与 Graphviz 位置由 generate.py 追加，相对路径都以 Product 根目录为基准。
+DOXYFILE_ENCODING      = UTF-8
+INPUT_ENCODING         = UTF-8
+OUTPUT_LANGUAGE        = Chinese
+
+# 源码只有 C；按 C 组织结构体、枚举与全局函数页面。
+OPTIMIZE_OUTPUT_FOR_C  = YES
+MARKDOWN_SUPPORT       = YES
+# 标题锚点按 GitHub 规则生成，Markdown 中 `文件.md#中文标题` 的链接在 HTML 中也能跳转。
+MARKDOWN_ID_STYLE      = GITHUB
+AUTOLINK_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 3
+
+# 头文件已有注释即接口说明，首句自动作为摘要；未写注释的声明也列出，便于从文件页查到。
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = NO
+MULTILINE_CPP_IS_BRIEF = NO
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+HIDE_UNDOC_MEMBERS     = NO
+INLINE_SOURCES         = NO
+SOURCE_BROWSER         = YES
+VERBATIM_HEADERS       = YES
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
+SORT_MEMBER_DOCS       = NO
+SHOW_INCLUDE_FILES     = YES
+SHOW_USED_FILES        = YES
+FULL_PATH_NAMES        = YES
+STRIP_FROM_PATH        = .
+STRIP_FROM_INC_PATH    = .
+CASE_SENSE_NAMES       = YES
+
+# 只扫描公共接口（头文件）与说明页；实现文件、测试与主机替身不生成页面。
+FILE_PATTERNS          = *.h *.md *.dox
+RECURSIVE              = YES
+EXCLUDE_SYMLINKS       = YES
+EXCLUDE_PATTERNS       = */CANopenNode/* \
+                         */third_party/* \
+                         */generated/* \
+                         */tests/*.h \
+                         */tests/*/* \
+                         */sim/* \
+                         */node_modules/* \
+                         */build/* \
+                         */lv_conf.h
+EXCLUDE_SYMBOLS        = __attribute__
+
+# 预处理只用于识别声明：packed/format 等编译器属性不影响接口说明。
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = "__attribute__(x)=" RT_USING_DEVICE=1 LV_USE_FREETYPE=1
+SEARCH_INCLUDES        = NO
+
+# 只生成可直接用浏览器打开的 HTML；不生成 LaTeX/man/RTF/XML。
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+DISABLE_INDEX          = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_DYNAMIC_SECTIONS  = NO
+HTML_CODE_FOLDING      = NO
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+GENERATE_XML           = NO
+GENERATE_DOCBOOK       = NO
+TIMESTAMP              = NO
+
+# Mermaid 只在打开 Markdown 说明页的浏览器中渲染（需联网加载 mermaid.js）；离线时显示源码。
+MERMAID_RENDER_MODE    = CLIENT_SIDE
+
+# 依赖图由 generate.py 根据是否找到 Graphviz 决定开关；只画 include 图，不画调用图。
+CLASS_GRAPH            = NO
+COLLABORATION_GRAPH    = NO
+GROUP_GRAPHS           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DIRECTORY_GRAPH        = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = NO
+DOT_GRAPH_MAX_NODES    = 40
+MAX_DOT_GRAPH_DEPTH    = 2
+
+# 警告写日志供查看，不作门禁：未写注释的声明不报警，注释错误（参数名、坏引用）报警。
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = NO
+WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = NO
